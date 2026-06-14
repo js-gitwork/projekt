@@ -1,32 +1,75 @@
-from pydantic import BaseModel
+from dataclasses import dataclass, field
 from typing import List, Optional
-from datetime import date, timedelta
-import json
+from datetime import date
 
-class FeriePeriode(BaseModel):
-    start: date      # f.eks. date(2026, 7, 13)
-    slut: date       # f.eks. date(2026, 8, 3)
-    beskrivelse: str = "Ferie"
 
-class Hold(BaseModel):
-    id: int
+# =========================
+# 1. AKTIVITETSTYPER (proces-flow)
+# =========================
+class Aktivitetstype:
+    FORARBEJDE = "forarbejde"
+    HOVEDLEDNING = "hovedledning"
+    STIK_FORBEREDELSE = "stikforberedelse"
+    STIK = "stik"
+    KONTROL = "kontrol"
+    KORTHAT = "korthat"
+    BRØND = "brønd"
+
+
+# =========================
+# 2. FAST PROCESFLOW
+# =========================
+PROCESS_FLOW = [
+    Aktivitetstype.FORARBEJDE,
+    Aktivitetstype.HOVEDLEDNING,
+    Aktivitetstype.STIK_FORBEREDELSE,
+    Aktivitetstype.STIK,
+    Aktivitetstype.KONTROL,
+    Aktivitetstype.KORTHAT,
+    Aktivitetstype.BRØND,
+]
+
+
+# =========================
+# 3. AKTIVITET (kerneenhed)
+# =========================
+@dataclass
+class Aktivitet:
+    id: str
+    type: str
+
+    hold: str  # hold-id eller navn (kan senere normaliseres til ID)
+
+    installation_id: str
+
+    varighed_dage: float = 1.0
+
+    afhænger_af: List[str] = field(default_factory=list)
+
+    status: str = "planlagt"
+
+    start_dato: Optional[date] = None
+    slut_dato: Optional[date] = None
+
+
+# =========================
+# 4. INSTALLATION (arbejdssektion)
+# =========================
+@dataclass
+class Installation:
+    id: str
+    projekt_id: str
+    rækkefølge: int
+
+    aktiviteter: List[Aktivitet] = field(default_factory=list)
+
+
+# =========================
+# 5. PROJEKT (topniveau)
+# =========================
+@dataclass
+class Projekt:
+    id: str
     navn: str
-    kapacitet_pr_dag: float  # f.eks. 30 (TV-hold)
-    arbejdsdage: List[str] = ["man", "tir", "ons", "tor", "fre"]  # Mulige: ["man", "tir", "ons", "tor", "fre", "lør", "søn"]
-    daglig_arbejdstid: float = 8.0  # Timer pr. dag (f.eks. 7.5 for tidlig fri)
-    ferieperioder: List[FeriePeriode] = []
-    specifikke_helligdage: List[date] = []  # Hold-specifikke helligdage
 
-    def arbejder_paa_dato(self, dato: date, globale_helligdage: List[date]) -> bool:
-        """Check om holdet arbejder på en given dato"""
-        # 1. Check globale + specifikke helligdage
-        if dato in globale_helligdage or dato in self.specifikke_helligdage:
-            return False
-        # 2. Check ferieperioder
-        for ferie in self.ferieperioder:
-            if ferie.start <= dato <= ferie.slut:
-                return False
-        # 3. Check ugedag
-        ugedag = dato.strftime("%a").lower()  # "mon", "tue", etc.
-        da_til_en = {"man": "mon", "tir": "tue", "ons": "wed", "tor": "thu", "fre": "fri", "lør": "sat", "søn": "sun"}
-        return da_til_en.get(ugedag, ugedag) in [da_til_en[d] for d in self.arbejdsdage]
+    installationer: List[Installation] = field(default_factory=list)
