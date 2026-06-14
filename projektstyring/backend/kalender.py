@@ -1,20 +1,35 @@
 from datetime import date, timedelta
 from typing import List
 
-def beregn_arbejdsdage(
-    start_dato: date,
-    varighed_dage: float,
-    hold: Hold,
-    globale_helligdage: List[date]
-) -> date:
-    """Beregn slutdatoen for en opgave med hensyn til holdets arbejdsdage, ferie og helligdage."""
-    arbejdsdage_tæller = 0
-    current_dato = start_dato
-    target_dage = varighed_dage
 
-    while arbejdsdage_tæller < target_dage:
-        if hold.arbejder_paa_dato(current_dato, globale_helligdage):
-            arbejdsdage_tæller += 1
-        current_dato += timedelta(days=1)
+def er_arbejdsdag(dato: date, hold, helligdage: List[date]) -> bool:
+    if dato in helligdage:
+        return False
 
-    return current_dato - timedelta(days=1)  # Slutdatoen
+    for ferie in getattr(hold, "ferieperioder", []):
+        if ferie.start <= dato <= ferie.slut:
+            return False
+
+    weekday_map = {
+        0: "man",
+        1: "tir",
+        2: "ons",
+        3: "tor",
+        4: "fre",
+        5: "lør",
+        6: "søn",
+    }
+
+    return weekday_map[dato.weekday()] in hold.arbejdsdage
+
+
+def beregn_slutdato(start: date, varighed: float, hold, helligdage: List[date]) -> date:
+    dage = 0
+    current = start
+
+    while dage < varighed:
+        if er_arbejdsdag(current, hold, helligdage):
+            dage += 1
+        current += timedelta(days=1)
+
+    return current - timedelta(days=1)
