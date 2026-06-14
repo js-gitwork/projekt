@@ -4,7 +4,7 @@ from datetime import date
 
 
 # =========================
-# 1. AKTIVITETSTYPER (proces-flow)
+# 1. WORKFLOW FASER
 # =========================
 class Aktivitetstype:
     FORARBEJDE = "forarbejde"
@@ -16,9 +16,6 @@ class Aktivitetstype:
     BRØND = "brønd"
 
 
-# =========================
-# 2. FAST PROCESFLOW
-# =========================
 PROCESS_FLOW = [
     Aktivitetstype.FORARBEJDE,
     Aktivitetstype.HOVEDLEDNING,
@@ -31,32 +28,39 @@ PROCESS_FLOW = [
 
 
 # =========================
-# 3. AKTIVITET (kerneenhed)
+# 2. AKTIVITET (WORK UNIT BASERET)
 # =========================
 @dataclass
 class Aktivitet:
+
     id: str
-    type: str
-
-    hold: str  # hold-id eller navn (kan senere normaliseres til ID)
-
     installation_id: str
 
-    varighed_dage: float = 1.0
+    # workflow
+    type: str
+    hold: str
 
+    # PRODUKTIONSDATA (vigtigt for capacity engine)
+    antal_stik: int = 0
+    antal_brønde: int = 0
+
+    # afhængigheder (senere workflow engine)
     afhænger_af: List[str] = field(default_factory=list)
 
-    status: str = "planlagt"
-
+    # plan (fyldes af engine)
     start_dato: Optional[date] = None
     slut_dato: Optional[date] = None
 
+    # intern status
+    status: str = "planlagt"
+
 
 # =========================
-# 4. INSTALLATION (arbejdssektion)
+# 3. INSTALLATION
 # =========================
 @dataclass
 class Installation:
+
     id: str
     projekt_id: str
     rækkefølge: int
@@ -65,10 +69,11 @@ class Installation:
 
 
 # =========================
-# 5. PROJEKT (topniveau)
+# 4. PROJEKT
 # =========================
 @dataclass
 class Projekt:
+
     id: str
     navn: str
 
