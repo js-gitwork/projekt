@@ -17,6 +17,18 @@
       "zone": "A",
       "navn": "Afspærring A - restarbejde efter ferie",
       "start_dato": "2026-08-03",
+      "slut_dato": "2026-08-14"
+    },
+    {
+      "zone": "B",
+      "navn": "Afspærring B - restarbejde efter ferie",
+      "start_dato": "2026-08-17",
+      "slut_dato": "2026-08-21"
+    },
+    {
+      "zone": "A",
+      "navn": "Afspærring A - afsluttende restarbejde",
+      "start_dato": "2026-08-24",
       "slut_dato": null
     }
   ]

@@ -1,7 +1,9 @@
-from datetime import date, timedelta
-from projektstyring.backend.deadline_checker import DeadlineChecker
+from datetime import date
+
 from projektstyring.backend.models import Installation, Aktivitet, Aktivitetstype
 from projektstyring.backend.multi_schedule_engine import MultiScheduleEngine
+from projektstyring.backend.zone_checker import ZoneChecker
+from projektstyring.backend.zone_sequence import ZoneSequence
 
 
 class Hold:
@@ -101,20 +103,24 @@ installationer = [
     for hd, inst, stik in herslev_data
 ]
 
+
+zone_checker = ZoneChecker("projektstyring/data/projects/V165460_zoner.json")
+
+zone_sequence = ZoneSequence(
+    "projektstyring/data/projects/V165460_zone_sequence.json",
+    zone_checker
+)
+
+
 engine = MultiScheduleEngine(
     hold_map=hold_map,
     globale_helligdage=[],
     ferieperioder=[
-        (date(2026,7,13), date(2026,8,2))
-    ]
+        (date(2026, 7, 13), date(2026, 8, 2))
+    ],
+    zone_sequence=zone_sequence
 )
+
 
 plan = engine.planlæg(installationer)
 engine.print_plan(plan)
-
-checker = DeadlineChecker(
-    projekt_deadline=date(2026, 8, 14)
-)
-
-result = checker.check_project_deadline(plan)
-checker.print_result(result)
