@@ -1,0 +1,23 @@
+{
+  "projekt_id": "V165460",
+  "sequence": [
+    {
+      "zone": "A",
+      "navn": "Afspærring A - første gennemløb",
+      "start_dato": "2026-06-29",
+      "slut_dato": "2026-07-07"
+    },
+    {
+      "zone": "B",
+      "navn": "Afspærring B - før ferie",
+      "start_dato": "2026-07-08",
+      "slut_dato": "2026-07-12"
+    },
+    {
+      "zone": "A",
+      "navn": "Afspærring A - restarbejde efter ferie",
+      "start_dato": "2026-08-03",
+      "slut_dato": null
+    }
+  ]
+}
