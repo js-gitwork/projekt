@@ -1,0 +1,25 @@
+{
+  "projekt_id": "V165460",
+  "zoner": [
+    {
+      "id": "A",
+      "navn": "Afspærring A",
+      "installationer": ["5", "6", "7", "8", "9", "10", "11", "12", "18", "19"],
+      "start_dato": "2026-06-29",
+      "slut_dato": "2026-07-09",
+      "presniveau": "kritisk",
+      "raadighedstilladelse_dage_foer": 28,
+      "beboervarsling_timer_foer": 48
+    },
+    {
+      "id": "B",
+      "navn": "Afspærring B",
+      "installationer": ["13", "14", "15", "16"],
+      "start_dato": "2026-07-08",
+      "slut_dato": "2026-07-09",
+      "presniveau": "høj",
+      "raadighedstilladelse_dage_foer": 28,
+      "beboervarsling_timer_foer": 48
+    }
+  ]
+}
