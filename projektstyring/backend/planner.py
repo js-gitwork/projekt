@@ -7,13 +7,13 @@ from .models import Aktivitet, Installation, Aktivitetstype, PROCESS_FLOW
 # =========================
 # Her kan vi senere koble database / konfiguration på
 DEFAULT_HOLD_MAP = {
-    Aktivitetstype.FORARBEJDE: "tv_cutter",
-    Aktivitetstype.HOVEDLEDNING: "hoved_stramforing",
-    Aktivitetstype.STIK_FORBEREDELSE: "tv_stik",
-    Aktivitetstype.STIK: "langhat",
-    Aktivitetstype.KONTROL: "tv_kontrol",
-    Aktivitetstype.KORTHAT: "korthat_hold",
-    Aktivitetstype.BRØND: "brøndhold",
+    Aktivitetstype.FORARBEJDE: "TV6",
+    Aktivitetstype.HOVEDLEDNING: "FILT",
+    Aktivitetstype.STIK_FORBEREDELSE: "TV22",
+    Aktivitetstype.STIK: "STIK2",
+    Aktivitetstype.KONTROL: "TV22",
+    Aktivitetstype.KORTHAT: "HAT3",
+    Aktivitetstype.BRØND: "BRØND3",
 }
 
 
@@ -45,10 +45,9 @@ def generer_aktiviteter(installation: Installation) -> Installation:
 
         aktivitet = Aktivitet(
             id=f"{installation.id}_{type_}",
+            installation_id=installation.id,
             type=type_,
             hold=DEFAULT_HOLD_MAP.get(type_, "ukendt"),
-            installation_id=installation.id,
-            varighed_dage=DEFAULT_VARIGHED.get(type_, 1.0),
         )
 
         # afhængighed = forrige step

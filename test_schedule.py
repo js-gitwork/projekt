@@ -19,13 +19,12 @@ class Hold:
 # HOLD MAP
 # -------------------------
 hold_map = {
-    "tv_cutter": Hold("TV Cutter", ["man", "tir", "ons", "tor", "fre"]),
-    "hoved_stramforing": Hold("Hovedledning", ["man", "tir", "ons", "tor", "fre"]),
-    "tv_stik": Hold("Stik TV", ["man", "tir", "ons", "tor", "fre"]),
-    "langhat": Hold("Langhat", ["man", "tir", "ons", "tor", "fre"]),
-    "tv_kontrol": Hold("Kontrol TV", ["man", "tir", "ons", "tor", "fre"]),
-    "korthat_hold": Hold("Korthat", ["man", "tir", "ons", "tor", "fre"]),
-    "brøndhold": Hold("Brønd", ["man", "tir", "ons", "tor", "fre"]),
+    "FILT": Hold("Filt", ["man", "tir", "ons", "tor", "fre"]),
+    "TV6": Hold("TV6", ["man", "tir", "ons", "tor"]),
+    "TV22": Hold("TV22", ["man", "tir", "ons", "tor"]),
+    "STIK2": Hold("Stik2", ["man", "tir", "ons", "tor"]),
+    "HAT3": Hold("Hat3", ["man", "tir", "ons", "tor"]),
+    "BRØND3": Hold("Brønd3", ["man", "tir", "ons", "tor"]),
 }
 
 
@@ -42,7 +41,9 @@ inst = Installation(
 inst = generer_aktiviteter(inst)
 
 # 2. Schedule engine
-engine = ScheduleEngine(globale_helligdage=[])
+engine = ScheduleEngine(
+    globale_helligdage=[],
+    hold_map=hold_map)
 
 inst = engine.planlæg_installation(
     installation=inst,

@@ -2,6 +2,7 @@ from datetime import date, timedelta
 from typing import List
 
 from .models import Installation, Aktivitet
+from .capacity_engine import CapacityEngine
 from .kalender import beregn_slutdato
 
 
@@ -10,8 +11,11 @@ from .kalender import beregn_slutdato
 # =========================
 class ScheduleEngine:
 
-    def __init__(self, globale_helligdage: List[date]):
+    def __init__(self, globale_helligdage: List[date], hold_map: dict):
         self.globale_helligdage = globale_helligdage
+
+        # capacity layer
+        self.capacity = CapacityEngine(hold_map)
 
 
     # =========================
@@ -31,28 +35,40 @@ class ScheduleEngine:
             if hold is None:
                 raise Exception(f"Ukendt hold: {aktivitet.hold}")
 
-            # Vent på afhængigheder (simpel version)
+            # -----------------------------------------
+            # afhængigheder
+            # -----------------------------------------
             if aktivitet.afhænger_af:
-                # Find seneste slutdato blandt afhængigheder
+
                 afhængighed_slut = self._find_afhængighed_slut(
                     installation.aktiviteter,
                     aktivitet.afhænger_af
                 )
+
                 if afhængighed_slut and afhængighed_slut > current_date:
                     current_date = afhængighed_slut + timedelta(days=1)
 
-            # Beregn start
+            # -----------------------------------------
+            # startdato
+            # -----------------------------------------
             aktivitet.start_dato = current_date
 
-            # Beregn slut via kalender
+            # -----------------------------------------
+            # VARIGHED fra capacity engine
+            # -----------------------------------------
+            varighed = self.capacity.beregn_varighed(aktivitet)
+
+            # -----------------------------------------
+            # slutdato via kalender
+            # -----------------------------------------
             aktivitet.slut_dato = beregn_slutdato(
                 start=current_date,
-                varighed=aktivitet.varighed_dage,
+                varighed=varighed,
                 hold=hold,
                 helligdage=self.globale_helligdage
             )
 
-            # Næste aktivitet starter dagen efter
+            # næste aktivitet
             current_date = aktivitet.slut_dato + timedelta(days=1)
 
         return installation
@@ -83,7 +99,7 @@ class ScheduleEngine:
 
         for a in installation.aktiviteter:
             print(
-                f"{a.type:20} | "
+                f"{a.type:25} | "
                 f"{a.start_dato} → {a.slut_dato} | "
                 f"hold: {a.hold}"
             )

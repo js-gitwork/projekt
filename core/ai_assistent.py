@@ -1,6 +1,10 @@
 from openai import OpenAI
 import os
 
+# ANSI-farvekoder - gør svaret tyrkis
+TYRKIS = "\033[96m"  # Tyrkis (cyan)
+RESET = "\033[0m"   # Nulstil farve
+
 # Mistral API (EU-server)
 MISTRAL_API_KEY = os.getenv("MISTRAL_API_KEY")
 client = OpenAI(
@@ -22,4 +26,5 @@ if __name__ == "__main__":
         if question.lower() in ["exit", "quit", "stop"]:
             break
         answer = ask_mistral(question)
-        print(f"\n💡 AI: {answer}\n")
+        # Farve AI-svarene tyrkis
+        print(f"\n{TYRKIS}💡 AI: {answer}{RESET}\n")
