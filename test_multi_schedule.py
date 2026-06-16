@@ -4,7 +4,8 @@ from projektstyring.backend.models import Installation, Aktivitet, Aktivitetstyp
 from projektstyring.backend.multi_schedule_engine import MultiScheduleEngine
 from projektstyring.backend.zone_checker import ZoneChecker
 from projektstyring.backend.zone_sequence import ZoneSequence
-
+from projektstyring.backend.rest_queue import aggregate_rest_work
+from projektstyring.backend.reopen_planner import ReopenPlanner
 
 class Hold:
     def __init__(self, navn, arbejdsdage, rolle="", kapacitet=0):
@@ -124,3 +125,16 @@ engine = MultiScheduleEngine(
 
 plan = engine.planlæg(installationer)
 engine.print_plan(plan)
+
+rest_queue = aggregate_rest_work(plan)
+rest_queue.print_summary()
+
+reopen_planner = ReopenPlanner(
+    stik_capacity_per_day=5,
+    brønd_capacity_per_day=6,
+)
+
+proposals = reopen_planner.create_proposals(rest_queue)
+
+for proposal in proposals:
+    proposal.print_summary()
