@@ -1,0 +1,36 @@
+{% extends "base.html" %}
+
+{% block title %}Projektstyring{% endblock %}
+
+{% block content %}
+<div class="card">
+    <div class="actions">
+        <a href="#" class="btn">Nyt projekt</a>
+    </div>
+
+    <table class="project-table">
+        <thead>
+            <tr>
+                <th>V-nummer</th>
+                <th>Projekt</th>
+                <th>Startdato</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for project in projects %}
+            <tr>
+                <td>{{ project.id }}</td>
+                <td>{{ project.name }}</td>
+                <td>{{ project.start_date }}</td>
+            </tr>
+            {% else %}
+            <tr>
+                <td colspan="3" class="empty-message">
+                    Ingen projekter fundet.
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% endblock %}
