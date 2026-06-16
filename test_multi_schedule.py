@@ -1,7 +1,6 @@
 from datetime import date
 
 from projektstyring.backend.project_diagnosis import ProjectDiagnosisBuilder
-from projektstyring.backend.models import Installation, Aktivitet, Aktivitetstype
 from projektstyring.backend.multi_schedule_engine import MultiScheduleEngine
 from projektstyring.backend.zone_checker import ZoneChecker
 from projektstyring.backend.zone_sequence import ZoneSequence
@@ -14,6 +13,7 @@ from projektstyring.backend.resource_report import ResourceReportGenerator
 from projektstyring.backend.resource_forecast import ResourceForecastGenerator
 from projektstyring.backend.hold_report import HoldReportGenerator
 from projektstyring.backend.flow_analyzer import FlowAnalyzer
+from projektstyring.backend.project_loader import load_project_installations
 
 
 class Hold:
@@ -42,82 +42,9 @@ ferieperioder = [
 ]
 
 
-herslev_data = [
-    ("2026-06-29", "8", 2),
-    ("2026-06-29", "9", 7),
-    ("2026-06-30", "2", 7),
-    ("2026-06-30", "3", 0),
-    ("2026-07-01", "4", 0),
-    ("2026-07-01", "5", 6),
-    ("2026-07-02", "17", 2),
-    ("2026-07-02", "18", 0),
-    ("2026-07-03", "10", 1),
-    ("2026-07-06", "6", 5),
-    ("2026-07-06", "7", 5),
-    ("2026-07-07", "11", 0),
-    ("2026-07-07", "12", 5),
-    ("2026-07-08", "13", 5),
-    ("2026-07-08", "14", 1),
-    ("2026-07-09", "15", 1),
-    ("2026-07-09", "16", 2),
-]
-
-
-def make_installation(hoveddato, inst_id, antal_stik):
-    hd = date.fromisoformat(hoveddato)
-
-    inst = Installation(
-        id=inst_id,
-        projekt_id="V165460",
-        rækkefølge=int(inst_id),
-    )
-
-    inst.aktiviteter = [
-        Aktivitet(
-            id=f"{inst_id}_hovedledning",
-            installation_id=inst_id,
-            type=Aktivitetstype.HOVEDLEDNING,
-            hold="FILT",
-            start_dato=hd,
-            antal_stik=antal_stik,
-        ),
-        Aktivitet(
-            id=f"{inst_id}_stikforberedelse",
-            installation_id=inst_id,
-            type=Aktivitetstype.STIK_FORBEREDELSE,
-            hold="TV22",
-            antal_stik=antal_stik,
-        ),
-        Aktivitet(
-            id=f"{inst_id}_stik",
-            installation_id=inst_id,
-            type=Aktivitetstype.STIK,
-            hold="STIK2",
-            antal_stik=antal_stik,
-        ),
-        Aktivitet(
-            id=f"{inst_id}_kontrol",
-            installation_id=inst_id,
-            type=Aktivitetstype.KONTROL,
-            hold="TV22",
-            antal_stik=antal_stik,
-        ),
-        Aktivitet(
-            id=f"{inst_id}_korthat",
-            installation_id=inst_id,
-            type=Aktivitetstype.KORTHAT,
-            hold="HAT3",
-            antal_stik=antal_stik,
-        ),
-    ]
-
-    return inst
-
-
-installationer = [
-    make_installation(hoveddato, inst_id, antal_stik)
-    for hoveddato, inst_id, antal_stik in herslev_data
-]
+installationer = load_project_installations(
+    "projektstyring/data/projects/V165460_project.json"
+)
 
 
 zone_checker = ZoneChecker(
