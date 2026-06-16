@@ -13,6 +13,13 @@ def load_project(filename: str) -> dict:
         return json.load(file)
 
 
+def parse_optional_date(value):
+    if not value:
+        return None
+
+    return date.fromisoformat(value)
+
+
 def load_project_installations(filename: str) -> list[Installation]:
     project = load_project(filename)
 
@@ -34,7 +41,7 @@ def load_project_installations(filename: str) -> list[Installation]:
             project_id=project["id"],
             inst_id=item["id"],
             sequence=item["sequence"],
-            hoveddato=item["hoveddato"],
+            hoveddato=item.get("hoveddato"),
             expected_stik=expected_stik,
             langhatte=langhatte,
             korthatte=korthatte,
@@ -50,13 +57,13 @@ def make_installation(
     project_id: str,
     inst_id: str,
     sequence: int,
-    hoveddato: str,
+    hoveddato: str | None,
     expected_stik: int,
     langhatte: int,
     korthatte: int,
     broende: int = 0,
 ) -> Installation:
-    hd = date.fromisoformat(hoveddato)
+    hd = parse_optional_date(hoveddato)
 
     inst = Installation(
         id=inst_id,

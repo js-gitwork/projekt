@@ -1,0 +1,17 @@
+{
+    "id": "V999999",
+    "name": "Testprojekt",
+    "start_date": "2026-08-01",
+    "installations": [
+        {
+            "id": "1",
+            "sequence": 1,
+            "expected_stik": 5,
+            "hoveddato": null,
+            "langhatte": null,
+            "korthatte": null,
+            "broende": 0,
+            "notes": ""
+        }
+    ]
+}
