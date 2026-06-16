@@ -7,6 +7,7 @@ from projektstyring.backend.zone_sequence import ZoneSequence
 from projektstyring.backend.rest_queue import aggregate_rest_work
 from projektstyring.backend.reopen_planner import ReopenPlanner
 
+
 class Hold:
     def __init__(self, navn, arbejdsdage, rolle="", kapacitet=0):
         self.navn = navn
@@ -24,6 +25,13 @@ hold_map = {
     "HAT3": Hold("Hat3", ["man", "tir", "ons", "tor"], rolle="korthat", kapacitet=6),
     "BRØND3": Hold("Brønd3", ["man", "tir", "ons", "tor"], rolle="brøndrenovering", kapacitet=6),
 }
+
+
+globale_helligdage = []
+
+ferieperioder = [
+    (date(2026, 7, 13), date(2026, 8, 2))
+]
 
 
 herslev_data = [
@@ -115,10 +123,8 @@ zone_sequence = ZoneSequence(
 
 engine = MultiScheduleEngine(
     hold_map=hold_map,
-    globale_helligdage=[],
-    ferieperioder=[
-        (date(2026, 7, 13), date(2026, 8, 2))
-    ],
+    globale_helligdage=globale_helligdage,
+    ferieperioder=ferieperioder,
     zone_sequence=zone_sequence
 )
 
@@ -129,12 +135,21 @@ engine.print_plan(plan)
 rest_queue = aggregate_rest_work(plan)
 rest_queue.print_summary()
 
-reopen_planner = ReopenPlanner(
-    stik_capacity_per_day=5,
-    brønd_capacity_per_day=6,
+sidste_planlagte_dato = max(
+    aktivitet.slut_dato
+    for aktivitet in plan.activities
+    if aktivitet.slut_dato
 )
 
-proposals = reopen_planner.create_proposals(rest_queue)
+reopen_planner = ReopenPlanner(
+    globale_helligdage=globale_helligdage,
+    ferieperioder=ferieperioder,
+)
+
+proposals = reopen_planner.create_proposals(
+    rest_queue,
+    earliest_start=sidste_planlagte_dato,
+)
 
 for proposal in proposals:
     proposal.print_summary()
