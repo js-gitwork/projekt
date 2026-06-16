@@ -6,6 +6,8 @@ from projektstyring.backend.zone_checker import ZoneChecker
 from projektstyring.backend.zone_sequence import ZoneSequence
 from projektstyring.backend.rest_queue import aggregate_rest_work
 from projektstyring.backend.reopen_planner import ReopenPlanner
+from projektstyring.backend.reopen_schedule import ReopenScheduleBuilder
+from projektstyring.backend.planning_report import PlanningReport
 
 
 class Hold:
@@ -153,3 +155,24 @@ proposals = reopen_planner.create_proposals(
 
 for proposal in proposals:
     proposal.print_summary()
+
+reopen_schedule_builder = ReopenScheduleBuilder(
+    globale_helligdage=globale_helligdage,
+    ferieperioder=ferieperioder,
+)
+
+reopen_schedules = []
+
+for proposal in proposals:
+    reopen_schedule = reopen_schedule_builder.build(proposal)
+    reopen_schedule.print_summary()
+    reopen_schedules.append(reopen_schedule)
+
+report = PlanningReport(
+    schedule_result=plan,
+    rest_queue=rest_queue,
+    reopen_proposals=proposals,
+    reopen_schedules=reopen_schedules,
+)
+
+report.print_summary()
