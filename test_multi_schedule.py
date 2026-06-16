@@ -1,5 +1,6 @@
 from datetime import date
 
+from projektstyring.backend.project_diagnosis import ProjectDiagnosisBuilder
 from projektstyring.backend.models import Installation, Aktivitet, Aktivitetstype
 from projektstyring.backend.multi_schedule_engine import MultiScheduleEngine
 from projektstyring.backend.zone_checker import ZoneChecker
@@ -10,9 +11,7 @@ from projektstyring.backend.reopen_schedule import ReopenScheduleBuilder
 from projektstyring.backend.planning_report import PlanningReport
 from projektstyring.backend.excel_exporter import ExcelExporter
 from projektstyring.backend.resource_report import ResourceReportGenerator
-from projektstyring.backend.resource_forecast import (
-    ResourceForecastGenerator
-)
+from projektstyring.backend.resource_forecast import ResourceForecastGenerator
 from projektstyring.backend.hold_report import HoldReportGenerator
 from projektstyring.backend.flow_analyzer import FlowAnalyzer
 
@@ -70,10 +69,10 @@ def make_installation(hoveddato, inst_id, antal_stik):
     inst = Installation(
         id=inst_id,
         projekt_id="V165460",
-        rækkefølge=int(inst_id)
+        rækkefølge=int(inst_id),
     )
 
-    aktiviteter = [
+    inst.aktiviteter = [
         Aktivitet(
             id=f"{inst_id}_hovedledning",
             installation_id=inst_id,
@@ -112,21 +111,22 @@ def make_installation(hoveddato, inst_id, antal_stik):
         ),
     ]
 
-    inst.aktiviteter = aktiviteter
     return inst
 
 
 installationer = [
-    make_installation(hd, inst, stik)
-    for hd, inst, stik in herslev_data
+    make_installation(hoveddato, inst_id, antal_stik)
+    for hoveddato, inst_id, antal_stik in herslev_data
 ]
 
 
-zone_checker = ZoneChecker("projektstyring/data/projects/V165460_zoner.json")
+zone_checker = ZoneChecker(
+    "projektstyring/data/projects/V165460_zoner.json"
+)
 
 zone_sequence = ZoneSequence(
     "projektstyring/data/projects/V165460_zone_sequence.json",
-    zone_checker
+    zone_checker,
 )
 
 
@@ -134,21 +134,24 @@ engine = MultiScheduleEngine(
     hold_map=hold_map,
     globale_helligdage=globale_helligdage,
     ferieperioder=ferieperioder,
-    zone_sequence=zone_sequence
+    zone_sequence=zone_sequence,
 )
 
 
 plan = engine.planlæg(installationer)
 engine.print_plan(plan)
 
+
 rest_queue = aggregate_rest_work(plan)
 rest_queue.print_summary()
+
 
 sidste_planlagte_dato = max(
     aktivitet.slut_dato
     for aktivitet in plan.activities
     if aktivitet.slut_dato
 )
+
 
 reopen_planner = ReopenPlanner(
     globale_helligdage=globale_helligdage,
@@ -163,6 +166,7 @@ proposals = reopen_planner.create_proposals(
 for proposal in proposals:
     proposal.print_summary()
 
+
 reopen_schedule_builder = ReopenScheduleBuilder(
     globale_helligdage=globale_helligdage,
     ferieperioder=ferieperioder,
@@ -175,6 +179,7 @@ for proposal in proposals:
     reopen_schedule.print_summary()
     reopen_schedules.append(reopen_schedule)
 
+
 report = PlanningReport(
     schedule_result=plan,
     rest_queue=rest_queue,
@@ -182,15 +187,14 @@ report = PlanningReport(
     reopen_schedules=reopen_schedules,
 )
 
-report.print_summary()
 
 hold_generator = HoldReportGenerator()
 hold_reports = hold_generator.generate(report)
-
 report.hold_reports = hold_reports
 
 for hold_report in hold_reports:
     hold_report.print_summary()
+
 
 resource_generator = ResourceReportGenerator(
     hold_map=hold_map,
@@ -200,24 +204,33 @@ resource_generator = ResourceReportGenerator(
 
 resource_report = resource_generator.generate(report)
 report.resource_report = resource_report
-
 resource_report.print_summary()
+
 
 forecast_generator = ResourceForecastGenerator()
 
-forecast = forecast_generator.generate(
-    resource_report
-)
-
+forecast = forecast_generator.generate(resource_report)
 report.resource_forecast = forecast
-
 forecast.print_summary()
 
+
 flow_analyzer = FlowAnalyzer()
+
 flow_analysis = flow_analyzer.analyze(report)
+report.flow_analysis = flow_analysis
 flow_analysis.print_summary()
 
-report.flow_analysis = flow_analysis
+
+diagnosis_builder = ProjectDiagnosisBuilder()
+
+project_diagnosis = diagnosis_builder.build(report)
+report.project_diagnosis = project_diagnosis
+
+print(project_diagnosis.summary)
+
+
+report.print_summary()
+
 
 exporter = ExcelExporter()
 exporter.export(report, "herslev_plan.xlsx")

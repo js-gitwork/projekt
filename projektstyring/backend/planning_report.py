@@ -27,6 +27,8 @@ class PlanningReport:
 
     flow_analysis: object | None = None
 
+    project_diagnosis: object | None = None
+
     def print_summary(self):
         print("\n📊 PLANRAPPORT")
         print("=" * 80)
@@ -99,5 +101,23 @@ class PlanningReport:
                 f"Flowbrud             : "
                 f"{len(self.flow_analysis.breaks)}"
             )
+
+        if self.project_diagnosis:
+            print(
+                f"Projektdiagnose      : "
+                f"{self.project_diagnosis.status}"
+            )
+
+            print(
+                f"Diagnoseproblemer    : "
+                f"{len(self.project_diagnosis.problems)}"
+            )
+
+            print(
+                f"Anbefalinger         : "
+                f"{len(self.project_diagnosis.recommendations)}"
+            )
+
+        print("=" * 80)
 
         print("=" * 80)
