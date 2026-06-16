@@ -20,6 +20,10 @@ class PlanningReport:
         default_factory=list
     )
 
+    hold_reports: list = field(default_factory=list)
+
+    resource_report: object | None = None
+
     def print_summary(self):
         print("\n📊 PLANRAPPORT")
         print("=" * 80)
@@ -64,5 +68,16 @@ class PlanningReport:
             f"Genåbningsplaner     : "
             f"{len(self.reopen_schedules)}"
         )
+
+        print(
+            f"Holdrapporter        : "
+            f"{len(self.hold_reports)}"
+        )
+
+        if self.resource_report:
+            print(
+                f"Ressourceperioder    : "
+                f"{len(self.resource_report.months)}"
+            )
 
         print("=" * 80)

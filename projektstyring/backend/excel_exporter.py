@@ -83,6 +83,79 @@ class ExcelExporter:
                     activity.quantity,
                 ])
 
+                # Ark pr. hold
+        if hasattr(report, "hold_reports"):
+            for hold_report in report.hold_reports:
+                ws = wb.create_sheet(f"Hold {hold_report.hold}")
+
+                ws.append([
+                    "Dato fra",
+                    "Dato til",
+                    "Installation",
+                    "Aktivitet",
+                ])
+
+                for aktivitet in sorted(
+                    hold_report.aktiviteter,
+                    key=lambda x: x.start_dato
+                ):
+                    ws.append([
+                        aktivitet.start_dato,
+                        aktivitet.slut_dato,
+                        aktivitet.installation_id,
+                        aktivitet.aktivitetstype,
+                    ])
+                # Ark pr. hold
+        for hold_report in report.hold_reports:
+            sheet_name = f"Hold {hold_report.hold}"[:31]
+            ws = wb.create_sheet(sheet_name)
+
+            ws.append([
+                "Dato fra",
+                "Dato til",
+                "Hold",
+                "Installation",
+                "Aktivitet",
+            ])
+
+            for aktivitet in sorted(
+                hold_report.aktiviteter,
+                key=lambda x: x.start_dato
+            ):
+                ws.append([
+                    aktivitet.start_dato,
+                    aktivitet.slut_dato,
+                    aktivitet.hold,
+                    aktivitet.installation_id,
+                    aktivitet.aktivitetstype,
+                ])
+
+        # Ark: Holdbelægning
+        if getattr(report, "resource_report", None):
+            ws = wb.create_sheet("Holdbelægning")
+
+            ws.append([
+                "Hold",
+                "År",
+                "Måned",
+                "Arbejdsdage",
+                "Bookede dage",
+                "Belægning %",
+            ])
+
+            for item in sorted(
+                report.resource_report.months,
+                key=lambda x: (x.hold, x.year, x.month)
+            ):
+                ws.append([
+                    item.hold,
+                    item.year,
+                    item.month,
+                    item.available_days,
+                    item.booked_days,
+                    item.utilization_percent,
+                ])
+
         wb.save(filename)
 
         print(f"\n📄 Excel gemt: {filename}")

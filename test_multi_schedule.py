@@ -9,6 +9,8 @@ from projektstyring.backend.reopen_planner import ReopenPlanner
 from projektstyring.backend.reopen_schedule import ReopenScheduleBuilder
 from projektstyring.backend.planning_report import PlanningReport
 from projektstyring.backend.excel_exporter import ExcelExporter
+from projektstyring.backend.resource_report import ResourceReportGenerator
+from projektstyring.backend.hold_report import HoldReportGenerator
 
 
 class Hold:
@@ -178,6 +180,24 @@ report = PlanningReport(
 
 report.print_summary()
 
+hold_generator = HoldReportGenerator()
+hold_reports = hold_generator.generate(report)
+
+report.hold_reports = hold_reports
+
+for hold_report in hold_reports:
+    hold_report.print_summary()
+
+resource_generator = ResourceReportGenerator(
+    hold_map=hold_map,
+    globale_helligdage=globale_helligdage,
+    ferieperioder=ferieperioder,
+)
+
+resource_report = resource_generator.generate(report)
+report.resource_report = resource_report
+
+resource_report.print_summary()
+
 exporter = ExcelExporter()
 exporter.export(report, "herslev_plan.xlsx")
-
