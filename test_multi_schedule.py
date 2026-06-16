@@ -8,6 +8,7 @@ from projektstyring.backend.rest_queue import aggregate_rest_work
 from projektstyring.backend.reopen_planner import ReopenPlanner
 from projektstyring.backend.reopen_schedule import ReopenScheduleBuilder
 from projektstyring.backend.planning_report import PlanningReport
+from projektstyring.backend.excel_exporter import ExcelExporter
 
 
 class Hold:
@@ -176,3 +177,7 @@ report = PlanningReport(
 )
 
 report.print_summary()
+
+exporter = ExcelExporter()
+exporter.export(report, "herslev_plan.xlsx")
+
