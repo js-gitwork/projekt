@@ -62,50 +62,7 @@ class ExcelExporter:
                 proposal.estimated_days_total,
             ])
 
-        # Ark 4: Genåbningsplan
-        ws = wb.create_sheet("Genåbningsplan")
-
-        ws.append([
-            "Hold",
-            "Aktivitet",
-            "Start",
-            "Slut",
-            "Antal",
-        ])
-
-        for schedule in report.reopen_schedules:
-            for activity in schedule.activities:
-                ws.append([
-                    activity.hold,
-                    activity.task_type,
-                    activity.start_dato,
-                    activity.slut_dato,
-                    activity.quantity,
-                ])
-
-                # Ark pr. hold
-        if hasattr(report, "hold_reports"):
-            for hold_report in report.hold_reports:
-                ws = wb.create_sheet(f"Hold {hold_report.hold}")
-
-                ws.append([
-                    "Dato fra",
-                    "Dato til",
-                    "Installation",
-                    "Aktivitet",
-                ])
-
-                for aktivitet in sorted(
-                    hold_report.aktiviteter,
-                    key=lambda x: x.start_dato
-                ):
-                    ws.append([
-                        aktivitet.start_dato,
-                        aktivitet.slut_dato,
-                        aktivitet.installation_id,
-                        aktivitet.aktivitetstype,
-                    ])
-                # Ark pr. hold
+        # Ark pr. hold
         for hold_report in report.hold_reports:
             sheet_name = f"Hold {hold_report.hold}"[:31]
             ws = wb.create_sheet(sheet_name)
@@ -116,6 +73,8 @@ class ExcelExporter:
                 "Hold",
                 "Installation",
                 "Aktivitet",
+                "Kilde",
+                "Zone",
             ])
 
             for aktivitet in sorted(
@@ -128,6 +87,8 @@ class ExcelExporter:
                     aktivitet.hold,
                     aktivitet.installation_id,
                     aktivitet.aktivitetstype,
+                    aktivitet.kilde,
+                    aktivitet.zone,
                 ])
 
         # Ark: Holdbelægning
@@ -156,7 +117,7 @@ class ExcelExporter:
                     item.utilization_percent,
                 ])
 
-                # Ark: Ressourceprognose
+        # Ark: Ressourceprognose
         if getattr(report, "resource_forecast", None):
             ws = wb.create_sheet("Ressourceprognose")
 
