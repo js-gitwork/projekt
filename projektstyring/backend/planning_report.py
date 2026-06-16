@@ -1,5 +1,4 @@
 from dataclasses import dataclass, field
-
 from .schedule_result import ScheduleResult
 from .rest_queue import RestQueue
 from .reopen_planner import ReopenProposal
@@ -23,6 +22,10 @@ class PlanningReport:
     hold_reports: list = field(default_factory=list)
 
     resource_report: object | None = None
+
+    resource_forecast: object | None = None
+
+    flow_analysis: object | None = None
 
     def print_summary(self):
         print("\n📊 PLANRAPPORT")
@@ -78,6 +81,23 @@ class PlanningReport:
             print(
                 f"Ressourceperioder    : "
                 f"{len(self.resource_report.months)}"
+            )
+
+        if self.resource_forecast:
+            print(
+                f"Ressourceprognoser   : "
+                f"{len(self.resource_forecast.items)}"
+            )
+
+        if self.flow_analysis:
+            print(
+                f"Flow ventetider      : "
+                f"{len(self.flow_analysis.gaps)}"
+            )
+
+            print(
+                f"Flowbrud             : "
+                f"{len(self.flow_analysis.breaks)}"
             )
 
         print("=" * 80)

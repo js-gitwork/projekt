@@ -10,7 +10,11 @@ from projektstyring.backend.reopen_schedule import ReopenScheduleBuilder
 from projektstyring.backend.planning_report import PlanningReport
 from projektstyring.backend.excel_exporter import ExcelExporter
 from projektstyring.backend.resource_report import ResourceReportGenerator
+from projektstyring.backend.resource_forecast import (
+    ResourceForecastGenerator
+)
 from projektstyring.backend.hold_report import HoldReportGenerator
+from projektstyring.backend.flow_analyzer import FlowAnalyzer
 
 
 class Hold:
@@ -198,6 +202,22 @@ resource_report = resource_generator.generate(report)
 report.resource_report = resource_report
 
 resource_report.print_summary()
+
+forecast_generator = ResourceForecastGenerator()
+
+forecast = forecast_generator.generate(
+    resource_report
+)
+
+report.resource_forecast = forecast
+
+forecast.print_summary()
+
+flow_analyzer = FlowAnalyzer()
+flow_analysis = flow_analyzer.analyze(report)
+flow_analysis.print_summary()
+
+report.flow_analysis = flow_analysis
 
 exporter = ExcelExporter()
 exporter.export(report, "herslev_plan.xlsx")

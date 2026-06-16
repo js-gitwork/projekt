@@ -156,6 +156,71 @@ class ExcelExporter:
                     item.utilization_percent,
                 ])
 
+                # Ark: Ressourceprognose
+        if getattr(report, "resource_forecast", None):
+            ws = wb.create_sheet("Ressourceprognose")
+
+            ws.append([
+                "Hold",
+                "År",
+                "Måned",
+                "Belægning %",
+                "Status",
+                "Anbefaling",
+            ])
+
+            for item in sorted(
+                report.resource_forecast.items,
+                key=lambda x: (x.hold, x.year, x.month)
+            ):
+                ws.append([
+                    item.hold,
+                    item.year,
+                    item.month,
+                    item.utilization,
+                    item.status,
+                    item.recommendation,
+                ])
+
+        # Ark: Flowanalyse
+        if getattr(report, "flow_analysis", None):
+            ws = wb.create_sheet("Flowanalyse")
+
+            ws.append([
+                "Type",
+                "Installation",
+                "Fra aktivitet",
+                "Til aktivitet",
+                "Fra dato",
+                "Til dato",
+                "Ventetid dage",
+                "Årsag",
+            ])
+
+            for gap in report.flow_analysis.gaps:
+                ws.append([
+                    "Ventetid",
+                    gap.installation_id,
+                    gap.from_task,
+                    gap.to_task,
+                    gap.from_end,
+                    gap.to_start,
+                    gap.waiting_days,
+                    "",
+                ])
+
+            for item in report.flow_analysis.breaks:
+                ws.append([
+                    "Flowbrud",
+                    item.installation_id,
+                    item.task_type,
+                    "",
+                    "",
+                    "",
+                    "",
+                    item.reason,
+                ])
+
         wb.save(filename)
 
         print(f"\n📄 Excel gemt: {filename}")
