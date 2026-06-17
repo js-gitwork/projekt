@@ -2,7 +2,8 @@ from fastapi import FastAPI, Request, Form
 from fastapi.responses import RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
-from projektstyring.backend.project_operations import set_installation_count
+
+from projektstyring.backend.project_operations import add_installations
 from projektstyring.backend.project_repository import ProjectRepository
 from projektstyring.backend.project_writer import save_project
 
@@ -60,22 +61,6 @@ def create_project(
     start_date: str = Form(...),
     installation_count: int = Form(0),
 ):
-    installations = []
-
-    for number in range(1, installation_count + 1):
-        installations.append(
-            {
-                "id": str(number),
-                "sequence": number,
-                "hoveddato": None,
-                "expected_stik": 0,
-                "langhatte": 0,
-                "korthatte_extra": 0,
-                "broende": 0,
-                "notes": "",
-            }
-        )
-
     project = {
         "id": project_id.strip(),
         "name": name.strip(),
@@ -83,8 +68,14 @@ def create_project(
         "city": city.strip(),
         "start_date": start_date,
         "status": "upcoming",
-        "installations": installations,
+        "installations": [],
     }
+
+    if installation_count > 0:
+        project = add_installations(
+            project,
+            installation_count,
+        )
 
     save_project(project)
 
@@ -142,14 +133,15 @@ async def save_installations(request: Request, project_id: str):
         status_code=303,
     )
 
-@app.post("/projects/{project_id}/installation-count")
-def update_installation_count(
+
+@app.post("/projects/{project_id}/installations/add")
+def add_project_installations(
     project_id: str,
     installation_count: int = Form(...),
 ):
     project = repo.load_project(project_id)
 
-    project = set_installation_count(
+    project = add_installations(
         project,
         installation_count,
     )

@@ -15,29 +15,28 @@
         <strong>Startdato:</strong> {{ project.start_date }}
     </p>
 
-<form
-    method="post"
-    action="/projects/{{ project.id }}/installation-count"
-    class="inline-form"
->
-    <label for="installation_count">
-        Antal installationer
-    </label>
-
-    <input
-        type="number"
-        id="installation_count"
-        name="installation_count"
-        value="{{ project.installations|length }}"
-        min="0"
-        class="form-control short-number"
+    <form
+        method="post"
+        action="/projects/{{ project.id }}/installations/add"
+        class="inline-form"
     >
+        <label for="installation_count">
+            Tilføj installationer
+        </label>
 
-    <button type="submit" class="btn">
-        Opdater antal
-    </button>
-</form>
+        <input
+            type="number"
+            id="installation_count"
+            name="installation_count"
+            value="1"
+            min="1"
+            class="form-control short-number"
+        >
 
+        <button type="submit" class="btn">
+            Tilføj
+        </button>
+    </form>
 </div>
 
 <div class="card">
