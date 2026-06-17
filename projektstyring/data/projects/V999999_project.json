@@ -6,10 +6,350 @@
         {
             "id": "1",
             "sequence": 1,
-            "expected_stik": 5,
             "hoveddato": null,
-            "langhatte": null,
-            "korthatte": null,
+            "expected_stik": 5,
+            "langhatte": 0,
+            "korthatte_extra": 0,
+            "broende": 0,
+            "notes": ""
+        },
+        {
+            "id": "2",
+            "sequence": 2,
+            "hoveddato": null,
+            "expected_stik": 0,
+            "langhatte": 0,
+            "korthatte_extra": 0,
+            "broende": 0,
+            "notes": ""
+        },
+        {
+            "id": "3",
+            "sequence": 3,
+            "hoveddato": null,
+            "expected_stik": 0,
+            "langhatte": 0,
+            "korthatte_extra": 0,
+            "broende": 0,
+            "notes": ""
+        },
+        {
+            "id": "4",
+            "sequence": 4,
+            "hoveddato": null,
+            "expected_stik": 0,
+            "langhatte": 0,
+            "korthatte_extra": 0,
+            "broende": 0,
+            "notes": ""
+        },
+        {
+            "id": "5",
+            "sequence": 5,
+            "hoveddato": null,
+            "expected_stik": 0,
+            "langhatte": 0,
+            "korthatte_extra": 0,
+            "broende": 0,
+            "notes": ""
+        },
+        {
+            "id": "6",
+            "sequence": 6,
+            "hoveddato": null,
+            "expected_stik": 0,
+            "langhatte": 0,
+            "korthatte_extra": 0,
+            "broende": 0,
+            "notes": ""
+        },
+        {
+            "id": "7",
+            "sequence": 7,
+            "hoveddato": null,
+            "expected_stik": 0,
+            "langhatte": 0,
+            "korthatte_extra": 0,
+            "broende": 0,
+            "notes": ""
+        },
+        {
+            "id": "8",
+            "sequence": 8,
+            "hoveddato": null,
+            "expected_stik": 0,
+            "langhatte": 0,
+            "korthatte_extra": 0,
+            "broende": 0,
+            "notes": ""
+        },
+        {
+            "id": "9",
+            "sequence": 9,
+            "hoveddato": null,
+            "expected_stik": 0,
+            "langhatte": 0,
+            "korthatte_extra": 0,
+            "broende": 0,
+            "notes": ""
+        },
+        {
+            "id": "10",
+            "sequence": 10,
+            "hoveddato": null,
+            "expected_stik": 0,
+            "langhatte": 0,
+            "korthatte_extra": 0,
+            "broende": 0,
+            "notes": ""
+        },
+        {
+            "id": "11",
+            "sequence": 11,
+            "hoveddato": null,
+            "expected_stik": 0,
+            "langhatte": 0,
+            "korthatte_extra": 0,
+            "broende": 0,
+            "notes": ""
+        },
+        {
+            "id": "12",
+            "sequence": 12,
+            "hoveddato": null,
+            "expected_stik": 0,
+            "langhatte": 0,
+            "korthatte_extra": 0,
+            "broende": 0,
+            "notes": ""
+        },
+        {
+            "id": "13",
+            "sequence": 13,
+            "hoveddato": null,
+            "expected_stik": 0,
+            "langhatte": 0,
+            "korthatte_extra": 0,
+            "broende": 0,
+            "notes": ""
+        },
+        {
+            "id": "14",
+            "sequence": 14,
+            "hoveddato": null,
+            "expected_stik": 0,
+            "langhatte": 0,
+            "korthatte_extra": 0,
+            "broende": 0,
+            "notes": ""
+        },
+        {
+            "id": "15",
+            "sequence": 15,
+            "hoveddato": null,
+            "expected_stik": 0,
+            "langhatte": 0,
+            "korthatte_extra": 0,
+            "broende": 0,
+            "notes": ""
+        },
+        {
+            "id": "16",
+            "sequence": 16,
+            "hoveddato": null,
+            "expected_stik": 0,
+            "langhatte": 0,
+            "korthatte_extra": 0,
+            "broende": 0,
+            "notes": ""
+        },
+        {
+            "id": "17",
+            "sequence": 17,
+            "hoveddato": null,
+            "expected_stik": 0,
+            "langhatte": 0,
+            "korthatte_extra": 0,
+            "broende": 0,
+            "notes": ""
+        },
+        {
+            "id": "18",
+            "sequence": 18,
+            "hoveddato": null,
+            "expected_stik": 0,
+            "langhatte": 0,
+            "korthatte_extra": 0,
+            "broende": 0,
+            "notes": ""
+        },
+        {
+            "id": "19",
+            "sequence": 19,
+            "hoveddato": null,
+            "expected_stik": 0,
+            "langhatte": 0,
+            "korthatte_extra": 0,
+            "broende": 0,
+            "notes": ""
+        },
+        {
+            "id": "20",
+            "sequence": 20,
+            "hoveddato": null,
+            "expected_stik": 0,
+            "langhatte": 0,
+            "korthatte_extra": 0,
+            "broende": 0,
+            "notes": ""
+        },
+        {
+            "id": "21",
+            "sequence": 21,
+            "hoveddato": null,
+            "expected_stik": 0,
+            "langhatte": 0,
+            "korthatte_extra": 0,
+            "broende": 0,
+            "notes": ""
+        },
+        {
+            "id": "22",
+            "sequence": 22,
+            "hoveddato": null,
+            "expected_stik": 0,
+            "langhatte": 0,
+            "korthatte_extra": 0,
+            "broende": 0,
+            "notes": ""
+        },
+        {
+            "id": "23",
+            "sequence": 23,
+            "hoveddato": null,
+            "expected_stik": 0,
+            "langhatte": 0,
+            "korthatte_extra": 0,
+            "broende": 0,
+            "notes": ""
+        },
+        {
+            "id": "24",
+            "sequence": 24,
+            "hoveddato": null,
+            "expected_stik": 0,
+            "langhatte": 0,
+            "korthatte_extra": 0,
+            "broende": 0,
+            "notes": ""
+        },
+        {
+            "id": "25",
+            "sequence": 25,
+            "hoveddato": null,
+            "expected_stik": 0,
+            "langhatte": 0,
+            "korthatte_extra": 0,
+            "broende": 0,
+            "notes": ""
+        },
+        {
+            "id": "26",
+            "sequence": 26,
+            "hoveddato": null,
+            "expected_stik": 0,
+            "langhatte": 0,
+            "korthatte_extra": 0,
+            "broende": 0,
+            "notes": ""
+        },
+        {
+            "id": "27",
+            "sequence": 27,
+            "hoveddato": null,
+            "expected_stik": 0,
+            "langhatte": 0,
+            "korthatte_extra": 0,
+            "broende": 0,
+            "notes": ""
+        },
+        {
+            "id": "28",
+            "sequence": 28,
+            "hoveddato": null,
+            "expected_stik": 0,
+            "langhatte": 0,
+            "korthatte_extra": 0,
+            "broende": 0,
+            "notes": ""
+        },
+        {
+            "id": "29",
+            "sequence": 29,
+            "hoveddato": null,
+            "expected_stik": 0,
+            "langhatte": 0,
+            "korthatte_extra": 0,
+            "broende": 0,
+            "notes": ""
+        },
+        {
+            "id": "30",
+            "sequence": 30,
+            "hoveddato": null,
+            "expected_stik": 0,
+            "langhatte": 0,
+            "korthatte_extra": 0,
+            "broende": 0,
+            "notes": ""
+        },
+        {
+            "id": "31",
+            "sequence": 31,
+            "hoveddato": null,
+            "expected_stik": 0,
+            "langhatte": 0,
+            "korthatte_extra": 0,
+            "broende": 0,
+            "notes": ""
+        },
+        {
+            "id": "32",
+            "sequence": 32,
+            "hoveddato": null,
+            "expected_stik": 0,
+            "langhatte": 0,
+            "korthatte_extra": 0,
+            "broende": 0,
+            "notes": ""
+        },
+        {
+            "id": "33",
+            "sequence": 33,
+            "hoveddato": null,
+            "expected_stik": 0,
+            "langhatte": 0,
+            "korthatte_extra": 0,
+            "broende": 0,
+            "notes": ""
+        },
+        {
+            "id": "34",
+            "sequence": 34,
+            "hoveddato": null,
+            "expected_stik": 0,
+            "langhatte": 0,
+            "korthatte_extra": 0,
+            "broende": 0,
+            "notes": ""
+        },
+        {
+            "id": "35",
+            "sequence": 35,
+            "hoveddato": null,
+            "expected_stik": 0,
+            "langhatte": 0,
+            "korthatte_extra": 0,
             "broende": 0,
             "notes": ""
         }

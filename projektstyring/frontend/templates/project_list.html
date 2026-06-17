@@ -5,27 +5,61 @@
 {% block content %}
 <div class="card">
     <div class="actions">
-        <a href="#" class="btn">Nyt projekt</a>
+        <a href="/projects/new" class="btn">Nyt projekt</a>
     </div>
 
-    <table class="project-table">
+    <input
+        type="text"
+        id="projectSearch"
+        placeholder="Søg V-nummer, projekt, kunde eller by..."
+        class="search-box"
+    />
+
+    <div class="filter-buttons">
+        <button class="filter-btn active" data-status="all">Alle</button>
+        <button class="filter-btn" data-status="upcoming">Kommende</button>
+        <button class="filter-btn" data-status="active">I gang</button>
+        <button class="filter-btn" data-status="completed">Afsluttede</button>
+    </div>
+
+    <table class="project-table" id="projectTable">
         <thead>
             <tr>
                 <th>V-nummer</th>
                 <th>Projekt</th>
+                <th>Kunde</th>
+                <th>By</th>
+                <th>Status</th>
                 <th>Startdato</th>
             </tr>
         </thead>
         <tbody>
             {% for project in projects %}
-            <tr>
+            <tr
+                data-status="{{ project.status }}"
+                onclick="window.location='/projects/{{ project.id }}'"
+            >
+
                 <td>{{ project.id }}</td>
                 <td>{{ project.name }}</td>
+                <td>{{ project.customer }}</td>
+                <td>{{ project.city }}</td>
+                <td>
+                    {% if project.status == "upcoming" %}
+                        Kommende
+                    {% elif project.status == "active" %}
+                        I gang
+                    {% elif project.status == "completed" %}
+                        Afsluttet
+                    {% else %}
+                        Ukendt
+                    {% endif %}
+                </td>
                 <td>{{ project.start_date }}</td>
             </tr>
             {% else %}
             <tr>
-                <td colspan="3" class="empty-message">
+                <td colspan="6" class="empty-message">
                     Ingen projekter fundet.
                 </td>
             </tr>
@@ -33,4 +67,46 @@
         </tbody>
     </table>
 </div>
+
+<script>
+    const searchInput = document.getElementById("projectSearch");
+    const table = document.getElementById("projectTable");
+    const filterButtons = document.querySelectorAll(".filter-btn");
+
+    let selectedStatus = "all";
+
+    function filterProjects() {
+        const searchValue = searchInput.value.toLowerCase();
+        const rows = table.querySelectorAll("tbody tr");
+
+        rows.forEach(function (row) {
+            const rowText = row.textContent.toLowerCase();
+            const rowStatus = row.dataset.status || "";
+
+            const matchesSearch = rowText.includes(searchValue);
+            const matchesStatus =
+                selectedStatus === "all" || rowStatus === selectedStatus;
+
+            if (matchesSearch && matchesStatus) {
+                row.style.display = "";
+            } else {
+                row.style.display = "none";
+            }
+        });
+    }
+
+    searchInput.addEventListener("input", filterProjects);
+
+    filterButtons.forEach(function (button) {
+        button.addEventListener("click", function () {
+            filterButtons.forEach(function (btn) {
+                btn.classList.remove("active");
+            });
+
+            button.classList.add("active");
+            selectedStatus = button.dataset.status;
+            filterProjects();
+        });
+    });
+</script>
 {% endblock %}

@@ -1,0 +1,89 @@
+{% extends "base.html" %}
+
+{% block title %}Nyt projekt{% endblock %}
+
+{% block content %}
+<div class="card wide-form">
+    <h2>Nyt projekt</h2>
+
+    <form method="post" action="/projects/new" class="project-form">
+        <div class="form-group">
+            <label for="project_id">V-nummer</label>
+            <input
+                type="text"
+                id="project_id"
+                name="project_id"
+                class="form-control"
+                placeholder="Indtast V-nummer"
+                required
+            >
+        </div>
+
+        <div class="form-group">
+            <label for="name">Projektnavn</label>
+            <input
+                type="text"
+                id="name"
+                name="name"
+                class="form-control"
+                placeholder="Indtast projektnavn"
+                required
+            >
+        </div>
+
+        <div class="form-group">
+            <label for="customer">Kunde</label>
+            <input
+                type="text"
+                id="customer"
+                name="customer"
+                class="form-control"
+                placeholder="Indtast kundenavn"
+            >
+        </div>
+
+        <div class="form-group">
+            <label for="city">By / område</label>
+            <input
+                type="text"
+                id="city"
+                name="city"
+                class="form-control"
+                placeholder="Indtast by eller område"
+            >
+        </div>
+
+        <div class="form-group">
+            <label for="start_date">Forventet startdato</label>
+            <input
+                type="date"
+                id="start_date"
+                name="start_date"
+                class="form-control"
+                required
+            >
+        </div>
+
+        <div class="form-group">
+            <label for="installation_count">Foreløbigt antal installationer</label>
+            <input
+                type="number"
+                id="installation_count"
+                name="installation_count"
+                class="form-control"
+                min="0"
+                value="0"
+            >
+            <small>
+                Kan ændres senere. Installationer kan tilføjes, slettes,
+                deles op eller lægges sammen.
+            </small>
+        </div>
+
+        <div class="form-actions">
+            <button type="submit" class="btn">Gem projekt</button>
+            <a href="/" class="btn btn-muted">Annuller</a>
+        </div>
+    </form>
+</div>
+{% endblock %}

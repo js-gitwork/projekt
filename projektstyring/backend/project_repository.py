@@ -28,7 +28,10 @@ class ProjectRepository:
                     {
                         "id": project.get("id"),
                         "name": project.get("name"),
+                        "customer": project.get("customer", ""),
+                        "city": project.get("city", ""),
                         "start_date": project.get("start_date"),
+                        "status": project.get("status", "upcoming"),
                         "file": filename.name,
                     }
                 )

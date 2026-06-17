@@ -21,8 +21,8 @@ body {
 }
 
 .container {
-    width: 95%;
-    max-width: 1100px;
+    width: 98%;
+    max-width: 1400px;
     margin: 0 auto;
 }
 
@@ -83,6 +83,22 @@ body {
     margin-bottom: 15px;
 }
 
+.search-box {
+    width: 100%;
+    padding: 14px;
+    margin-bottom: 20px;
+    border: 2px solid #003366;
+    border-radius: 5px;
+    box-sizing: border-box;
+    font-size: 1.1rem;
+}
+
+.search-box:focus {
+    outline: none;
+    border-color: #003366;
+    box-shadow: 0 0 0 3px rgba(0, 51, 102, 0.15);
+}
+
 @media (max-width: 600px) {
     .project-table {
         font-size: 13px;
@@ -97,4 +113,113 @@ body {
         text-align: center;
         margin-bottom: 10px;
     }
+}
+
+.filter-buttons {
+    display: flex;
+    gap: 10px;
+    margin-bottom: 20px;
+    flex-wrap: wrap;
+}
+
+.filter-btn {
+    padding: 10px 15px;
+    background-color: white;
+    color: #003366;
+    border: 2px solid #003366;
+    border-radius: 5px;
+    cursor: pointer;
+    font-weight: bold;
+}
+
+.filter-btn.active,
+.filter-btn:hover {
+    background-color: #003366;
+    color: #ffeb3b;
+}
+
+.wide-form {
+    max-width: 800px;
+    margin: 0 auto 20px auto;
+}
+
+.project-form {
+    width: 100%;
+}
+
+.form-group {
+    margin-bottom: 18px;
+}
+
+.form-group label {
+    display: block;
+    margin-bottom: 6px;
+    font-weight: bold;
+    color: #003366;
+}
+
+.form-control {
+    width: 100%;
+    padding: 14px;
+    border: 2px solid #ccc;
+    border-radius: 5px;
+    box-sizing: border-box;
+    font-size: 1.05rem;
+}
+
+.form-control:focus {
+    outline: none;
+    border-color: #003366;
+    box-shadow: 0 0 0 3px rgba(0, 51, 102, 0.15);
+}
+
+.form-group small {
+    display: block;
+    margin-top: 6px;
+    color: #555;
+}
+
+.form-actions {
+    display: flex;
+    gap: 10px;
+    margin-top: 20px;
+}
+
+.btn-muted {
+    background-color: #777;
+    color: white;
+}
+
+.project-table tbody tr {
+    cursor: pointer;
+}
+
+.table-input {
+    width: 100%;
+    padding: 8px;
+    border: 1px solid #bbb;
+    border-radius: 4px;
+    box-sizing: border-box;
+}
+
+.small-input {
+    max-width: 90px;
+}
+
+.table-input:focus {
+    outline: none;
+    border-color: #003366;
+    box-shadow: 0 0 0 2px rgba(0, 51, 102, 0.15);
+}
+
+.inline-form {
+    display: flex;
+    gap: 10px;
+    align-items: end;
+    flex-wrap: wrap;
+    margin-top: 15px;
+}
+
+.short-number {
+    max-width: 140px;
 }
