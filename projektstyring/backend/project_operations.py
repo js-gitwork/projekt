@@ -19,6 +19,7 @@ def add_installations(
             {
                 "id": str(number),
                 "sequence": number,
+                "active": True,
                 "hoveddato": None,
                 "expected_stik": 0,
                 "langhatte": 0,

@@ -113,7 +113,6 @@ async def save_installations(request: Request, project_id: str):
         installations.append(
             {
                 "id": installation_id,
-                "sequence": to_int(form.get(f"sequence_{index}"), index + 1),
                 "hoveddato": hoveddato or None,
                 "expected_stik": to_int(form.get(f"expected_stik_{index}")),
                 "langhatte": to_int(form.get(f"langhatte_{index}")),
@@ -126,7 +125,10 @@ async def save_installations(request: Request, project_id: str):
         )
 
     installations.sort(
-        key=lambda x: x["sequence"]
+        key=lambda x: (
+            x.get("hoveddato") or "9999-12-31",
+            int(x.get("id", 999999))
+        )
     )
 
     project["installations"] = installations
