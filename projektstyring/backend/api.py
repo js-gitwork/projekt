@@ -125,6 +125,10 @@ async def save_installations(request: Request, project_id: str):
             }
         )
 
+    installations.sort(
+        key=lambda x: x["sequence"]
+    )
+
     project["installations"] = installations
     save_project(project)
 
@@ -152,3 +156,26 @@ def add_project_installations(
         url=f"/projects/{project_id}",
         status_code=303,
     )
+@app.post("/projects/{project_id}/update")
+def update_project(
+    project_id: str,
+    customer: str = Form(""),
+    city: str = Form(""),
+    start_date: str = Form(""),
+    status: str = Form("upcoming"),
+):
+    project = repo.load_project(project_id)
+
+    project["customer"] = customer.strip()
+    project["city"] = city.strip()
+    project["start_date"] = start_date
+    project["status"] = status
+
+    save_project(project)
+
+    return RedirectResponse(
+        url=f"/projects/{project_id}",
+        status_code=303,
+    )
+
+

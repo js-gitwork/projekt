@@ -1,3 +1,4 @@
+cat > projektstyring/frontend/templates/project_detail.html <<'EOF'
 {% extends "base.html" %}
 
 {% block title %}{{ project.name }}{% endblock %}
@@ -8,12 +9,76 @@
 
     <h2>{{ project.name }}</h2>
 
-    <p>
-        <strong>V-nummer:</strong> {{ project.id }}<br>
-        <strong>Kunde:</strong> {{ project.customer }}<br>
-        <strong>By:</strong> {{ project.city }}<br>
-        <strong>Startdato:</strong> {{ project.start_date }}
-    </p>
+    <form
+        method="post"
+        action="/projects/{{ project.id }}/update"
+    >
+        <p>
+            <strong>V-nummer:</strong>
+            {{ project.id }}
+        </p>
+
+        <label for="customer">Kunde</label>
+        <input
+            type="text"
+            id="customer"
+            name="customer"
+            value="{{ project.customer }}"
+            class="form-control"
+        >
+
+        <label for="city">By</label>
+        <input
+            type="text"
+            id="city"
+            name="city"
+            value="{{ project.city }}"
+            class="form-control"
+        >
+
+        <label for="start_date">Startdato</label>
+        <input
+            type="date"
+            id="start_date"
+            name="start_date"
+            value="{{ project.start_date }}"
+            class="form-control"
+        >
+
+        <label for="status">Status</label>
+        <select
+            id="status"
+            name="status"
+            class="form-control"
+        >
+            <option
+                value="upcoming"
+                {% if project.status == "upcoming" %}selected{% endif %}
+            >
+                Kommende
+            </option>
+            <option
+                value="active"
+                {% if project.status == "active" %}selected{% endif %}
+            >
+                Aktiv
+            </option>
+            <option
+                value="completed"
+                {% if project.status == "completed" %}selected{% endif %}
+            >
+                Afsluttet
+            </option>
+        </select>
+
+        <div class="form-actions">
+            <button type="submit" class="btn">
+                Gem projekt
+            </button>
+        </div>
+    </form>
+
+    <hr>
 
     <form
         method="post"
@@ -148,8 +213,11 @@
         </table>
 
         <div class="form-actions">
-            <button type="submit" class="btn">Gem installationer</button>
+            <button type="submit" class="btn">
+                Gem installationer
+            </button>
         </div>
     </form>
 </div>
 {% endblock %}
+EOF
