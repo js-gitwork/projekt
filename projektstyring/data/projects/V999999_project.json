@@ -5,7 +5,7 @@
     "installations": [
         {
             "id": "1",
-            "sequence": 1,
+            "active": true,
             "hoveddato": null,
             "expected_stik": 5,
             "langhatte": 0,
@@ -15,7 +15,7 @@
         },
         {
             "id": "2",
-            "sequence": 2,
+            "active": true,
             "hoveddato": null,
             "expected_stik": 0,
             "langhatte": 0,
@@ -25,7 +25,7 @@
         },
         {
             "id": "3",
-            "sequence": 3,
+            "active": true,
             "hoveddato": null,
             "expected_stik": 0,
             "langhatte": 0,
@@ -35,7 +35,7 @@
         },
         {
             "id": "4",
-            "sequence": 4,
+            "active": true,
             "hoveddato": null,
             "expected_stik": 0,
             "langhatte": 0,
@@ -45,7 +45,7 @@
         },
         {
             "id": "5",
-            "sequence": 5,
+            "active": true,
             "hoveddato": null,
             "expected_stik": 0,
             "langhatte": 0,
@@ -55,7 +55,7 @@
         },
         {
             "id": "6",
-            "sequence": 6,
+            "active": true,
             "hoveddato": null,
             "expected_stik": 0,
             "langhatte": 0,
@@ -65,7 +65,7 @@
         },
         {
             "id": "7",
-            "sequence": 7,
+            "active": true,
             "hoveddato": null,
             "expected_stik": 0,
             "langhatte": 0,
@@ -75,7 +75,7 @@
         },
         {
             "id": "8",
-            "sequence": 8,
+            "active": true,
             "hoveddato": null,
             "expected_stik": 0,
             "langhatte": 0,
@@ -85,7 +85,7 @@
         },
         {
             "id": "9",
-            "sequence": 9,
+            "active": true,
             "hoveddato": null,
             "expected_stik": 0,
             "langhatte": 0,
@@ -95,7 +95,7 @@
         },
         {
             "id": "10",
-            "sequence": 10,
+            "active": true,
             "hoveddato": null,
             "expected_stik": 0,
             "langhatte": 0,
@@ -105,7 +105,7 @@
         },
         {
             "id": "11",
-            "sequence": 11,
+            "active": true,
             "hoveddato": null,
             "expected_stik": 0,
             "langhatte": 0,
@@ -115,7 +115,7 @@
         },
         {
             "id": "12",
-            "sequence": 12,
+            "active": true,
             "hoveddato": null,
             "expected_stik": 0,
             "langhatte": 0,
@@ -125,7 +125,7 @@
         },
         {
             "id": "13",
-            "sequence": 13,
+            "active": true,
             "hoveddato": null,
             "expected_stik": 0,
             "langhatte": 0,
@@ -135,7 +135,7 @@
         },
         {
             "id": "14",
-            "sequence": 14,
+            "active": true,
             "hoveddato": null,
             "expected_stik": 0,
             "langhatte": 0,
@@ -145,7 +145,7 @@
         },
         {
             "id": "15",
-            "sequence": 15,
+            "active": true,
             "hoveddato": null,
             "expected_stik": 0,
             "langhatte": 0,
@@ -155,7 +155,7 @@
         },
         {
             "id": "16",
-            "sequence": 16,
+            "active": true,
             "hoveddato": null,
             "expected_stik": 0,
             "langhatte": 0,
@@ -165,7 +165,7 @@
         },
         {
             "id": "17",
-            "sequence": 17,
+            "active": true,
             "hoveddato": null,
             "expected_stik": 0,
             "langhatte": 0,
@@ -175,7 +175,7 @@
         },
         {
             "id": "18",
-            "sequence": 18,
+            "active": true,
             "hoveddato": null,
             "expected_stik": 0,
             "langhatte": 0,
@@ -185,7 +185,7 @@
         },
         {
             "id": "19",
-            "sequence": 19,
+            "active": true,
             "hoveddato": null,
             "expected_stik": 0,
             "langhatte": 0,
@@ -195,7 +195,7 @@
         },
         {
             "id": "20",
-            "sequence": 20,
+            "active": true,
             "hoveddato": null,
             "expected_stik": 0,
             "langhatte": 0,
@@ -205,7 +205,7 @@
         },
         {
             "id": "21",
-            "sequence": 21,
+            "active": true,
             "hoveddato": null,
             "expected_stik": 0,
             "langhatte": 0,
@@ -215,7 +215,7 @@
         },
         {
             "id": "22",
-            "sequence": 22,
+            "active": true,
             "hoveddato": null,
             "expected_stik": 0,
             "langhatte": 0,
@@ -225,7 +225,7 @@
         },
         {
             "id": "23",
-            "sequence": 23,
+            "active": true,
             "hoveddato": null,
             "expected_stik": 0,
             "langhatte": 0,
@@ -235,7 +235,7 @@
         },
         {
             "id": "24",
-            "sequence": 24,
+            "active": true,
             "hoveddato": null,
             "expected_stik": 0,
             "langhatte": 0,
@@ -245,7 +245,7 @@
         },
         {
             "id": "25",
-            "sequence": 25,
+            "active": true,
             "hoveddato": null,
             "expected_stik": 0,
             "langhatte": 0,
@@ -253,5 +253,61 @@
             "broende": 0,
             "notes": ""
         }
-    ]
+    ],
+    "status": "upcoming",
+    "task_assignments": {
+        "hovedledning": [
+            {
+                "team": "Filt",
+                "installations": [
+                    "1",
+                    "2",
+                    "3",
+                    "4",
+                    "5",
+                    "6",
+                    "7",
+                    "8",
+                    "9",
+                    "10"
+                ]
+            }
+        ],
+        "stikforberedelse": [
+            {
+                "team": "tv22",
+                "installations": [
+                    "1",
+                    "2",
+                    "5",
+                    "4",
+                    "3"
+                ]
+            }
+        ],
+        "stik": [
+            {
+                "team": "stik2",
+                "installations": [
+                    "1",
+                    "2"
+                ]
+            }
+        ],
+        "kontrol": [
+            {
+                "team": "tv22",
+                "installations": [
+                    "3",
+                    "4",
+                    "5",
+                    "6"
+                ]
+            }
+        ],
+        "korthat": [],
+        "broend": []
+    },
+    "customer": "",
+    "city": ""
 }

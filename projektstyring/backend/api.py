@@ -1,11 +1,18 @@
+from datetime import date
+
 from fastapi import FastAPI, Request, Form
 from fastapi.responses import RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 
+from projektstyring.backend.project_planner import (
+    generate_plan_for_project,
+    generate_plan_for_active_projects,
+)
 from projektstyring.backend.project_operations import add_installations
 from projektstyring.backend.project_repository import ProjectRepository
 from projektstyring.backend.project_writer import save_project
+from projektstyring.backend.team_loader import load_teams
 
 
 app = FastAPI()
@@ -23,6 +30,37 @@ templates = Jinja2Templates(
 repo = ProjectRepository()
 
 
+TASK_TYPES = [
+    "hovedledning",
+    "stikforberedelse",
+    "stik",
+    "kontrol",
+    "korthat",
+    "broend",
+]
+
+
+def get_teams():
+    return load_teams("projektstyring/data/teams.json")
+
+
+def empty_task_assignments():
+    return {
+        task_type: []
+        for task_type in TASK_TYPES
+    }
+
+
+def ensure_task_assignments(project):
+    if "task_assignments" not in project:
+        project["task_assignments"] = empty_task_assignments()
+
+    for task_type in TASK_TYPES:
+        project["task_assignments"].setdefault(task_type, [])
+
+    return project
+
+
 def to_int(value, default=0):
     try:
         if value in (None, ""):
@@ -30,6 +68,39 @@ def to_int(value, default=0):
         return int(value)
     except ValueError:
         return default
+
+
+def calculate_project_status(project):
+    start_date = project.get("start_date")
+
+    if not start_date:
+        return "upcoming"
+
+    try:
+        if date.fromisoformat(start_date) <= date.today():
+            return "active"
+    except ValueError:
+        return "upcoming"
+
+    return "upcoming"
+
+
+def installation_sort_key(installation):
+    return (
+        installation.get("hoveddato") or "9999-12-31",
+        to_int(installation.get("id"), 999999),
+    )
+
+
+def parse_installation_list(value):
+    if not value:
+        return []
+
+    return [
+        item.strip()
+        for item in value.split(",")
+        if item.strip()
+    ]
 
 
 @app.get("/")
@@ -40,6 +111,19 @@ def index(request: Request):
         request,
         "project_list.html",
         {"projects": projects},
+    )
+
+
+@app.get("/plan")
+def active_projects_plan(request: Request):
+    result = generate_plan_for_active_projects()
+
+    return templates.TemplateResponse(
+        request,
+        "active_plan.html",
+        {
+            "result": result,
+        },
     )
 
 
@@ -68,8 +152,11 @@ def create_project(
         "city": city.strip(),
         "start_date": start_date,
         "status": "upcoming",
+        "task_assignments": empty_task_assignments(),
         "installations": [],
     }
+
+    project["status"] = calculate_project_status(project)
 
     if installation_count > 0:
         project = add_installations(
@@ -79,26 +166,50 @@ def create_project(
 
     save_project(project)
 
-    return RedirectResponse(url="/", status_code=303)
+    return RedirectResponse(
+        url="/",
+        status_code=303,
+    )
 
 
 @app.get("/projects/{project_id}")
 def project_detail(request: Request, project_id: str):
     project = repo.load_project(project_id)
 
+    project["status"] = calculate_project_status(project)
+    project = ensure_task_assignments(project)
+
+    project["installations"] = sorted(
+        project.get("installations", []),
+        key=installation_sort_key,
+    )
+
+    save_project(project)
+
     return templates.TemplateResponse(
         request,
         "project_detail.html",
-        {"project": project},
+        {
+            "project": project,
+            "teams": get_teams(),
+            "task_types": TASK_TYPES,
+        },
     )
 
 
-@app.post("/projects/{project_id}/installations")
-async def save_installations(request: Request, project_id: str):
+@app.post("/projects/{project_id}/save")
+async def save_project_detail(request: Request, project_id: str):
     project = repo.load_project(project_id)
     form = await request.form()
 
-    installation_count = to_int(form.get("installation_count"), 0)
+    project["customer"] = form.get("customer", "").strip()
+    project["city"] = form.get("city", "").strip()
+    project["start_date"] = form.get("start_date", "").strip()
+
+    installation_count = to_int(
+        form.get("installation_count"),
+        0,
+    )
 
     installations = []
 
@@ -113,25 +224,92 @@ async def save_installations(request: Request, project_id: str):
         installations.append(
             {
                 "id": installation_id,
+                "active": form.get(f"active_{index}") == "on",
                 "hoveddato": hoveddato or None,
-                "expected_stik": to_int(form.get(f"expected_stik_{index}")),
-                "langhatte": to_int(form.get(f"langhatte_{index}")),
+                "expected_stik": to_int(
+                    form.get(f"expected_stik_{index}")
+                ),
+                "langhatte": to_int(
+                    form.get(f"langhatte_{index}")
+                ),
                 "korthatte_extra": to_int(
                     form.get(f"korthatte_extra_{index}")
                 ),
-                "broende": to_int(form.get(f"broende_{index}")),
+                "broende": to_int(
+                    form.get(f"broende_{index}")
+                ),
                 "notes": form.get(f"notes_{index}", "").strip(),
             }
         )
 
-    installations.sort(
-        key=lambda x: (
-            x.get("hoveddato") or "9999-12-31",
-            int(x.get("id", 999999))
+    assignments = empty_task_assignments()
+
+    assignment_count = to_int(
+        form.get("assignment_count"),
+        0,
+    )
+
+    for index in range(assignment_count):
+        task_type = form.get(f"assignment_task_{index}", "").strip()
+        team = form.get(f"assignment_team_{index}", "").strip()
+        installation_list = form.get(
+            f"assignment_installations_{index}",
+            "",
+        ).strip()
+
+        if not task_type or not team or not installation_list:
+            continue
+
+        if task_type not in assignments:
+            continue
+
+        assignments[task_type].append(
+            {
+                "team": team,
+                "installations": parse_installation_list(
+                    installation_list
+                ),
+            }
         )
+    assignments = empty_task_assignments()
+
+    assignment_count = to_int(
+        form.get("assignment_count"),
+        0,
+    )
+
+    for index in range(assignment_count):
+        task_type = form.get(f"assignment_task_{index}", "").strip()
+        team = form.get(f"assignment_team_{index}", "").strip()
+        installation_list = form.get(
+            f"assignment_installations_{index}",
+            "",
+        ).strip()
+
+        if not task_type or not team or not installation_list:
+            continue
+
+        if task_type not in assignments:
+            continue
+
+        assignments[task_type].append(
+            {
+                "team": team,
+                "installations": parse_installation_list(
+                    installation_list
+                ),
+            }
+        )
+
+    installations.sort(
+        key=installation_sort_key,
     )
 
     project["installations"] = installations
+    project["task_assignments"] = assignments
+    project["task_assignments"] = assignments
+    project["status"] = calculate_project_status(project)
+
     save_project(project)
 
     return RedirectResponse(
@@ -152,32 +330,33 @@ def add_project_installations(
         installation_count,
     )
 
+    project = ensure_task_assignments(project)
+
+    project["installations"] = sorted(
+        project.get("installations", []),
+        key=installation_sort_key,
+    )
+
+    project["status"] = calculate_project_status(project)
+
     save_project(project)
 
     return RedirectResponse(
         url=f"/projects/{project_id}",
         status_code=303,
     )
-@app.post("/projects/{project_id}/update")
-def update_project(
-    project_id: str,
-    customer: str = Form(""),
-    city: str = Form(""),
-    start_date: str = Form(""),
-    status: str = Form("upcoming"),
-):
+
+
+@app.get("/projects/{project_id}/plan")
+def project_plan(request: Request, project_id: str):
     project = repo.load_project(project_id)
+    result = generate_plan_for_project(project)
 
-    project["customer"] = customer.strip()
-    project["city"] = city.strip()
-    project["start_date"] = start_date
-    project["status"] = status
-
-    save_project(project)
-
-    return RedirectResponse(
-        url=f"/projects/{project_id}",
-        status_code=303,
+    return templates.TemplateResponse(
+        request,
+        "project_plan.html",
+        {
+            "project": project,
+            "result": result,
+        },
     )
-
-

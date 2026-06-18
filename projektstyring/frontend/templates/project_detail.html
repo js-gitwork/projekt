@@ -1,21 +1,58 @@
-cat > projektstyring/frontend/templates/project_detail.html <<'EOF'
 {% extends "base.html" %}
 
 {% block title %}{{ project.name }}{% endblock %}
 
 {% block content %}
-<div class="card">
-    <a href="/" class="btn btn-muted">Tilbage</a>
+<div class="project-layout">
+        <div class="project-side-menu">
+            <button type="submit" form="project-save-form" class="btn">
+                Gem alle ændringer
+            </button>
 
-    <h2>{{ project.name }}</h2>
+            <a href="/" class="btn">
+                Tilbage
+            </a>
 
-    <form
-        method="post"
-        action="/projects/{{ project.id }}/update"
-    >
+            <a href="/projects/{{ project.id }}/plan" class="btn">
+                Vis plan
+            </a>
+
+            <form
+                method="post"
+                action="/projects/{{ project.id }}/installations/add"
+                class="installation-add-form"
+            >
+                <label for="installation_count_add">
+                    Antal installationer
+                </label>
+
+                <input
+                    type="number"
+                    id="installation_count_add"
+                    name="installation_count"
+                    value="1"
+                    min="1"
+                    class="form-control"
+                >
+
+                <button type="submit" class="btn">
+                    Tilføj installationer
+                </button>
+            </form>
+        </div>
+
+        <div class="project-main">
+            <form id="project-save-form" method="post" action="/projects/{{ project.id }}/save">
+
+    <div class="card">
+
+        <h2>{{ project.name }}</h2>
+
         <p>
             <strong>V-nummer:</strong>
-            {{ project.id }}
+            {{ project.id }}<br>
+            <strong>Status:</strong>
+            {{ project.status }}
         </p>
 
         <label for="customer">Kunde</label>
@@ -44,70 +81,11 @@ cat > projektstyring/frontend/templates/project_detail.html <<'EOF'
             value="{{ project.start_date }}"
             class="form-control"
         >
+    </div>
 
-        <label for="status">Status</label>
-        <select
-            id="status"
-            name="status"
-            class="form-control"
-        >
-            <option
-                value="upcoming"
-                {% if project.status == "upcoming" %}selected{% endif %}
-            >
-                Kommende
-            </option>
-            <option
-                value="active"
-                {% if project.status == "active" %}selected{% endif %}
-            >
-                Aktiv
-            </option>
-            <option
-                value="completed"
-                {% if project.status == "completed" %}selected{% endif %}
-            >
-                Afsluttet
-            </option>
-        </select>
+    <div class="card">
+        <h2>Installationer</h2>
 
-        <div class="form-actions">
-            <button type="submit" class="btn">
-                Gem projekt
-            </button>
-        </div>
-    </form>
-
-    <hr>
-
-    <form
-        method="post"
-        action="/projects/{{ project.id }}/installations/add"
-        class="inline-form"
-    >
-        <label for="installation_count">
-            Tilføj installationer
-        </label>
-
-        <input
-            type="number"
-            id="installation_count"
-            name="installation_count"
-            value="1"
-            min="1"
-            class="form-control short-number"
-        >
-
-        <button type="submit" class="btn">
-            Tilføj
-        </button>
-    </form>
-</div>
-
-<div class="card">
-    <h2>Installationer</h2>
-
-    <form method="post" action="/projects/{{ project.id }}/installations">
         <input
             type="hidden"
             name="installation_count"
@@ -142,14 +120,15 @@ cat > projektstyring/frontend/templates/project_detail.html <<'EOF'
                             class="table-input small-input"
                         >
                     </td>
+
                     <td>
                         <input
-                            type="number"
-                            name="sequence_{{ loop.index0 }}"
-                            value="{{ installation.sequence }}"
-                            class="table-input small-input"
+                            type="checkbox"
+                            name="active_{{ loop.index0 }}"
+                            {% if installation.active|default(true) %}checked{% endif %}
                         >
                     </td>
+
                     <td>
                         <input
                             type="date"
@@ -158,6 +137,7 @@ cat > projektstyring/frontend/templates/project_detail.html <<'EOF'
                             class="table-input"
                         >
                     </td>
+
                     <td>
                         <input
                             type="number"
@@ -166,6 +146,7 @@ cat > projektstyring/frontend/templates/project_detail.html <<'EOF'
                             class="table-input small-input"
                         >
                     </td>
+
                     <td>
                         <input
                             type="number"
@@ -174,6 +155,7 @@ cat > projektstyring/frontend/templates/project_detail.html <<'EOF'
                             class="table-input small-input"
                         >
                     </td>
+
                     <td>
                         <input
                             type="number"
@@ -182,9 +164,11 @@ cat > projektstyring/frontend/templates/project_detail.html <<'EOF'
                             class="table-input small-input"
                         >
                     </td>
+
                     <td>
                         {{ langhatte + korthatte_extra }}
                     </td>
+
                     <td>
                         <input
                             type="number"
@@ -193,6 +177,7 @@ cat > projektstyring/frontend/templates/project_detail.html <<'EOF'
                             class="table-input small-input"
                         >
                     </td>
+
                     <td>
                         <input
                             type="text"
@@ -211,13 +196,216 @@ cat > projektstyring/frontend/templates/project_detail.html <<'EOF'
                 {% endfor %}
             </tbody>
         </table>
+    </div>
 
-        <div class="form-actions">
-            <button type="submit" class="btn">
-                Gem installationer
-            </button>
+    <div class="card">
+        <h2>Opgavefordeling</h2>
+
+        <p>
+            Skriv installationsnumre kommasepareret, fx:
+            <strong>1,2,3,7</strong>
+        </p>
+
+        <input
+            type="hidden"
+            name="assignment_count"
+            value="6"
+        >
+
+        {% set assignments = project.task_assignments|default({}, true) %}
+
+        <table class="project-table">
+            <thead>
+                <tr>
+                    <th>Opgave</th>
+                    <th>Hold</th>
+                    <th>Installationer</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% set row = assignments.hovedledning|default([], true)|first|default({}, true) %}
+                <tr>
+                    <td>
+                        Hovedledning
+                        <input
+                            type="hidden"
+                            name="assignment_task_0"
+                            value="hovedledning"
+                        >
+                    </td>
+                    <td>
+                        <select
+                             name="assignment_team_0"
+                             class="table-input"
+                        >
+                            <option value="">Vælg hold</option>
+
+                            {% for team in teams.values() %}
+                                {% if "hovedledning" in team.task_types %}
+                                <option
+                                    value="{{ team.id }}"
+                                    {% if row.team|default('') == team.id %}selected{% endif %}
+                                >
+                                    {{ team.name }}
+                                </option>
+                                {% endif %}
+                            {% endfor %}
+                        </select>
+                    </td>
+                    <td>
+                        <input
+                            type="text"
+                            name="assignment_installations_0"
+                            value="{{ row.installations|default([])|join(',') }}"
+                            class="table-input"
+                        >
+                    </td>
+                </tr>
+
+                {% set row = assignments.stikforberedelse|default([], true)|first|default({}, true) %}
+                <tr>
+                    <td>
+                        Stikforberedelse
+                        <input
+                            type="hidden"
+                            name="assignment_task_1"
+                            value="stikforberedelse"
+                        >
+                    </td>
+                    <td>
+                        <input
+                            type="text"
+                            name="assignment_team_1"
+                            value="{{ row.team|default('') }}"
+                            class="table-input"
+                        >
+                    </td>
+                    <td>
+                        <input
+                            type="text"
+                            name="assignment_installations_1"
+                            value="{{ row.installations|default([])|join(',') }}"
+                            class="table-input"
+                        >
+                    </td>
+                </tr>
+
+                {% set row = assignments.stik|default([], true)|first|default({}, true) %}
+                <tr>
+                    <td>
+                        Stik
+                        <input
+                            type="hidden"
+                            name="assignment_task_2"
+                            value="stik"
+                        >
+                    </td>
+                    <td>
+                        <input
+                            type="text"
+                            name="assignment_team_2"
+                            value="{{ row.team|default('') }}"
+                            class="table-input"
+                        >
+                    </td>
+                    <td>
+                        <input
+                            type="text"
+                            name="assignment_installations_2"
+                            value="{{ row.installations|default([])|join(',') }}"
+                            class="table-input"
+                        >
+                    </td>
+                </tr>
+
+                {% set row = assignments.kontrol|default([], true)|first|default({}, true) %}
+                <tr>
+                    <td>
+                        Kontrol
+                        <input
+                            type="hidden"
+                            name="assignment_task_3"
+                            value="kontrol"
+                        >
+                    </td>
+                    <td>
+                        <input
+                            type="text"
+                            name="assignment_team_3"
+                            value="{{ row.team|default('') }}"
+                            class="table-input"
+                        >
+                    </td>
+                    <td>
+                        <input
+                            type="text"
+                            name="assignment_installations_3"
+                            value="{{ row.installations|default([])|join(',') }}"
+                            class="table-input"
+                        >
+                    </td>
+                </tr>
+
+                {% set row = assignments.korthat|default([], true)|first|default({}, true) %}
+                <tr>
+                    <td>
+                        Korthat
+                        <input
+                            type="hidden"
+                            name="assignment_task_4"
+                            value="korthat"
+                        >
+                    </td>
+                    <td>
+                        <input
+                            type="text"
+                            name="assignment_team_4"
+                            value="{{ row.team|default('') }}"
+                            class="table-input"
+                        >
+                    </td>
+                    <td>
+                        <input
+                            type="text"
+                            name="assignment_installations_4"
+                            value="{{ row.installations|default([])|join(',') }}"
+                            class="table-input"
+                        >
+                    </td>
+                </tr>
+
+                {% set row = assignments.broend|default([], true)|first|default({}, true) %}
+                <tr>
+                    <td>
+                        Brønd
+                        <input
+                            type="hidden"
+                            name="assignment_task_5"
+                            value="broend"
+                        >
+                    </td>
+                    <td>
+                        <input
+                            type="text"
+                            name="assignment_team_5"
+                            value="{{ row.team|default('') }}"
+                            class="table-input"
+                        >
+                    </td>
+                    <td>
+                        <input
+                            type="text"
+                            name="assignment_installations_5"
+                            value="{{ row.installations|default([])|join(',') }}"
+                            class="table-input"
+                        >
+                    </td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+
+            </form>
         </div>
-    </form>
-</div>
+    </div>
 {% endblock %}
-EOF

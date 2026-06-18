@@ -73,4 +73,20 @@ class ProjectRepository:
             filename.unlink()
             return True
 
+    def load_all_projects(self):
+        projects = []
+
+        for project_info in self.list_projects():
+            try:
+                projects.append(
+                    self.load_project(project_info["id"])
+                )
+            except Exception as error:
+                print(
+                    f"Fejl ved læsning af projekt "
+                    f"{project_info['id']}: {error}"
+                )
+
+        return projects
+
         return False

@@ -223,3 +223,41 @@ body {
 .short-number {
     max-width: 140px;
 }
+
+.project-layout {
+    display: flex;
+    gap: 20px;
+    align-items: flex-start;
+}
+
+.project-side-menu {
+    position: sticky;
+    top: 20px;
+    min-width: 180px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.project-side-menu .btn {
+    display: block;
+    text-align: center;
+}
+
+.project-main {
+    flex: 1;
+}
+
+.project-side-menu {
+    flex: 0 0 180px;
+    width: 180px;
+}
+
+.project-side-menu .installation-add-form {
+    margin-top: 12px;
+}
+
+.project-side-menu #installation_count_add {
+    width: 4em;
+    max-width: 4em;
+}

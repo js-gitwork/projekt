@@ -1,5 +1,5 @@
 [
-  {"id": "stram_tv6", "name": "Stram-TV6", "role": "cutter", "calendar_id": "standard_ma_to", "capacity_per_day": 0, "task_types": ["cutter"]},
+  {"id": "stram_tv6", "name": "Stram-TV6", "role": "cutter", "calendar_id": "standard_ma_to", "capacity_per_day": 0, "task_types": ["cutter", "Hovedledning"]},
   {"id": "filt_oest", "name": "Filt Øst", "role": "filt", "calendar_id": "standard_ma_fre", "capacity_per_day": 0, "task_types": ["hovedledning"]},
   {"id": "tv24", "name": "TV24", "role": "cutter", "calendar_id": "standard_ma_to", "capacity_per_day": 0, "task_types": ["cutter"]},
   {"id": "stik1", "name": "Stik 1", "role": "stik", "calendar_id": "standard_ma_to", "capacity_per_day": 5, "task_types": ["stik"]},

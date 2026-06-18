@@ -1,0 +1,102 @@
+{% extends "base.html" %}
+
+{% block title %}Samlet plan{% endblock %}
+
+{% block content %}
+<div class="card">
+    <a href="/" class="btn btn-muted">
+        Tilbage til projekter
+    </a>
+
+    <h2>Samlet plan for aktive projekter</h2>
+
+    <p>
+        Planen beregnes automatisk ud fra alle aktive projekter.
+    </p>
+</div>
+
+<div class="card">
+    <h2>Planlagte aktiviteter</h2>
+
+    <table class="project-table">
+        <thead>
+            <tr>
+                <th>Start</th>
+                <th>Slut</th>
+                <th>Installation</th>
+                <th>Hold</th>
+                <th>Aktivitet</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for aktivitet in result.activities %}
+            <tr>
+                <td>{{ aktivitet.start_dato }}</td>
+                <td>{{ aktivitet.slut_dato }}</td>
+                <td>{{ aktivitet.installation_id }}</td>
+                <td>{{ aktivitet.hold }}</td>
+                <td>{{ aktivitet.type }}</td>
+            </tr>
+            {% else %}
+            <tr>
+                <td colspan="5" class="empty-message">
+                    Ingen aktiviteter planlagt.
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+
+{% if result.rest_work %}
+<div class="card">
+    <h2>Restarbejde</h2>
+
+    <table class="project-table">
+        <thead>
+            <tr>
+                <th>Installation</th>
+                <th>Aktivitet</th>
+                <th>Antal</th>
+                <th>Årsag</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for rest in result.rest_work %}
+            <tr>
+                <td>{{ rest.installation_id }}</td>
+                <td>{{ rest.task_type }}</td>
+                <td>{{ rest.quantity }}</td>
+                <td>{{ rest.reason }}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% endif %}
+
+{% if result.warnings %}
+<div class="card">
+    <h2>Advarsler</h2>
+
+    <table class="project-table">
+        <thead>
+            <tr>
+                <th>Niveau</th>
+                <th>Installation</th>
+                <th>Besked</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for warning in result.warnings %}
+            <tr>
+                <td>{{ warning.severity }}</td>
+                <td>{{ warning.installation_id }}</td>
+                <td>{{ warning.message }}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% endif %}
+{% endblock %}
