@@ -3,409 +3,368 @@
 {% block title %}{{ project.name }}{% endblock %}
 
 {% block content %}
+
+{% if errors %}
+<div class="card error-box">
+    <h3>Der er fejl i opgavefordelingen</h3>
+    <ul>
+        {% for error in errors %}
+        <li>{{ error }}</li>
+        {% endfor %}
+    </ul>
+</div>
+{% endif %}
+
 <div class="project-layout">
-        <div class="project-side-menu">
-            <button type="submit" form="project-save-form" class="btn">
-                Gem alle ændringer
-            </button>
+    <div class="project-side-menu">
+        <button type="submit" form="project-save-form" class="btn">
+            Gem alle ændringer
+        </button>
 
-            <a href="/" class="btn">
-                Tilbage
-            </a>
+        <a href="/" class="btn">
+            Tilbage
+        </a>
 
-            <a href="/projects/{{ project.id }}/plan" class="btn">
-                Vis plan
-            </a>
+        <a href="/projects/{{ project.id }}/plan" class="btn">
+            Vis plan
+        </a>
 
-            <form
-                method="post"
-                action="/projects/{{ project.id }}/installations/add"
-                class="installation-add-form"
+        <form
+            method="post"
+            action="/projects/{{ project.id }}/installations/add"
+            class="installation-add-form"
+        >
+            <label for="installation_count_add">
+                Antal installationer
+            </label>
+
+            <input
+                type="number"
+                id="installation_count_add"
+                name="installation_count"
+                value="1"
+                min="1"
+                class="form-control"
             >
-                <label for="installation_count_add">
-                    Antal installationer
-                </label>
 
+            <button type="submit" class="btn">
+                Tilføj installationer
+            </button>
+        </form>
+    </div>
+
+    <div class="project-main">
+        <form id="project-save-form" method="post" action="/projects/{{ project.id }}/save">
+
+            <div class="card">
+                <h2>{{ project.name }}</h2>
+
+                <p>
+                    <strong>V-nummer:</strong>
+                    {{ project.id }}<br>
+                    <strong>Status:</strong>
+                    {{ project.status }}
+                </p>
+
+                <label for="customer">Kunde</label>
                 <input
-                    type="number"
-                    id="installation_count_add"
-                    name="installation_count"
-                    value="1"
-                    min="1"
+                    type="text"
+                    id="customer"
+                    name="customer"
+                    value="{{ project.customer }}"
                     class="form-control"
                 >
 
-                <button type="submit" class="btn">
-                    Tilføj installationer
-                </button>
-            </form>
-        </div>
+                <label for="city">By</label>
+                <input
+                    type="text"
+                    id="city"
+                    name="city"
+                    value="{{ project.city }}"
+                    class="form-control"
+                >
 
-        <div class="project-main">
-            <form id="project-save-form" method="post" action="/projects/{{ project.id }}/save">
+                <label for="start_date">Startdato</label>
+                <input
+                    type="date"
+                    id="start_date"
+                    name="start_date"
+                    value="{{ project.start_date }}"
+                    class="form-control"
+                >
+            </div>
 
-    <div class="card">
+            <div class="card">
+                <h2>Installationer</h2>
 
-        <h2>{{ project.name }}</h2>
+                <input
+                    type="hidden"
+                    name="installation_count"
+                    value="{{ project.installations|length }}"
+                >
 
-        <p>
-            <strong>V-nummer:</strong>
-            {{ project.id }}<br>
-            <strong>Status:</strong>
-            {{ project.status }}
-        </p>
+                <table class="project-table">
+                    <thead>
+                        <tr>
+                            <th>Installation</th>
+                            <th>Aktiv</th>
+                            <th>Hoveddato</th>
+                            <th>Forventede stik</th>
+                            <th>Langhatte</th>
+                            <th>Ekstra korthatte</th>
+                            <th>Samlet korthatarbejde</th>
+                            <th>Brønde</th>
+                            <th>Noter</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for installation in project.installations %}
+                        {% set langhatte = installation.langhatte|default(0, true) %}
+                        {% set korthatte_extra = installation.korthatte_extra|default(0, true) %}
 
-        <label for="customer">Kunde</label>
-        <input
-            type="text"
-            id="customer"
-            name="customer"
-            value="{{ project.customer }}"
-            class="form-control"
-        >
-
-        <label for="city">By</label>
-        <input
-            type="text"
-            id="city"
-            name="city"
-            value="{{ project.city }}"
-            class="form-control"
-        >
-
-        <label for="start_date">Startdato</label>
-        <input
-            type="date"
-            id="start_date"
-            name="start_date"
-            value="{{ project.start_date }}"
-            class="form-control"
-        >
-    </div>
-
-    <div class="card">
-        <h2>Installationer</h2>
-
-        <input
-            type="hidden"
-            name="installation_count"
-            value="{{ project.installations|length }}"
-        >
-
-        <table class="project-table">
-            <thead>
-                <tr>
-                    <th>Installation</th>
-                    <th>Aktiv</th>
-                    <th>Hoveddato</th>
-                    <th>Forventede stik</th>
-                    <th>Langhatte</th>
-                    <th>Ekstra korthatte</th>
-                    <th>Samlet korthatarbejde</th>
-                    <th>Brønde</th>
-                    <th>Noter</th>
-                </tr>
-            </thead>
-            <tbody>
-                {% for installation in project.installations %}
-                {% set langhatte = installation.langhatte|default(0, true) %}
-                {% set korthatte_extra = installation.korthatte_extra|default(0, true) %}
-
-                <tr>
-                    <td>
-                        <input
-                            type="text"
-                            name="id_{{ loop.index0 }}"
-                            value="{{ installation.id }}"
-                            class="table-input small-input"
-                        >
-                    </td>
-
-                    <td>
-                        <input
-                            type="checkbox"
-                            name="active_{{ loop.index0 }}"
-                            {% if installation.active|default(true) %}checked{% endif %}
-                        >
-                    </td>
-
-                    <td>
-                        <input
-                            type="date"
-                            name="hoveddato_{{ loop.index0 }}"
-                            value="{{ installation.hoveddato or '' }}"
-                            class="table-input"
-                        >
-                    </td>
-
-                    <td>
-                        <input
-                            type="number"
-                            name="expected_stik_{{ loop.index0 }}"
-                            value="{{ installation.expected_stik }}"
-                            class="table-input small-input"
-                        >
-                    </td>
-
-                    <td>
-                        <input
-                            type="number"
-                            name="langhatte_{{ loop.index0 }}"
-                            value="{{ langhatte }}"
-                            class="table-input small-input"
-                        >
-                    </td>
-
-                    <td>
-                        <input
-                            type="number"
-                            name="korthatte_extra_{{ loop.index0 }}"
-                            value="{{ korthatte_extra }}"
-                            class="table-input small-input"
-                        >
-                    </td>
-
-                    <td>
-                        {{ langhatte + korthatte_extra }}
-                    </td>
-
-                    <td>
-                        <input
-                            type="number"
-                            name="broende_{{ loop.index0 }}"
-                            value="{{ installation.broende }}"
-                            class="table-input small-input"
-                        >
-                    </td>
-
-                    <td>
-                        <input
-                            type="text"
-                            name="notes_{{ loop.index0 }}"
-                            value="{{ installation.notes }}"
-                            class="table-input"
-                        >
-                    </td>
-                </tr>
-                {% else %}
-                <tr>
-                    <td colspan="9" class="empty-message">
-                        Ingen installationer oprettet.
-                    </td>
-                </tr>
-                {% endfor %}
-            </tbody>
-        </table>
-    </div>
-
-    <div class="card">
-        <h2>Opgavefordeling</h2>
-
-        <p>
-            Skriv installationsnumre kommasepareret, fx:
-            <strong>1,2,3,7</strong>
-        </p>
-
-        <input
-            type="hidden"
-            name="assignment_count"
-            value="6"
-        >
-
-        {% set assignments = project.task_assignments|default({}, true) %}
-
-        <table class="project-table">
-            <thead>
-                <tr>
-                    <th>Opgave</th>
-                    <th>Hold</th>
-                    <th>Installationer</th>
-                </tr>
-            </thead>
-            <tbody>
-                {% set row = assignments.hovedledning|default([], true)|first|default({}, true) %}
-                <tr>
-                    <td>
-                        Hovedledning
-                        <input
-                            type="hidden"
-                            name="assignment_task_0"
-                            value="hovedledning"
-                        >
-                    </td>
-                    <td>
-                        <select
-                             name="assignment_team_0"
-                             class="table-input"
-                        >
-                            <option value="">Vælg hold</option>
-
-                            {% for team in teams.values() %}
-                                {% if "hovedledning" in team.task_types %}
-                                <option
-                                    value="{{ team.id }}"
-                                    {% if row.team|default('') == team.id %}selected{% endif %}
+                        <tr>
+                            <td>
+                                <input
+                                    type="text"
+                                    name="id_{{ loop.index0 }}"
+                                    value="{{ installation.id }}"
+                                    class="table-input small-input"
                                 >
-                                    {{ team.name }}
-                                </option>
-                                {% endif %}
+                            </td>
+
+                            <td>
+                                <input
+                                    type="checkbox"
+                                    name="active_{{ loop.index0 }}"
+                                    {% if installation.active|default(true) %}checked{% endif %}
+                                >
+                            </td>
+
+                            <td>
+                                <input
+                                    type="date"
+                                    name="hoveddato_{{ loop.index0 }}"
+                                    value="{{ installation.hoveddato or '' }}"
+                                    class="table-input"
+                                >
+                            </td>
+
+                            <td>
+                                <input
+                                    type="number"
+                                    name="expected_stik_{{ loop.index0 }}"
+                                    value="{{ installation.expected_stik }}"
+                                    class="table-input small-input"
+                                >
+                            </td>
+
+                            <td>
+                                <input
+                                    type="number"
+                                    name="langhatte_{{ loop.index0 }}"
+                                    value="{{ langhatte }}"
+                                    class="table-input small-input"
+                                >
+                            </td>
+
+                            <td>
+                                <input
+                                    type="number"
+                                    name="korthatte_extra_{{ loop.index0 }}"
+                                    value="{{ korthatte_extra }}"
+                                    class="table-input small-input"
+                                >
+                            </td>
+
+                            <td>
+                                {{ langhatte + korthatte_extra }}
+                            </td>
+
+                            <td>
+                                <input
+                                    type="number"
+                                    name="broende_{{ loop.index0 }}"
+                                    value="{{ installation.broende }}"
+                                    class="table-input small-input"
+                                >
+                            </td>
+
+                            <td>
+                                <input
+                                    type="text"
+                                    name="notes_{{ loop.index0 }}"
+                                    value="{{ installation.notes }}"
+                                    class="table-input"
+                                >
+                            </td>
+                        </tr>
+                        {% else %}
+                        <tr>
+                            <td colspan="9" class="empty-message">
+                                Ingen installationer oprettet.
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+
+            <div class="card">
+                <h2>Opgavefordeling</h2>
+
+                <p>
+                    Skriv installationsnumre kommasepareret, fx:
+                    <strong>1,2,3,7</strong>
+                </p>
+
+                {% set assignments = project.task_assignments|default({}, true) %}
+                {% set ns = namespace(row_index=0) %}
+
+                <table class="project-table">
+                    <thead>
+                        <tr>
+                            <th>Opgave</th>
+                            <th>Hold</th>
+                            <th>Installationer</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for task_type, rows in assignments.items() %}
+                            {% for row in rows %}
+                            <tr>
+                                <td>
+                                    <select
+                                        name="assignment_task_{{ ns.row_index }}"
+                                        class="table-input"
+                                    >
+                                        <option value="">Vælg opgave</option>
+
+                                        {% for available_task_type in task_types %}
+                                        <option
+                                            value="{{ available_task_type }}"
+                                            {% if task_type == available_task_type %}selected{% endif %}
+                                        >
+                                            {% if available_task_type == "hovedledning" %}
+                                                Hovedledning
+                                            {% elif available_task_type == "stikforberedelse" %}
+                                                Stikforberedelse
+                                            {% elif available_task_type == "stik" %}
+                                                Stik
+                                            {% elif available_task_type == "kontrol" %}
+                                                Kontrol
+                                            {% elif available_task_type == "korthat" %}
+                                                Korthat
+                                            {% elif available_task_type == "broend" %}
+                                                Brønd
+                                            {% else %}
+                                                {{ available_task_type }}
+                                            {% endif %}
+                                        </option>
+                                        {% endfor %}
+                                    </select>
+                                </td>
+
+                                <td>
+                                    <select
+                                        name="assignment_team_{{ ns.row_index }}"
+                                        class="table-input"
+                                    >
+                                        <option value="">Vælg hold</option>
+
+                                        {% for team in teams.values() %}
+                                            {% if task_type in team.task_types %}
+                                            <option
+                                                value="{{ team.id }}"
+                                                {% if row.team|default('') == team.id %}selected{% endif %}
+                                            >
+                                                {{ team.name }}
+                                            </option>
+                                            {% endif %}
+                                        {% endfor %}
+                                    </select>
+                                </td>
+
+                                <td>
+                                    <input
+                                        type="text"
+                                        name="assignment_installations_{{ ns.row_index }}"
+                                        value="{{ row.installations|default([])|join(',') }}"
+                                        class="table-input"
+                                    >
+                                </td>
+                            </tr>
+
+                            {% set ns.row_index = ns.row_index + 1 %}
                             {% endfor %}
-                        </select>
-                    </td>
-                    <td>
-                        <input
-                            type="text"
-                            name="assignment_installations_0"
-                            value="{{ row.installations|default([])|join(',') }}"
-                            class="table-input"
-                        >
-                    </td>
-                </tr>
+                        {% endfor %}
 
-                {% set row = assignments.stikforberedelse|default([], true)|first|default({}, true) %}
-                <tr>
-                    <td>
-                        Stikforberedelse
-                        <input
-                            type="hidden"
-                            name="assignment_task_1"
-                            value="stikforberedelse"
-                        >
-                    </td>
-                    <td>
-                        <input
-                            type="text"
-                            name="assignment_team_1"
-                            value="{{ row.team|default('') }}"
-                            class="table-input"
-                        >
-                    </td>
-                    <td>
-                        <input
-                            type="text"
-                            name="assignment_installations_1"
-                            value="{{ row.installations|default([])|join(',') }}"
-                            class="table-input"
-                        >
-                    </td>
-                </tr>
+                        <tr>
+                            <td>
+                                <select
+                                    name="assignment_task_{{ ns.row_index }}"
+                                    class="table-input"
+                                >
+                                    <option value="">Vælg opgave</option>
 
-                {% set row = assignments.stik|default([], true)|first|default({}, true) %}
-                <tr>
-                    <td>
-                        Stik
-                        <input
-                            type="hidden"
-                            name="assignment_task_2"
-                            value="stik"
-                        >
-                    </td>
-                    <td>
-                        <input
-                            type="text"
-                            name="assignment_team_2"
-                            value="{{ row.team|default('') }}"
-                            class="table-input"
-                        >
-                    </td>
-                    <td>
-                        <input
-                            type="text"
-                            name="assignment_installations_2"
-                            value="{{ row.installations|default([])|join(',') }}"
-                            class="table-input"
-                        >
-                    </td>
-                </tr>
+                                    {% for available_task_type in task_types %}
+                                    <option value="{{ available_task_type }}">
+                                        {% if available_task_type == "hovedledning" %}
+                                            Hovedledning
+                                        {% elif available_task_type == "stikforberedelse" %}
+                                            Stikforberedelse
+                                        {% elif available_task_type == "stik" %}
+                                            Stik
+                                        {% elif available_task_type == "kontrol" %}
+                                            Kontrol
+                                        {% elif available_task_type == "korthat" %}
+                                            Korthat
+                                        {% elif available_task_type == "broend" %}
+                                            Brønd
+                                        {% else %}
+                                            {{ available_task_type }}
+                                        {% endif %}
+                                    </option>
+                                    {% endfor %}
+                                </select>
+                            </td>
 
-                {% set row = assignments.kontrol|default([], true)|first|default({}, true) %}
-                <tr>
-                    <td>
-                        Kontrol
-                        <input
-                            type="hidden"
-                            name="assignment_task_3"
-                            value="kontrol"
-                        >
-                    </td>
-                    <td>
-                        <input
-                            type="text"
-                            name="assignment_team_3"
-                            value="{{ row.team|default('') }}"
-                            class="table-input"
-                        >
-                    </td>
-                    <td>
-                        <input
-                            type="text"
-                            name="assignment_installations_3"
-                            value="{{ row.installations|default([])|join(',') }}"
-                            class="table-input"
-                        >
-                    </td>
-                </tr>
+                            <td>
+                                <select
+                                    name="assignment_team_{{ ns.row_index }}"
+                                    class="table-input"
+                                >
+                                    <option value="">Vælg hold</option>
 
-                {% set row = assignments.korthat|default([], true)|first|default({}, true) %}
-                <tr>
-                    <td>
-                        Korthat
-                        <input
-                            type="hidden"
-                            name="assignment_task_4"
-                            value="korthat"
-                        >
-                    </td>
-                    <td>
-                        <input
-                            type="text"
-                            name="assignment_team_4"
-                            value="{{ row.team|default('') }}"
-                            class="table-input"
-                        >
-                    </td>
-                    <td>
-                        <input
-                            type="text"
-                            name="assignment_installations_4"
-                            value="{{ row.installations|default([])|join(',') }}"
-                            class="table-input"
-                        >
-                    </td>
-                </tr>
+                                    {% for team in teams.values() %}
+                                    <option value="{{ team.id }}">
+                                        {{ team.name }}
+                                    </option>
+                                    {% endfor %}
+                                </select>
+                            </td>
 
-                {% set row = assignments.broend|default([], true)|first|default({}, true) %}
-                <tr>
-                    <td>
-                        Brønd
-                        <input
-                            type="hidden"
-                            name="assignment_task_5"
-                            value="broend"
-                        >
-                    </td>
-                    <td>
-                        <input
-                            type="text"
-                            name="assignment_team_5"
-                            value="{{ row.team|default('') }}"
-                            class="table-input"
-                        >
-                    </td>
-                    <td>
-                        <input
-                            type="text"
-                            name="assignment_installations_5"
-                            value="{{ row.installations|default([])|join(',') }}"
-                            class="table-input"
-                        >
-                    </td>
-                </tr>
-            </tbody>
-        </table>
+                            <td>
+                                <input
+                                    type="text"
+                                    name="assignment_installations_{{ ns.row_index }}"
+                                    value=""
+                                    class="table-input"
+                                    placeholder="fx 1,2,3"
+                                >
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+
+                <input
+                    type="hidden"
+                    name="assignment_count"
+                    value="{{ ns.row_index + 1 }}"
+                >
+            </div>
+
+        </form>
     </div>
+</div>
 
-            </form>
-        </div>
-    </div>
 {% endblock %}

@@ -111,10 +111,55 @@
                 ]
             }
         ],
-        "stikforberedelse": [],
-        "stik": [],
-        "kontrol": [],
+        "stikforberedelse": [
+            {
+                "team": "tv14_dtvk",
+                "installations": [
+                    "1",
+                    "2",
+                    "3",
+                    "4"
+                ]
+            }
+        ],
+        "stik": [
+            {
+                "team": "stik1",
+                "installations": [
+                    "1",
+                    "2",
+                    "3",
+                    "4"
+                ]
+            }
+        ],
+        "kontrol": [
+            {
+                "team": "tv14_dtvk",
+                "installations": [
+                    "1",
+                    "2",
+                    "3",
+                    "4"
+                ]
+            }
+        ],
         "korthat": [],
-        "broend": []
+        "broend": [
+            {
+                "team": "broend2",
+                "installations": [
+                    "1",
+                    "2"
+                ]
+            },
+            {
+                "team": "broend1",
+                "installations": [
+                    "3",
+                    "4"
+                ]
+            }
+        ]
     }
 }

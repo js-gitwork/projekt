@@ -103,6 +103,30 @@ def parse_installation_list(value):
     ]
 
 
+def validate_task_assignments(assignments):
+    used = {}
+    errors = []
+
+    for task_type, rows in assignments.items():
+        for row in rows:
+            team = row.get("team", "")
+            installations = row.get("installations", [])
+
+            for installation_id in installations:
+                key = (task_type, installation_id)
+
+                if key in used:
+                    errors.append(
+                        f"Installation {installation_id} har allerede opgaven "
+                        f"{task_type} tildelt til {used[key]} og kan ikke også "
+                        f"tildeles til {team}."
+                    )
+                else:
+                    used[key] = team
+
+    return errors
+
+
 @app.get("/")
 def index(request: Request):
     projects = repo.list_projects()
@@ -193,6 +217,7 @@ def project_detail(request: Request, project_id: str):
             "project": project,
             "teams": get_teams(),
             "task_types": TASK_TYPES,
+            "errors": [],
         },
     )
 
@@ -271,35 +296,6 @@ async def save_project_detail(request: Request, project_id: str):
                 ),
             }
         )
-    assignments = empty_task_assignments()
-
-    assignment_count = to_int(
-        form.get("assignment_count"),
-        0,
-    )
-
-    for index in range(assignment_count):
-        task_type = form.get(f"assignment_task_{index}", "").strip()
-        team = form.get(f"assignment_team_{index}", "").strip()
-        installation_list = form.get(
-            f"assignment_installations_{index}",
-            "",
-        ).strip()
-
-        if not task_type or not team or not installation_list:
-            continue
-
-        if task_type not in assignments:
-            continue
-
-        assignments[task_type].append(
-            {
-                "team": team,
-                "installations": parse_installation_list(
-                    installation_list
-                ),
-            }
-        )
 
     installations.sort(
         key=installation_sort_key,
@@ -307,8 +303,22 @@ async def save_project_detail(request: Request, project_id: str):
 
     project["installations"] = installations
     project["task_assignments"] = assignments
-    project["task_assignments"] = assignments
     project["status"] = calculate_project_status(project)
+
+    errors = validate_task_assignments(assignments)
+
+    if errors:
+        return templates.TemplateResponse(
+            request,
+            "project_detail.html",
+            {
+                "project": project,
+                "teams": get_teams(),
+                "task_types": TASK_TYPES,
+                "errors": errors,
+            },
+            status_code=400,
+        )
 
     save_project(project)
 
