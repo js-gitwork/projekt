@@ -8,6 +8,10 @@
         Tilbage til projekt
     </a>
 
+    <a href="/projects/{{ project.id }}/work-cards" class="btn">
+        Udskriv arbejdskort
+    </a>
+
     <h2>Plan for {{ project.name }}</h2>
 
     <p>
@@ -18,36 +22,231 @@
 </div>
 
 <div class="card">
+    <h2>Filter</h2>
+
+    <form method="get" action="/projects/{{ project.id }}/plan">
+        <label>Hold</label>
+
+        <div class="checkbox-list">
+            {% for team in teams.values() %}
+            <label class="checkbox-item">
+                <input
+                    type="checkbox"
+                    name="hold"
+                    value="{{ team.id }}"
+                    {% if team.id in selected_holds %}checked{% endif %}
+                >
+                {{ team.name }}
+            </label>
+            {% endfor %}
+        </div>
+
+        <label for="year">År</label>
+        <input
+            type="number"
+            id="year"
+            name="year"
+            value="{% if selected_year %}{{ selected_year }}{% endif %}"
+            class="table-input"
+            placeholder="fx 2026"
+        >
+
+        <label for="week_from">Fra uge</label>
+        <input
+            type="number"
+            id="week_from"
+            name="week_from"
+            value="{% if selected_week_from %}{{ selected_week_from }}{% endif %}"
+            class="table-input"
+            min="1"
+            max="53"
+        >
+
+        <label for="week_to">Til uge</label>
+        <input
+            type="number"
+            id="week_to"
+            name="week_to"
+            value="{% if selected_week_to %}{{ selected_week_to }}{% endif %}"
+            class="table-input"
+            min="1"
+            max="53"
+        >
+
+        <button type="submit" class="btn">
+            Filtrér
+        </button>
+
+        <a href="/projects/{{ project.id }}/plan" class="btn btn-muted">
+            Nulstil
+        </a>
+    </form>
+</div>
+
+<div class="card">
     <h2>Planlagte aktiviteter</h2>
 
     <table class="project-table">
         <thead>
             <tr>
-                <th>Start</th>
-                <th>Slut</th>
+                <th>Dato</th>
                 <th>Installation</th>
                 <th>Hold</th>
                 <th>Aktivitet</th>
+                <th>Stik / korthatte</th>
+                <th>Brønde</th>
+                <th>Status</th>
             </tr>
         </thead>
         <tbody>
-            {% for aktivitet in result.activities %}
+            {% for aktivitet in activities %}
             <tr>
-                <td>{{ aktivitet.start_dato }}</td>
-                <td>{{ aktivitet.slut_dato }}</td>
+                <td>
+                    Uge {{ aktivitet.start_dato.isocalendar().week }}<br>
+                    {% if aktivitet.start_dato == aktivitet.slut_dato %}
+                        {{ aktivitet.start_dato }}
+                    {% else %}
+                        {{ aktivitet.start_dato }} – {{ aktivitet.slut_dato }}
+                   {% endif %}
+                </td>
                 <td>{{ aktivitet.installation_id }}</td>
                 <td>{{ aktivitet.hold }}</td>
                 <td>{{ aktivitet.type }}</td>
+                <td>
+                    {% if aktivitet.type == "hovedledning" %}
+                        -
+                    {% elif aktivitet.antal_stik %}
+                        {{ aktivitet.antal_stik }}
+                    {% else %}
+                        -
+                    {% endif %}
+                </td>
+                <td>
+                    {% if aktivitet.antal_brønde %}
+                        {{ aktivitet.antal_brønde }}
+                    {% else %}
+                        -
+                    {% endif %}
+                </td>
+                <td>{{ aktivitet.status }}</td>
             </tr>
             {% else %}
             <tr>
-                <td colspan="5" class="empty-message">
+                <td colspan="7" class="empty-message">
                     Ingen aktiviteter planlagt.
                 </td>
             </tr>
             {% endfor %}
         </tbody>
     </table>
+</div>
+
+<div class="card">
+    <h2>Gantt-overblik</h2>
+
+    {% if gantt.dates and gantt.rows %}
+    <div class="gantt-scroll">
+        <table class="project-table gantt-table">
+            <thead>
+                <tr>
+                    <th>Installation</th>
+                    <th>Aktivitet</th>
+                    <th>Hold</th>
+                    {% for dato in gantt.dates %}
+                    <th>
+                        U{{ dato.isocalendar().week }}<br>
+                        {{ dato.strftime("%d/%m") }}
+                    </th>
+                    {% endfor %}
+                </tr>
+            </thead>
+            <tbody>
+                {% for aktivitet in gantt.rows %}
+                <tr>
+                    <td>{{ aktivitet.installation_id }}</td>
+                    <td>{{ aktivitet.type }}</td>
+                    <td>{{ aktivitet.hold }}</td>
+
+                    {% for dato in gantt.dates %}
+                    <td class="gantt-cell">
+                        {% if aktivitet.start_dato <= dato and dato <= aktivitet.slut_dato %}
+                            █
+                        {% else %}
+                            &nbsp;
+                        {% endif %}
+                    </td>
+                    {% endfor %}
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% else %}
+        <p class="empty-message">
+            Ingen Gantt-data kan vises.
+        </p>
+    {% endif %}
+</div>
+
+<div class="card">
+    <h2>Arbejdskort pr. hold</h2>
+
+    {% if work_cards %}
+        {% for hold, activities in work_cards.items() %}
+        <div class="work-card">
+            <h3>{{ hold }}</h3>
+
+            <table class="project-table">
+                <thead>
+                    <tr>
+                        <th>Dato</th>
+                        <th>Installation</th>
+                        <th>Aktivitet</th>
+                        <th>Stik / korthatte</th>
+                        <th>Brønde</th>
+                        <th>Status</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for aktivitet in activities %}
+                    <tr>
+                        <td>
+                            {% if aktivitet.start_dato == aktivitet.slut_dato %}
+                                {{ aktivitet.start_dato }}
+                            {% else %}
+                                {{ aktivitet.start_dato }} – {{ aktivitet.slut_dato }}
+                            {% endif %}
+                        </td>
+                        <td>{{ aktivitet.installation_id }}</td>
+                        <td>{{ aktivitet.type }}</td>
+                        <td>
+                            {% if aktivitet.type == "hovedledning" %}
+                                -
+                            {% elif aktivitet.antal_stik %}
+                                {{ aktivitet.antal_stik }}
+                            {% else %}
+                                -
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if aktivitet.antal_brønde %}
+                                {{ aktivitet.antal_brønde }}
+                            {% else %}
+                                -
+                            {% endif %}
+                        </td>
+                        <td>{{ aktivitet.status }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% endfor %}
+    {% else %}
+        <p class="empty-message">
+            Ingen arbejdskort kan vises, fordi der ikke er planlagte aktiviteter.
+        </p>
+    {% endif %}
 </div>
 
 {% if result.rest_work %}
@@ -78,7 +277,7 @@
 {% endif %}
 
 {% if result.warnings %}
-<div class="card">
+<div class="card error-box">
     <h2>Advarsler</h2>
 
     <table class="project-table">

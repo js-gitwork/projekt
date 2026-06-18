@@ -46,6 +46,8 @@ def build_installations_from_project(project: dict) -> list[Installation]:
         hoveddato = parse_date(item.get("hoveddato"))
 
         expected_stik = int(item.get("expected_stik") or 0)
+        active_stik = int(item.get("active_stik") or 0)
+        planned_stik = active_stik or expected_stik
         langhatte = int(item.get("langhatte") or 0)
         korthatte_extra = int(item.get("korthatte_extra") or 0)
         broende = int(item.get("broende") or 0)
@@ -71,7 +73,7 @@ def build_installations_from_project(project: dict) -> list[Installation]:
                 )
             )
 
-        if expected_stik > 0:
+        if planned_stik > 0:
             stikforberedelse_hold = find_team_for_installation(
                 project,
                 "stikforberedelse",
@@ -97,7 +99,7 @@ def build_installations_from_project(project: dict) -> list[Installation]:
                         installation_id=installation_id,
                         type=Aktivitetstype.STIK_FORBEREDELSE,
                         hold=stikforberedelse_hold,
-                        antal_stik=expected_stik,
+                        antal_stik=planned_stik,
                     )
                 )
 
@@ -108,7 +110,7 @@ def build_installations_from_project(project: dict) -> list[Installation]:
                         installation_id=installation_id,
                         type=Aktivitetstype.STIK,
                         hold=stik_hold,
-                        antal_stik=expected_stik,
+                        antal_stik=planned_stik,
                     )
                 )
 
@@ -119,7 +121,7 @@ def build_installations_from_project(project: dict) -> list[Installation]:
                         installation_id=installation_id,
                         type=Aktivitetstype.KONTROL,
                         hold=kontrol_hold,
-                        antal_stik=expected_stik,
+                        antal_stik=planned_stik,
                     )
                 )
 

@@ -92,6 +92,15 @@ def installation_sort_key(installation):
     )
 
 
+def activity_sort_key(activity):
+    return (
+        activity.start_dato or date.max,
+        activity.slut_dato or date.max,
+        activity.installation_id,
+        str(activity.type),
+    )
+
+
 def parse_installation_list(value):
     if not value:
         return []
@@ -125,6 +134,72 @@ def validate_task_assignments(assignments):
                     used[key] = team
 
     return errors
+
+
+def build_work_cards(activities):
+    work_cards = {}
+
+    for activity in activities:
+        hold = activity.hold or "Ikke tildelt"
+
+        if hold not in work_cards:
+            work_cards[hold] = []
+
+        work_cards[hold].append(activity)
+
+    return {
+        hold: sorted(rows, key=activity_sort_key)
+        for hold, rows in sorted(work_cards.items())
+    }
+def build_gantt_data(activities):
+    if not activities:
+        return {
+            "dates": [],
+            "rows": [],
+        }
+
+    start_dates = [
+        activity.start_dato
+        for activity in activities
+        if activity.start_dato
+    ]
+
+    end_dates = [
+        activity.slut_dato
+        for activity in activities
+        if activity.slut_dato
+    ]
+
+    if not start_dates or not end_dates:
+        return {
+            "dates": [],
+            "rows": [],
+        }
+
+    min_date = min(start_dates)
+    max_date = max(end_dates)
+
+    dates = []
+    current = min_date
+
+    while current <= max_date:
+        dates.append(current)
+        current = current.fromordinal(current.toordinal() + 1)
+
+    rows = sorted(
+        activities,
+        key=lambda activity: (
+            activity.start_dato,
+            activity.installation_id,
+            str(activity.type),
+            activity.hold,
+        ),
+    )
+
+    return {
+        "dates": dates,
+        "rows": rows,
+    }
 
 
 @app.get("/")
@@ -254,6 +329,9 @@ async def save_project_detail(request: Request, project_id: str):
                 "expected_stik": to_int(
                     form.get(f"expected_stik_{index}")
                 ),
+                "active_stik": to_int(
+                    form.get(f"active_stik_{index}")
+                ),
                 "langhatte": to_int(
                     form.get(f"langhatte_{index}")
                 ),
@@ -358,9 +436,73 @@ def add_project_installations(
 
 
 @app.get("/projects/{project_id}/plan")
-def project_plan(request: Request, project_id: str):
+def project_plan(
+    request: Request,
+    project_id: str,
+    year: int = 0,
+    week_from: int = 0,
+    week_to: int = 0,
+):
+    selected_holds = request.query_params.getlist("hold")
+
     project = repo.load_project(project_id)
     result = generate_plan_for_project(project)
+
+    activities = result.activities
+
+    if selected_holds:
+        activities = [
+            activity
+            for activity in activities
+            if activity.hold in selected_holds
+        ]
+
+    if year:
+        activities = [
+            activity
+            for activity in activities
+            if activity.start_dato
+            and activity.start_dato.isocalendar().year == year
+        ]
+
+    if week_from and week_to:
+        if week_from <= week_to:
+            activities = [
+                activity
+                for activity in activities
+                if activity.start_dato
+                and week_from <= activity.start_dato.isocalendar().week <= week_to
+            ]
+        else:
+            # Periode hen over nytår, fx uge 50 til uge 2
+            activities = [
+                activity
+                for activity in activities
+                if activity.start_dato
+               and (
+                activity.start_dato.isocalendar().week >= week_from
+                or activity.start_dato.isocalendar().week <= week_to
+            )
+        ]
+
+    elif week_from:
+        activities = [
+            activity
+            for activity in activities
+            if activity.start_dato
+            and activity.start_dato.isocalendar().week >= week_from
+        ]
+
+    elif week_to:
+        activities = [
+            activity
+            for activity in activities
+            if activity.start_dato
+            and activity.start_dato.isocalendar().week <= week_to
+        ]
+
+    work_cards = build_work_cards(activities)
+    gantt = build_gantt_data(activities)
 
     return templates.TemplateResponse(
         request,
@@ -368,5 +510,28 @@ def project_plan(request: Request, project_id: str):
         {
             "project": project,
             "result": result,
+            "activities": activities,
+            "work_cards": work_cards,
+            "gantt": gantt,
+            "selected_holds": selected_holds,
+            "selected_year": year,
+            "selected_week_from": week_from,
+            "selected_week_to": week_to,
+            "teams": get_teams(),
+        },
+    )
+
+@app.get("/projects/{project_id}/work-cards")
+def project_work_cards(request: Request, project_id: str):
+    project = repo.load_project(project_id)
+    result = generate_plan_for_project(project)
+    work_cards = build_work_cards(result.activities)
+
+    return templates.TemplateResponse(
+        request,
+        "project_work_cards.html",
+        {
+            "project": project,
+            "work_cards": work_cards,
         },
     )

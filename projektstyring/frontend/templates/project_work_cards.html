@@ -1,0 +1,76 @@
+{% extends "base.html" %}
+
+{% block title %}Arbejdskort for {{ project.name }}{% endblock %}
+
+{% block content %}
+
+<div class="no-print card">
+    <a href="/projects/{{ project.id }}/plan" class="btn btn-muted">
+        Tilbage til plan
+    </a>
+
+    <button onclick="window.print()" class="btn">
+        Udskriv
+    </button>
+</div>
+
+{% for hold, activities in work_cards.items() %}
+<div class="card work-print-card">
+    <h1>Arbejdskort</h1>
+
+    <p>
+        <strong>Projekt:</strong> {{ project.name }}<br>
+        <strong>V-nummer:</strong> {{ project.id }}<br>
+        <strong>Kunde:</strong> {{ project.customer }}<br>
+        <strong>By:</strong> {{ project.city }}<br>
+        <strong>Hold:</strong> {{ hold }}
+    </p>
+
+    <table class="project-table">
+        <thead>
+            <tr>
+                <th>Start</th>
+                <th>Slut</th>
+                <th>Installation</th>
+                <th>Aktivitet</th>
+                <th>Stik / korthatte</th>
+                <th>Brønde</th>
+                <th>Noter</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for aktivitet in activities %}
+            <tr>
+                <td>{{ aktivitet.start_dato }}</td>
+                <td>{{ aktivitet.slut_dato }}</td>
+                <td>{{ aktivitet.installation_id }}</td>
+                <td>{{ aktivitet.type }}</td>
+                <td>
+                    {% if aktivitet.type == "hovedledning" %}
+                        -
+                    {% elif aktivitet.antal_stik %}
+                        {{ aktivitet.antal_stik }}
+                    {% else %}
+                        -
+                    {% endif %}
+                </td>
+                <td>
+                    {% if aktivitet.antal_brønde %}
+                        {{ aktivitet.antal_brønde }}
+                    {% else %}
+                        -
+                    {% endif %}
+                </td>
+                <td></td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% else %}
+<div class="card">
+    <p>Der er ingen arbejdskort at udskrive.</p>
+</div>
+{% endfor %}
+
+{% endblock %}

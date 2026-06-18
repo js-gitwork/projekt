@@ -267,3 +267,57 @@ body {
     border-left: 8px solid #cc0000;
     box-shadow: 0 0 8px rgba(204, 0, 0, 0.4);
 }
+
+@media print {
+    .no-print,
+    .project-side-menu,
+    nav,
+    header {
+        display: none !important;
+    }
+
+    body {
+        background: white;
+        color: black;
+    }
+
+    .card {
+        box-shadow: none;
+        border: none;
+    }
+
+    .work-print-card {
+        page-break-after: always;
+        break-after: page;
+    }
+
+    .work-print-card:last-child {
+        page-break-after: auto;
+        break-after: auto;
+    }
+
+    table {
+        width: 100%;
+        border-collapse: collapse;
+    }
+
+    th,
+    td {
+        border: 1px solid black;
+        padding: 6px;
+    }
+}
+
+.gantt-scroll {
+    overflow-x: auto;
+}
+
+.gantt-table th,
+.gantt-table td {
+    white-space: nowrap;
+    text-align: center;
+}
+
+.gantt-cell {
+    min-width: 32px;
+}
