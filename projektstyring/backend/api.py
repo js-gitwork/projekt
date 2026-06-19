@@ -529,7 +529,6 @@ def project_plan(
                 or activity.start_dato.isocalendar().week <= week_to
             )
         ]
-
     elif week_from:
         activities = [
             activity
@@ -546,13 +545,9 @@ def project_plan(
             and activity.start_dato.isocalendar().week <= week_to
         ]
 
-    print("FILTER:", selected_holds, year, week_from, week_to)
-    print("ACTIVITIES:", len(activities))
-    for activity in activities:
-        print(activity.hold, activity.start_dato, activity.installation_id, activity.type)
-
     work_cards = build_work_cards_by_week(activities)
     gantt = build_gantt_data(activities)
+    progress_report = build_progress_report(project, activities)
 
     return templates.TemplateResponse(
         request,
@@ -563,13 +558,32 @@ def project_plan(
             "activities": activities,
             "work_cards": work_cards,
             "gantt": gantt,
+            "progress_report": progress_report,
             "selected_holds": selected_holds,
             "selected_year": year,
             "selected_week_from": week_from,
             "selected_week_to": week_to,
-            "teams": get_teams(),
+            "teams": {
+                team_id: team
+                for team_id, team in get_teams().items()
+                if team_id in get_project_assigned_team_ids(project)
+            },
         },
     )
+
+
+def get_project_assigned_team_ids(project):
+    team_ids = []
+
+    for assignments in project.get("task_assignments", {}).values():
+        for assignment in assignments:
+            team = assignment.get("team", "").strip()
+
+            if team and team not in team_ids:
+                team_ids.append(team)
+
+    return team_ids
+
 
 @app.get("/projects/{project_id}/work-cards")
 def project_work_cards(request: Request, project_id: str):
@@ -585,6 +599,92 @@ def project_work_cards(request: Request, project_id: str):
             "work_cards": work_cards,
         },
     )
+
+
+def progress_for_activity(activity_type, progress):
+    if activity_type == "hovedledning":
+        return progress.get("hovedledning", 0)
+
+    if activity_type == "stikforberedelse":
+        return progress.get("stikopmaaling", 0)
+
+    if activity_type == "stik":
+        return progress.get("stikaabning", 0)
+
+    if activity_type == "kontrol":
+        return progress.get("stikaabning", 0)
+
+    if activity_type == "korthat":
+        return 0
+
+    if activity_type == "broend":
+        return 0
+
+    return 0
+
+
+def build_progress_report(project, activities):
+    planned = {}
+
+    for activity in activities:
+        installation_id = str(activity.installation_id)
+        planned.setdefault(installation_id, [])
+        planned[installation_id].append(activity)
+
+    report = []
+
+    today = date.today()
+
+    for installation in project.get("installations", []):
+        installation_id = str(installation.get("id"))
+        progress = installation.get("progress", {})
+        planned_activities = planned.get(installation_id, [])
+
+        status = "Ingen plan"
+        status_class = "status-muted"
+
+        if planned_activities:
+            overdue = False
+            in_progress = False
+            complete = True
+
+            for activity in planned_activities:
+                percent = progress_for_activity(
+                    activity.type,
+                    progress,
+                )
+
+                if percent < 100:
+                    complete = False
+
+                    if activity.slut_dato and activity.slut_dato < today:
+                        overdue = True
+                    else:
+                        in_progress = True
+
+            if complete:
+                status = "Færdig"
+                status_class = "status-ok"
+            elif overdue:
+                status = "Bagud"
+                status_class = "status-error"
+            elif in_progress:
+                status = "Planlagt"
+                status_class = "status-warning"
+
+        report.append(
+            {
+                "installation_id": installation_id,
+                "active_stik": installation.get("active_stik", 0),
+                "planned_activities": planned_activities,
+                "progress": progress,
+                "status": status,
+                "status_class": status_class,
+                "notes": installation.get("notes", ""),
+            }
+        )
+
+    return report
 
 @app.get("/projects/{project_id}/c5-import")
 def c5_import_form(request: Request, project_id: str):

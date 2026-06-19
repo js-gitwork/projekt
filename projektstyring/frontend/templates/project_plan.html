@@ -27,16 +27,16 @@
     <form method="get" action="/projects/{{ project.id }}/plan">
         <label>Hold</label>
 
-        <div class="checkbox-list">
-            {% for team in teams.values() %}
-            <label class="checkbox-item">
+        <div class="team-toggle-list">
+            {% for team_id, team in teams.items() %}
+            <label class="team-toggle">
                 <input
                     type="checkbox"
                     name="hold"
-                    value="{{ team.id }}"
-                    {% if team.id in selected_holds %}checked{% endif %}
+                    value="{{ team_id }}"
+                    {% if not selected_holds or team_id in selected_holds %}checked{% endif %}
                 >
-                {{ team.name }}
+                <span>{{ team.name }}</span>
             </label>
             {% endfor %}
         </div>
@@ -77,9 +77,13 @@
             Filtrér
         </button>
 
-        <a href="/projects/{{ project.id }}/plan" class="btn btn-muted">
+        <button
+            type="button"
+            class="btn btn-muted"
+            onclick="window.location='/projects/{{ project.id }}/plan'"
+        >
             Nulstil
-        </a>
+        </button>
     </form>
 </div>
 
@@ -91,6 +95,7 @@
             <tr>
                 <th>Dato</th>
                 <th>Installation</th>
+                <th>Status</th>
                 <th>Hold</th>
                 <th>Aktivitet</th>
                 <th>Stik / korthatte</th>
@@ -186,6 +191,55 @@
             Ingen Gantt-data kan vises.
         </p>
     {% endif %}
+</div>
+
+<div class="card">
+    <h2>Fremdrift i forhold til plan</h2>
+
+    <table class="project-table">
+        <thead>
+            <tr>
+                <th>Installation</th>
+                <th>Status</th>
+                <th>Aktive stik</th>
+                <th>Planlagte opgaver</th>
+                <th>Opmåling</th>
+                <th>Forarbejde</th>
+                <th>Stikopmåling</th>
+                <th>Hovedledning</th>
+                <th>Stikåbning</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for item in progress_report %}
+            <tr>
+                <td>{{ item.installation_id }}</td>
+                <td class="{{ item.status_class }}">
+                    {{ item.status }}
+                </td>
+                <td>{{ item.active_stik }}</td>
+                <td>
+                    {% for aktivitet in item.planned_activities %}
+                        {{ aktivitet.type }} / {{ aktivitet.hold }}<br>
+                    {% else %}
+                        -
+                    {% endfor %}
+                </td>
+                <td>{{ item.progress.opmaaling|default(0) }}%</td>
+                <td>{{ item.progress.forarbejde|default(0) }}%</td>
+                <td>{{ item.progress.stikopmaaling|default(0) }}%</td>
+                <td>{{ item.progress.hovedledning|default(0) }}%</td>
+                <td>{{ item.progress.stikaabning|default(0) }}%</td>
+            </tr>
+            {% else %}
+            <tr>
+                <td colspan="8" class="empty-message">
+                    Ingen fremdriftsdata.
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
 </div>
 
 <div class="card">

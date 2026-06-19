@@ -4,6 +4,17 @@
     "start_date": "2026-06-29",
     "installations": [
         {
+            "id": "1",
+            "active": true,
+            "hoveddato": "2026-06-10",
+            "expected_stik": 1,
+            "active_stik": 1,
+            "langhatte": 0,
+            "korthatte_extra": 0,
+            "broende": 1,
+            "notes": "Digevænget | Strækninger: 4612007-4612008"
+        },
+        {
             "id": "8",
             "active": true,
             "hoveddato": "2026-06-29",
@@ -11,15 +22,8 @@
             "active_stik": 4,
             "langhatte": 0,
             "korthatte_extra": 0,
-            "broende": 0,
-            "notes": "Herslev Bygade | Strækninger: 4621005-4621004",
-            "progress": {
-                "opmaaling": 100,
-                "forarbejde": 0,
-                "stikopmaaling": 0,
-                "hovedledning": 0,
-                "stikaabning": 0
-            }
+            "broende": 2,
+            "notes": "Herslev Bygade | Strækninger: 4621005-4621004"
         },
         {
             "id": "9",
@@ -29,15 +33,8 @@
             "active_stik": 11,
             "langhatte": 0,
             "korthatte_extra": 0,
-            "broende": 0,
-            "notes": "Herslev Bygade | Strækninger: 4621004-4621003, 4621003-4621002, 4621002-4621001 | Bemærkninger: Hårde aflejringer skal muligvis HT spules",
-            "progress": {
-                "opmaaling": 100,
-                "forarbejde": 0,
-                "stikopmaaling": 0,
-                "hovedledning": 0,
-                "stikaabning": 0
-            }
+            "broende": 1,
+            "notes": "Herslev Bygade | Strækninger: 4621004-4621003, 4621003-4621002, 4621002-4621001 | Bemærkninger: Hårde aflejringer skal muligvis HT spules"
         },
         {
             "id": "2",
@@ -47,15 +44,8 @@
             "active_stik": 13,
             "langhatte": 0,
             "korthatte_extra": 0,
-            "broende": 0,
-            "notes": "Digevænget | Strækninger: 4612008-4612009, 4612009-4612010",
-            "progress": {
-                "opmaaling": 100,
-                "forarbejde": 0,
-                "stikopmaaling": 0,
-                "hovedledning": 0,
-                "stikaabning": 0
-            }
+            "broende": 2,
+            "notes": "Digevænget | Strækninger: 4612008-4612009, 4612009-4612010"
         },
         {
             "id": "3",
@@ -65,15 +55,8 @@
             "active_stik": 0,
             "langhatte": 0,
             "korthatte_extra": 0,
-            "broende": 0,
-            "notes": "Herslev Kirkevej | Strækninger: 4612010-4612012 | Bemærkninger: Dimensionsskifte lige før 4612010 - ca 30 cm - der sidste rørstylkke inden brønden er plantmed bund og mindre i top",
-            "progress": {
-                "opmaaling": 100,
-                "forarbejde": 0,
-                "stikopmaaling": 0,
-                "hovedledning": 0,
-                "stikaabning": 0
-            }
+            "broende": 1,
+            "notes": "Herslev Kirkevej | Strækninger: 4612010-4612012 | Bemærkninger: Dimensionsskifte lige før 4612010 - ca 30 cm - der sidste rørstylkke inden brønden er plantmed bund og mindre i top"
         },
         {
             "id": "4",
@@ -83,15 +66,8 @@
             "active_stik": 1,
             "langhatte": 0,
             "korthatte_extra": 0,
-            "broende": 0,
-            "notes": "Herslev Kirkevej | Strækninger: 4612012-4612013 | Bemærkninger: Forhindring klemt fast i samling. skæres ud",
-            "progress": {
-                "opmaaling": 100,
-                "forarbejde": 0,
-                "stikopmaaling": 0,
-                "hovedledning": 0,
-                "stikaabning": 0
-            }
+            "broende": 1,
+            "notes": "Herslev Kirkevej | Strækninger: 4612012-4612013 | Bemærkninger: Forhindring klemt fast i samling. skæres ud"
         },
         {
             "id": "5",
@@ -101,15 +77,30 @@
             "active_stik": 15,
             "langhatte": 0,
             "korthatte_extra": 0,
-            "broende": 0,
-            "notes": "Herslev Kirkevej | Strækninger: 4612013-4612014, 4612014-4612017, 4612017-4612022, 4612022-4612023, 4612023-4612024 | Bemærkninger: Det er kun 1 af brøndskud som skal fores. efter tegning er der 2 kl 9 - der er kørt tv på den ene. og tegning fra operatør nævner kun 1 med pvc efter 2 mtr.- opklares!! | Stik nr5 er markeret til lukning. ingen førtv på det. Brønd4312023 har stik på tegning. ikke på tv. | stor afvigelse i måling. skal kontrolleres",
-            "progress": {
-                "opmaaling": 100,
-                "forarbejde": 0,
-                "stikopmaaling": 0,
-                "hovedledning": 0,
-                "stikaabning": 0
-            }
+            "broende": 1,
+            "notes": "Herslev Kirkevej | Strækninger: 4612013-4612014, 4612014-4612017, 4612017-4612022, 4612022-4612023, 4612023-4612024 | Bemærkninger: Det er kun 1 af brøndskud som skal fores. efter tegning er der 2 kl 9 - der er kørt tv på den ene. og tegning fra operatør nævner kun 1 med pvc efter 2 mtr.- opklares!! | Stik nr5 er markeret til lukning. ingen førtv på det. Brønd4312023 har stik på tegning. ikke på tv. | stor afvigelse i måling. skal kontrolleres"
+        },
+        {
+            "id": "19",
+            "active": true,
+            "hoveddato": "2026-07-01",
+            "expected_stik": 0,
+            "active_stik": 0,
+            "langhatte": 0,
+            "korthatte_extra": 0,
+            "broende": 1,
+            "notes": ""
+        },
+        {
+            "id": "20",
+            "active": true,
+            "hoveddato": "2026-07-01",
+            "expected_stik": 0,
+            "active_stik": 0,
+            "langhatte": 0,
+            "korthatte_extra": 0,
+            "broende": 1,
+            "notes": ""
         },
         {
             "id": "17",
@@ -119,15 +110,8 @@
             "active_stik": 3,
             "langhatte": 0,
             "korthatte_extra": 0,
-            "broende": 0,
-            "notes": "Kirketoften | Strækninger: 4612038-4612034, 4612034-4612032, 4612032-4612031",
-            "progress": {
-                "opmaaling": 100,
-                "forarbejde": 0,
-                "stikopmaaling": 0,
-                "hovedledning": 0,
-                "stikaabning": 0
-            }
+            "broende": 1,
+            "notes": "Kirketoften | Strækninger: 4612038-4612034, 4612034-4612032, 4612032-4612031"
         },
         {
             "id": "18",
@@ -137,15 +121,8 @@
             "active_stik": 0,
             "langhatte": 0,
             "korthatte_extra": 0,
-            "broende": 0,
-            "notes": "Kirketoften/Herslev Bygade | Strækninger: 4612115-4612031, 4612031-4612030 | Bemærkninger: Overgang til PVC ved 22.8mtr | Rodklump ved 30.5mtr",
-            "progress": {
-                "opmaaling": 100,
-                "forarbejde": 0,
-                "stikopmaaling": 0,
-                "hovedledning": 0,
-                "stikaabning": 0
-            }
+            "broende": 3,
+            "notes": "Kirketoften/Herslev Bygade | Strækninger: 4612115-4612031, 4612031-4612030 | Bemærkninger: Overgang til PVC ved 22.8mtr | Rodklump ved 30.5mtr"
         },
         {
             "id": "10",
@@ -155,15 +132,8 @@
             "active_stik": 4,
             "langhatte": 0,
             "korthatte_extra": 0,
-            "broende": 0,
-            "notes": "Herslev Kirkevej | Strækninger: 4621007-4621022",
-            "progress": {
-                "opmaaling": 100,
-                "forarbejde": 0,
-                "stikopmaaling": 0,
-                "hovedledning": 0,
-                "stikaabning": 0
-            }
+            "broende": 1,
+            "notes": "Herslev Kirkevej | Strækninger: 4621007-4621022"
         },
         {
             "id": "6",
@@ -173,15 +143,8 @@
             "active_stik": 11,
             "langhatte": 0,
             "korthatte_extra": 0,
-            "broende": 0,
-            "notes": "Herslev Bygade | Strækninger: 4612024-4612025, 4612025-4612026, 4612026-4621009, 4621009-4621008",
-            "progress": {
-                "opmaaling": 100,
-                "forarbejde": 0,
-                "stikopmaaling": 0,
-                "hovedledning": 0,
-                "stikaabning": 0
-            }
+            "broende": 4,
+            "notes": "Herslev Bygade | Strækninger: 4612024-4612025, 4612025-4612026, 4612026-4621009, 4621009-4621008"
         },
         {
             "id": "7",
@@ -191,15 +154,8 @@
             "active_stik": 9,
             "langhatte": 0,
             "korthatte_extra": 0,
-            "broende": 0,
-            "notes": "Herslev Bygade | Strækninger: 4621008-4621007, 4621007-4621006, 4621006-4621005",
-            "progress": {
-                "opmaaling": 100,
-                "forarbejde": 0,
-                "stikopmaaling": 0,
-                "hovedledning": 0,
-                "stikaabning": 0
-            }
+            "broende": 2,
+            "notes": "Herslev Bygade | Strækninger: 4621008-4621007, 4621007-4621006, 4621006-4621005"
         },
         {
             "id": "11",
@@ -209,15 +165,8 @@
             "active_stik": 0,
             "langhatte": 0,
             "korthatte_extra": 0,
-            "broende": 0,
-            "notes": "Mølleåvej | Strækninger: 4621005-4623007",
-            "progress": {
-                "opmaaling": 100,
-                "forarbejde": 0,
-                "stikopmaaling": 0,
-                "hovedledning": 0,
-                "stikaabning": 0
-            }
+            "broende": 1,
+            "notes": "Mølleåvej | Strækninger: 4621005-4623007"
         },
         {
             "id": "12",
@@ -227,15 +176,8 @@
             "active_stik": 11,
             "langhatte": 0,
             "korthatte_extra": 0,
-            "broende": 0,
-            "notes": "Herslev Kirkevej | Strækninger: 4621005-4621021, 4621021-4621017 | Bemærkninger: Fritlægning af 4621021 er prblematisk. der er afsat dæksel med pæl. og det er den som er målt. | Rødder nør 4621021",
-            "progress": {
-                "opmaaling": 100,
-                "forarbejde": 0,
-                "stikopmaaling": 0,
-                "hovedledning": 0,
-                "stikaabning": 0
-            }
+            "broende": 1,
+            "notes": "Herslev Kirkevej | Strækninger: 4621005-4621021, 4621021-4621017 | Bemærkninger: Fritlægning af 4621021 er prblematisk. der er afsat dæksel med pæl. og det er den som er målt. | Rødder nør 4621021"
         },
         {
             "id": "13",
@@ -245,15 +187,8 @@
             "active_stik": 7,
             "langhatte": 0,
             "korthatte_extra": 0,
-            "broende": 0,
-            "notes": "Herslev Kirkevej | Strækninger: 4621017-4621015, 4621015-4621014",
-            "progress": {
-                "opmaaling": 100,
-                "forarbejde": 0,
-                "stikopmaaling": 0,
-                "hovedledning": 0,
-                "stikaabning": 0
-            }
+            "broende": 3,
+            "notes": "Herslev Kirkevej | Strækninger: 4621017-4621015, 4621015-4621014"
         },
         {
             "id": "14",
@@ -263,15 +198,8 @@
             "active_stik": 3,
             "langhatte": 0,
             "korthatte_extra": 0,
-            "broende": 0,
-            "notes": "Herslev Kirkevej | Strækninger: 4621015-4621016",
-            "progress": {
-                "opmaaling": 100,
-                "forarbejde": 0,
-                "stikopmaaling": 0,
-                "hovedledning": 0,
-                "stikaabning": 0
-            }
+            "broende": 1,
+            "notes": "Herslev Kirkevej | Strækninger: 4621015-4621016"
         },
         {
             "id": "15",
@@ -281,15 +209,8 @@
             "active_stik": 5,
             "langhatte": 0,
             "korthatte_extra": 0,
-            "broende": 0,
-            "notes": "Herslev Kirkevej | Strækninger: 4621017-4621018, 4621018-4621019",
-            "progress": {
-                "opmaaling": 100,
-                "forarbejde": 0,
-                "stikopmaaling": 0,
-                "hovedledning": 0,
-                "stikaabning": 0
-            }
+            "broende": 1,
+            "notes": "Herslev Kirkevej | Strækninger: 4621017-4621018, 4621018-4621019"
         },
         {
             "id": "16",
@@ -299,33 +220,8 @@
             "active_stik": 4,
             "langhatte": 0,
             "korthatte_extra": 0,
-            "broende": 0,
-            "notes": "Herslev Kirkevej | Strækninger: 4621019-4621020",
-            "progress": {
-                "opmaaling": 100,
-                "forarbejde": 0,
-                "stikopmaaling": 0,
-                "hovedledning": 0,
-                "stikaabning": 0
-            }
-        },
-        {
-            "id": "1",
-            "active": true,
-            "hoveddato": null,
-            "expected_stik": 1,
-            "active_stik": 1,
-            "langhatte": 0,
-            "korthatte_extra": 0,
-            "broende": 0,
-            "notes": "Digevænget | Strækninger: 4612007-4612008",
-            "progress": {
-                "opmaaling": 100,
-                "forarbejde": 0,
-                "stikopmaaling": 0,
-                "hovedledning": 100,
-                "stikaabning": 0
-            }
+            "broende": 2,
+            "notes": "Herslev Kirkevej | Strækninger: 4621019-4621020"
         }
     ],
     "customer": "Fredericia Spildevand og Energi A/S",
@@ -456,6 +352,7 @@
             {
                 "team": "broend2",
                 "installations": [
+                    "1",
                     "2",
                     "3",
                     "4",
@@ -472,7 +369,9 @@
                     "15",
                     "16",
                     "17",
-                    "18"
+                    "18",
+                    "19",
+                    "20"
                 ]
             }
         ]

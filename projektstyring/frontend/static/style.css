@@ -321,3 +321,50 @@ body {
 .gantt-cell {
     min-width: 32px;
 }
+
+.status-ok {
+    font-weight: bold;
+    color: #006600;
+}
+
+.status-warning {
+    font-weight: bold;
+    color: #996600;
+}
+
+.status-error {
+    font-weight: bold;
+    color: #cc0000;
+}
+
+.status-muted {
+    color: #777;
+}
+
+.team-toggle-list {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin: 8px 0 16px;
+}
+
+.team-toggle input {
+    display: none;
+}
+
+.team-toggle span {
+    display: inline-block;
+    padding: 8px 14px;
+    border-radius: 999px;
+    background: #102a43;
+    color: white;
+    cursor: pointer;
+    font-weight: 600;
+    border: 1px solid #20435f;
+}
+
+.team-toggle input:checked + span {
+    background: #1e88e5;
+    box-shadow: 0 0 10px rgba(30, 136, 229, 0.7);
+    border-color: #64b5f6;
+}
