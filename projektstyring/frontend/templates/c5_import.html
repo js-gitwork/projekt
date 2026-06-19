@@ -1,0 +1,91 @@
+{% extends "base.html" %}
+
+{% block title %}C5 import for {{ project.name }}{% endblock %}
+
+{% block content %}
+
+<div class="card">
+    <a href="/projects/{{ project.id }}" class="btn btn-muted">
+        Tilbage til projekt
+    </a>
+
+    <h2>C5 import for {{ project.name }}</h2>
+
+    <p>
+        Indsæt CSV fra C5 her. Først vises en forhåndsvisning.
+        Projektet ændres først, når du trykker Godkend import.
+    </p>
+</div>
+
+<div class="card">
+    <form
+        method="post"
+        action="/projects/{{ project.id }}/c5-import/preview"
+    >
+        <label for="csv_text">C5 CSV</label>
+
+        <textarea
+            id="csv_text"
+            name="csv_text"
+            class="form-control"
+            rows="14"
+        >{{ csv_text }}</textarea>
+
+        <button type="submit" class="btn">
+            Forhåndsvis import
+        </button>
+    </form>
+</div>
+
+{% if updates %}
+<div class="card">
+    <h2>Foreslåede ændringer</h2>
+
+    <table class="project-table">
+        <thead>
+            <tr>
+                <th>Installation</th>
+                <th>Adresse</th>
+                <th>Stik</th>
+                <th>Opmåling</th>
+                <th>Forarbejde</th>
+                <th>Stikopmåling</th>
+                <th>Hovedledning</th>
+                <th>Stikåbning</th>
+                <th>Bemærkninger</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for update in updates %}
+            <tr>
+                <td>{{ update.id }}</td>
+                <td>{{ update.address }}</td>
+                <td>{{ update.active_stik }}</td>
+                <td>{{ update.progress.opmaaling }}%</td>
+                <td>{{ update.progress.forarbejde }}%</td>
+                <td>{{ update.progress.stikopmaaling }}%</td>
+                <td>{{ update.progress.hovedledning }}%</td>
+                <td>{{ update.progress.stikaabning }}%</td>
+                <td>{{ update.notes|join(" | ") }}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+
+    <form
+        method="post"
+        action="/projects/{{ project.id }}/c5-import/apply"
+    >
+        <textarea
+            name="csv_text"
+            style="display: none;"
+        >{{ csv_text }}</textarea>
+
+        <button type="submit" class="btn">
+            Godkend import
+        </button>
+    </form>
+</div>
+{% endif %}
+
+{% endblock %}

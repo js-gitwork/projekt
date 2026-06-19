@@ -191,57 +191,61 @@
 <div class="card">
     <h2>Arbejdskort pr. hold</h2>
 
-    {% if work_cards %}
-        {% for hold, activities in work_cards.items() %}
-        <div class="work-card">
-            <h3>{{ hold }}</h3>
+{% if work_cards %}
+    {% for hold, weeks in work_cards.items() %}
+    <div class="work-card">
+        <h3>{{ hold }}</h3>
 
-            <table class="project-table">
-                <thead>
-                    <tr>
-                        <th>Dato</th>
-                        <th>Installation</th>
-                        <th>Aktivitet</th>
-                        <th>Stik / korthatte</th>
-                        <th>Brønde</th>
-                        <th>Status</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {% for aktivitet in activities %}
-                    <tr>
-                        <td>
-                            {% if aktivitet.start_dato == aktivitet.slut_dato %}
-                                {{ aktivitet.start_dato }}
-                            {% else %}
-                                {{ aktivitet.start_dato }} – {{ aktivitet.slut_dato }}
-                            {% endif %}
-                        </td>
-                        <td>{{ aktivitet.installation_id }}</td>
-                        <td>{{ aktivitet.type }}</td>
-                        <td>
-                            {% if aktivitet.type == "hovedledning" %}
-                                -
-                            {% elif aktivitet.antal_stik %}
-                                {{ aktivitet.antal_stik }}
-                            {% else %}
-                                -
-                            {% endif %}
-                        </td>
-                        <td>
-                            {% if aktivitet.antal_brønde %}
-                                {{ aktivitet.antal_brønde }}
-                            {% else %}
-                                -
-                            {% endif %}
-                        </td>
-                        <td>{{ aktivitet.status }}</td>
-                    </tr>
-                    {% endfor %}
-                </tbody>
-            </table>
-        </div>
+        {% for week_key, week in weeks.items() %}
+        <h4>{{ week.label }}</h4>
+
+        <table class="project-table">
+            <thead>
+                <tr>
+                    <th>Dato</th>
+                    <th>Installation</th>
+                    <th>Aktivitet</th>
+                    <th>Stik / korthatte</th>
+                    <th>Brønde</th>
+                    <th>Status</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for aktivitet in week.activities %}
+                <tr>
+                    <td>
+                        {% if aktivitet.start_dato == aktivitet.slut_dato %}
+                            {{ aktivitet.start_dato }}
+                        {% else %}
+                            {{ aktivitet.start_dato }} – {{ aktivitet.slut_dato }}
+                        {% endif %}
+                    </td>
+                    <td>{{ aktivitet.installation_id }}</td>
+                    <td>{{ aktivitet.type }}</td>
+                    <td>
+                        {% if aktivitet.type == "hovedledning" %}
+                            -
+                        {% elif aktivitet.antal_stik %}
+                            {{ aktivitet.antal_stik }}
+                        {% else %}
+                            -
+                        {% endif %}
+                    </td>
+                    <td>
+                        {% if aktivitet.antal_brønde %}
+                            {{ aktivitet.antal_brønde }}
+                        {% else %}
+                            -
+                        {% endif %}
+                    </td>
+                    <td>{{ aktivitet.status }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
         {% endfor %}
+    </div>
+    {% endfor %}
     {% else %}
         <p class="empty-message">
             Ingen arbejdskort kan vises, fordi der ikke er planlagte aktiviteter.

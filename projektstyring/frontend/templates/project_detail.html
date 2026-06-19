@@ -17,10 +17,7 @@
 
 <div class="project-layout">
     <div class="project-side-menu">
-        <button type="submit" form="project-save-form" class="btn">
-            Gem alle ændringer
-        </button>
-
+        
         <a href="/" class="btn">
             Tilbage
         </a>
@@ -28,6 +25,14 @@
         <a href="/projects/{{ project.id }}/plan" class="btn">
             Vis plan
         </a>
+
+        <a href="/projects/{{ project.id }}/c5-import" class="btn">
+            Importer C5-status
+        </a>
+
+        <button type="submit" form="project-save-form" class="btn">
+            Gem alle ændringer
+        </button>
 
         <form
             method="post"

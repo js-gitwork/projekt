@@ -4,7 +4,10 @@ from fastapi import FastAPI, Request, Form
 from fastapi.responses import RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
-
+from projektstyring.backend.c5_importer import (
+    parse_c5_csv,
+    apply_c5_updates_to_project,
+)
 from projektstyring.backend.project_planner import (
     generate_plan_for_project,
     generate_plan_for_active_projects,
@@ -296,6 +299,41 @@ def project_detail(request: Request, project_id: str):
         },
     )
 
+def build_work_cards_by_week(activities):
+    work_cards = {}
+
+    for activity in activities:
+        hold = activity.hold or "Ikke tildelt"
+
+        if not activity.start_dato:
+            continue
+
+        iso = activity.start_dato.isocalendar()
+        week_key = f"{iso.year}-W{iso.week:02d}"
+        week_label = f"Uge {iso.week} / {iso.year}"
+
+        work_cards.setdefault(hold, {})
+        work_cards[hold].setdefault(
+            week_key,
+            {
+                "label": week_label,
+                "activities": [],
+            },
+        )
+
+        work_cards[hold][week_key]["activities"].append(activity)
+
+    for hold in work_cards:
+        for week_key in work_cards[hold]:
+            work_cards[hold][week_key]["activities"] = sorted(
+                work_cards[hold][week_key]["activities"],
+                key=activity_sort_key,
+            )
+
+    return {
+        hold: dict(sorted(weeks.items()))
+        for hold, weeks in sorted(work_cards.items())
+    }
 
 @app.post("/projects/{project_id}/save")
 async def save_project_detail(request: Request, project_id: str):
@@ -439,11 +477,18 @@ def add_project_installations(
 def project_plan(
     request: Request,
     project_id: str,
-    year: int = 0,
-    week_from: int = 0,
-    week_to: int = 0,
+    year: str = "",
+    week_from: str = "",
+    week_to: str = "",
 ):
     selected_holds = request.query_params.getlist("hold")
+
+    year = to_int(
+        year,
+        date.today().year,
+    )
+    week_from = to_int(week_from, 0)
+    week_to = to_int(week_to, 0)
 
     project = repo.load_project(project_id)
     result = generate_plan_for_project(project)
@@ -501,7 +546,12 @@ def project_plan(
             and activity.start_dato.isocalendar().week <= week_to
         ]
 
-    work_cards = build_work_cards(activities)
+    print("FILTER:", selected_holds, year, week_from, week_to)
+    print("ACTIVITIES:", len(activities))
+    for activity in activities:
+        print(activity.hold, activity.start_dato, activity.installation_id, activity.type)
+
+    work_cards = build_work_cards_by_week(activities)
     gantt = build_gantt_data(activities)
 
     return templates.TemplateResponse(
@@ -525,7 +575,7 @@ def project_plan(
 def project_work_cards(request: Request, project_id: str):
     project = repo.load_project(project_id)
     result = generate_plan_for_project(project)
-    work_cards = build_work_cards(result.activities)
+    work_cards = build_work_cards_by_week(result.activities)
 
     return templates.TemplateResponse(
         request,
@@ -534,4 +584,58 @@ def project_work_cards(request: Request, project_id: str):
             "project": project,
             "work_cards": work_cards,
         },
+    )
+
+@app.get("/projects/{project_id}/c5-import")
+def c5_import_form(request: Request, project_id: str):
+    project = repo.load_project(project_id)
+
+    return templates.TemplateResponse(
+        request,
+        "c5_import.html",
+        {
+            "project": project,
+            "csv_text": "",
+            "updates": [],
+        },
+    )
+
+
+@app.post("/projects/{project_id}/c5-import/preview")
+async def c5_import_preview(request: Request, project_id: str):
+    project = repo.load_project(project_id)
+    form = await request.form()
+
+    csv_text = form.get("csv_text", "")
+    updates = parse_c5_csv(csv_text)
+
+    return templates.TemplateResponse(
+        request,
+        "c5_import.html",
+        {
+            "project": project,
+            "csv_text": csv_text,
+            "updates": updates,
+        },
+    )
+
+
+@app.post("/projects/{project_id}/c5-import/apply")
+async def c5_import_apply(request: Request, project_id: str):
+    project = repo.load_project(project_id)
+    form = await request.form()
+
+    csv_text = form.get("csv_text", "")
+    updates = parse_c5_csv(csv_text)
+
+    project = apply_c5_updates_to_project(
+        project,
+        updates,
+    )
+
+    save_project(project)
+
+    return RedirectResponse(
+        url=f"/projects/{project_id}",
+        status_code=303,
     )
