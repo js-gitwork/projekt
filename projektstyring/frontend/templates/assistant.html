@@ -1,0 +1,44 @@
+{% extends "base.html" %}
+
+{% block title %}AI Assistent - {{ project.name }}{% endblock %}
+
+{% block content %}
+<div class="card">
+    <a href="/projects/{{ project.id }}" class="btn btn-muted">Tilbage</a>
+
+    <h2>AI Assistent</h2>
+
+    <p>
+        <strong>Projekt:</strong> {{ project.name }}<br>
+        <strong>V-nummer:</strong> {{ project.id }}
+    </p>
+
+    <form method="post" action="/projects/{{ project.id }}/assistant">
+        <label for="question">Spørgsmål</label>
+
+        <textarea
+            id="question"
+            name="question"
+            rows="5"
+            style="width: 100%;"
+            placeholder="Fx: Hvilke installationer er bagud?"
+        >{{ question }}</textarea>
+
+        <br><br>
+
+        <button type="submit" class="btn">
+            Spørg AI
+        </button>
+    </form>
+
+    {% if answer %}
+        <hr>
+
+        <h3>Svar</h3>
+
+        <div class="card">
+            <pre style="white-space: pre-wrap;">{{ answer }}</pre>
+        </div>
+    {% endif %}
+</div>
+{% endblock %}

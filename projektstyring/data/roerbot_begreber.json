@@ -1,0 +1,22 @@
+{
+  "stik": {
+    "synonymer": ["langhat", "langhatte", "stikarbejde"],
+    "opgave": "stik"
+  },
+  "stikaabning": {
+    "synonymer": ["stikåbning"],
+    "opgave": "hovedledning",
+    "beskrivelse": "Udføres af samme hold som hovedledning"
+  },
+  "tv": {
+    "synonymer": ["færdig-tv", "ks"]
+  },
+  "ds437": {
+    "type": "broendarbejde",
+    "beskrivelse": "Brøndrenoveringsmetode"
+  },
+  "totalrenovering": {
+    "type": "broendarbejde",
+    "beskrivelse": "Større brøndrenovering end DS437"
+  }
+}

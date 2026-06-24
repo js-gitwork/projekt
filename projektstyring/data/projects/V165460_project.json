@@ -6,7 +6,7 @@
         {
             "id": "1",
             "active": true,
-            "hoveddato": "2026-06-10",
+            "hoveddato": "2026-07-01",
             "expected_stik": 1,
             "active_stik": 1,
             "langhatte": 0,
@@ -17,7 +17,7 @@
         {
             "id": "8",
             "active": true,
-            "hoveddato": "2026-06-29",
+            "hoveddato": "2026-07-01",
             "expected_stik": 4,
             "active_stik": 4,
             "langhatte": 0,
@@ -28,57 +28,13 @@
         {
             "id": "9",
             "active": true,
-            "hoveddato": "2026-06-29",
+            "hoveddato": "2026-07-01",
             "expected_stik": 11,
             "active_stik": 11,
             "langhatte": 0,
             "korthatte_extra": 0,
             "broende": 1,
             "notes": "Herslev Bygade | Strækninger: 4621004-4621003, 4621003-4621002, 4621002-4621001 | Bemærkninger: Hårde aflejringer skal muligvis HT spules"
-        },
-        {
-            "id": "2",
-            "active": true,
-            "hoveddato": "2026-06-30",
-            "expected_stik": 13,
-            "active_stik": 13,
-            "langhatte": 0,
-            "korthatte_extra": 0,
-            "broende": 2,
-            "notes": "Digevænget | Strækninger: 4612008-4612009, 4612009-4612010"
-        },
-        {
-            "id": "3",
-            "active": true,
-            "hoveddato": "2026-06-30",
-            "expected_stik": 0,
-            "active_stik": 0,
-            "langhatte": 0,
-            "korthatte_extra": 0,
-            "broende": 1,
-            "notes": "Herslev Kirkevej | Strækninger: 4612010-4612012 | Bemærkninger: Dimensionsskifte lige før 4612010 - ca 30 cm - der sidste rørstylkke inden brønden er plantmed bund og mindre i top"
-        },
-        {
-            "id": "4",
-            "active": true,
-            "hoveddato": "2026-07-01",
-            "expected_stik": 1,
-            "active_stik": 1,
-            "langhatte": 0,
-            "korthatte_extra": 0,
-            "broende": 1,
-            "notes": "Herslev Kirkevej | Strækninger: 4612012-4612013 | Bemærkninger: Forhindring klemt fast i samling. skæres ud"
-        },
-        {
-            "id": "5",
-            "active": true,
-            "hoveddato": "2026-07-01",
-            "expected_stik": 15,
-            "active_stik": 15,
-            "langhatte": 0,
-            "korthatte_extra": 0,
-            "broende": 1,
-            "notes": "Herslev Kirkevej | Strækninger: 4612013-4612014, 4612014-4612017, 4612017-4612022, 4612022-4612023, 4612023-4612024 | Bemærkninger: Det er kun 1 af brøndskud som skal fores. efter tegning er der 2 kl 9 - der er kørt tv på den ene. og tegning fra operatør nævner kun 1 med pvc efter 2 mtr.- opklares!! | Stik nr5 er markeret til lukning. ingen førtv på det. Brønd4312023 har stik på tegning. ikke på tv. | stor afvigelse i måling. skal kontrolleres"
         },
         {
             "id": "19",
@@ -103,37 +59,48 @@
             "notes": ""
         },
         {
-            "id": "17",
+            "id": "2",
             "active": true,
             "hoveddato": "2026-07-02",
-            "expected_stik": 3,
-            "active_stik": 3,
+            "expected_stik": 13,
+            "active_stik": 13,
+            "langhatte": 0,
+            "korthatte_extra": 0,
+            "broende": 2,
+            "notes": "Digevænget | Strækninger: 4612008-4612009, 4612009-4612010"
+        },
+        {
+            "id": "5",
+            "active": true,
+            "hoveddato": "2026-07-02",
+            "expected_stik": 15,
+            "active_stik": 15,
             "langhatte": 0,
             "korthatte_extra": 0,
             "broende": 1,
-            "notes": "Kirketoften | Strækninger: 4612038-4612034, 4612034-4612032, 4612032-4612031"
+            "notes": "Herslev Kirkevej | Strækninger: 4612013-4612014, 4612014-4612017, 4612017-4612022, 4612022-4612023, 4612023-4612024 | Bemærkninger: Det er kun 1 af brøndskud som skal fores. efter tegning er der 2 kl 9 - der er kørt tv på den ene. og tegning fra operatør nævner kun 1 med pvc efter 2 mtr.- opklares!! | Stik nr5 er markeret til lukning. ingen førtv på det. Brønd4312023 har stik på tegning. ikke på tv. | stor afvigelse i måling. skal kontrolleres"
         },
         {
-            "id": "18",
+            "id": "3",
             "active": true,
-            "hoveddato": "2026-07-02",
+            "hoveddato": "2026-07-03",
             "expected_stik": 0,
             "active_stik": 0,
             "langhatte": 0,
             "korthatte_extra": 0,
-            "broende": 3,
-            "notes": "Kirketoften/Herslev Bygade | Strækninger: 4612115-4612031, 4612031-4612030 | Bemærkninger: Overgang til PVC ved 22.8mtr | Rodklump ved 30.5mtr"
+            "broende": 1,
+            "notes": "Herslev Kirkevej | Strækninger: 4612010-4612012 | Bemærkninger: Dimensionsskifte lige før 4612010 - ca 30 cm - der sidste rørstylkke inden brønden er plantmed bund og mindre i top"
         },
         {
-            "id": "10",
+            "id": "4",
             "active": true,
             "hoveddato": "2026-07-03",
-            "expected_stik": 4,
-            "active_stik": 4,
+            "expected_stik": 1,
+            "active_stik": 1,
             "langhatte": 0,
             "korthatte_extra": 0,
             "broende": 1,
-            "notes": "Herslev Kirkevej | Strækninger: 4621007-4621022"
+            "notes": "Herslev Kirkevej | Strækninger: 4612012-4612013 | Bemærkninger: Forhindring klemt fast i samling. skæres ud"
         },
         {
             "id": "6",
@@ -149,7 +116,7 @@
         {
             "id": "7",
             "active": true,
-            "hoveddato": "2026-07-06",
+            "hoveddato": "2026-07-07",
             "expected_stik": 9,
             "active_stik": 9,
             "langhatte": 0,
@@ -158,9 +125,20 @@
             "notes": "Herslev Bygade | Strækninger: 4621008-4621007, 4621007-4621006, 4621006-4621005"
         },
         {
-            "id": "11",
+            "id": "10",
             "active": true,
             "hoveddato": "2026-07-07",
+            "expected_stik": 4,
+            "active_stik": 4,
+            "langhatte": 0,
+            "korthatte_extra": 0,
+            "broende": 1,
+            "notes": "Herslev Kirkevej | Strækninger: 4621007-4621022"
+        },
+        {
+            "id": "11",
+            "active": true,
+            "hoveddato": "2026-07-08",
             "expected_stik": 0,
             "active_stik": 0,
             "langhatte": 0,
@@ -171,7 +149,7 @@
         {
             "id": "12",
             "active": true,
-            "hoveddato": "2026-07-07",
+            "hoveddato": "2026-07-09",
             "expected_stik": 11,
             "active_stik": 11,
             "langhatte": 0,
@@ -180,9 +158,20 @@
             "notes": "Herslev Kirkevej | Strækninger: 4621005-4621021, 4621021-4621017 | Bemærkninger: Fritlægning af 4621021 er prblematisk. der er afsat dæksel med pæl. og det er den som er målt. | Rødder nør 4621021"
         },
         {
+            "id": "18",
+            "active": true,
+            "hoveddato": "2026-07-10",
+            "expected_stik": 0,
+            "active_stik": 0,
+            "langhatte": 0,
+            "korthatte_extra": 0,
+            "broende": 3,
+            "notes": "Kirketoften/Herslev Bygade | Strækninger: 4612115-4612031, 4612031-4612030 | Bemærkninger: Overgang til PVC ved 22.8mtr | Rodklump ved 30.5mtr"
+        },
+        {
             "id": "13",
             "active": true,
-            "hoveddato": "2026-07-08",
+            "hoveddato": "2026-08-10",
             "expected_stik": 7,
             "active_stik": 7,
             "langhatte": 0,
@@ -193,7 +182,7 @@
         {
             "id": "14",
             "active": true,
-            "hoveddato": "2026-07-08",
+            "hoveddato": "2026-08-10",
             "expected_stik": 3,
             "active_stik": 3,
             "langhatte": 0,
@@ -204,7 +193,7 @@
         {
             "id": "15",
             "active": true,
-            "hoveddato": "2026-07-09",
+            "hoveddato": "2026-08-11",
             "expected_stik": 5,
             "active_stik": 5,
             "langhatte": 0,
@@ -215,13 +204,24 @@
         {
             "id": "16",
             "active": true,
-            "hoveddato": "2026-07-09",
+            "hoveddato": "2026-08-12",
             "expected_stik": 4,
             "active_stik": 4,
             "langhatte": 0,
             "korthatte_extra": 0,
             "broende": 2,
             "notes": "Herslev Kirkevej | Strækninger: 4621019-4621020"
+        },
+        {
+            "id": "17",
+            "active": true,
+            "hoveddato": "2026-08-12",
+            "expected_stik": 3,
+            "active_stik": 3,
+            "langhatte": 0,
+            "korthatte_extra": 0,
+            "broende": 1,
+            "notes": "Kirketoften | Strækninger: 4612038-4612034, 4612034-4612032, 4612032-4612031"
         }
     ],
     "customer": "Fredericia Spildevand og Energi A/S",

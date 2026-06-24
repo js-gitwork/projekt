@@ -14,5 +14,112 @@
     <main class="container">
         {% block content %}{% endblock %}
     </main>
-</body>
-</html>
+
+    <!-- Roerbot AI-assistent -->
+    <div class="roerbot-widget" id="roerbotWidget">
+        <div class="roerbot-panel" id="roerbotPanel">
+            <div class="roerbot-header">
+                <strong>Roerbot</strong>
+                <button type="button" id="roerbotClose">×</button>
+            </div>
+
+            <div class="roerbot-messages" id="roerbotMessages">
+                <div class="roerbot-message bot">
+                    Hej, jeg er Roerbot. Spørg mig om projektet.
+                </div>
+            </div>
+
+            <form class="roerbot-form" id="roerbotForm">
+                <input
+                    type="text"
+                    id="roerbotInput"
+                    placeholder="Skriv dit spørgsmål..."
+                    autocomplete="off"
+                >
+                <button type="submit">➤</button>
+            </form>
+        </div>
+
+        <button type="button" class="roerbot-avatar" id="roerbotAvatar">
+            R
+        </button>
+    </div>
+
+    <script>
+    const roerbotAvatar = document.getElementById("roerbotAvatar");
+    const roerbotPanel = document.getElementById("roerbotPanel");
+    const roerbotClose = document.getElementById("roerbotClose");
+    const roerbotForm = document.getElementById("roerbotForm");
+    const roerbotInput = document.getElementById("roerbotInput");
+    const roerbotMessages = document.getElementById("roerbotMessages");
+
+    roerbotAvatar.addEventListener("click", () => {
+        roerbotPanel.classList.toggle("open");
+        roerbotInput.focus();
+    });
+
+    roerbotClose.addEventListener("click", () => {
+        roerbotPanel.classList.remove("open");
+    });
+
+    roerbotForm.addEventListener("submit", async (event) => {
+        event.preventDefault();
+
+        const question = roerbotInput.value.trim();
+        if (!question) return;
+
+        addRoerbotMessage(question, "user");
+        roerbotInput.value = "";
+
+        const thinkingMessage = addRoerbotMessage("Jeg tænker...", "bot");
+
+        try {
+            const formData = new FormData();
+            formData.append("question", question);
+
+            const pathParts = window.location.pathname.split("/");
+            const projectId =
+                pathParts[1] === "projects"
+                    ? pathParts[2]
+                    : null;
+
+            if (!projectId) {
+                thinkingMessage.textContent =
+                    "Jeg kan kun bruges inde på et projekt.";
+                return;
+            }
+
+            const response = await fetch(
+                `/projects/${projectId}/assistant/ask`,
+                {
+                    method: "POST",
+                    body: formData
+                }
+            );
+
+            if (!response.ok) {
+                thinkingMessage.textContent =
+                    "Backend svarede med en fejl.";
+                return;
+            }
+
+            const data = await response.json();
+
+            thinkingMessage.textContent =
+                data.answer || "Jeg fik ikke noget svar.";
+        } catch (error) {
+            thinkingMessage.textContent =
+                "Der opstod en fejl ved AI-kaldet.";
+            console.error(error);
+        }
+    });
+
+    function addRoerbotMessage(text, sender) {
+        const div = document.createElement("div");
+        div.className = "roerbot-message " + sender;
+        div.textContent = text;
+        roerbotMessages.appendChild(div);
+        roerbotMessages.scrollTop = roerbotMessages.scrollHeight;
+        return div;
+    }
+</script>

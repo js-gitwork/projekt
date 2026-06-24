@@ -1,25 +1,28 @@
-import json
-from datetime import date
+import sys
+sys.path.append("/home/media/projekter")
+from core.ai_assistent import ask_mistral
 
-from fastapi import FastAPI, Form, Request
+from datetime import date
+from fastapi import FastAPI, Request, Form
+from fastapi.responses import HTMLResponse
 from fastapi.responses import RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
-
-from core.ai_assistent import ask_mistral
 from projektstyring.backend.c5_importer import (
-    apply_c5_updates_to_project,
     parse_c5_csv,
+    apply_c5_updates_to_project,
+)
+from projektstyring.backend.project_planner import (
+    generate_plan_for_project,
+    generate_plan_for_active_projects,
 )
 from projektstyring.backend.project_operations import add_installations
-from projektstyring.backend.project_planner import (
-    generate_plan_for_active_projects,
-    generate_plan_for_project,
-)
 from projektstyring.backend.project_repository import ProjectRepository
 from projektstyring.backend.project_writer import save_project
 from projektstyring.backend.team_loader import load_teams
-
+from core.ai_assistent import ask_mistral
+import json
+from pathlib import Path
 
 app = FastAPI()
 
@@ -72,7 +75,7 @@ def to_int(value, default=0):
         if value in (None, ""):
             return default
         return int(value)
-    except (TypeError, ValueError):
+    except ValueError:
         return default
 
 
@@ -142,43 +145,21 @@ def validate_task_assignments(assignments):
     return errors
 
 
-def build_work_cards_by_week(activities):
+def build_work_cards(activities):
     work_cards = {}
 
     for activity in activities:
         hold = activity.hold or "Ikke tildelt"
 
-        if not activity.start_dato:
-            continue
+        if hold not in work_cards:
+            work_cards[hold] = []
 
-        iso = activity.start_dato.isocalendar()
-        week_key = f"{iso.year}-W{iso.week:02d}"
-        week_label = f"Uge {iso.week} / {iso.year}"
-
-        work_cards.setdefault(hold, {})
-        work_cards[hold].setdefault(
-            week_key,
-            {
-                "label": week_label,
-                "activities": [],
-            },
-        )
-
-        work_cards[hold][week_key]["activities"].append(activity)
-
-    for hold in work_cards:
-        for week_key in work_cards[hold]:
-            work_cards[hold][week_key]["activities"] = sorted(
-                work_cards[hold][week_key]["activities"],
-                key=activity_sort_key,
-            )
+        work_cards[hold].append(activity)
 
     return {
-        hold: dict(sorted(weeks.items()))
-        for hold, weeks in sorted(work_cards.items())
+        hold: sorted(rows, key=activity_sort_key)
+        for hold, rows in sorted(work_cards.items())
     }
-
-
 def build_gantt_data(activities):
     if not activities:
         return {
@@ -229,104 +210,15 @@ def build_gantt_data(activities):
         "rows": rows,
     }
 
-
-def get_project_assigned_team_ids(project):
-    team_ids = []
-
-    for assignments in project.get("task_assignments", {}).values():
-        for assignment in assignments:
-            team = assignment.get("team", "").strip()
-
-            if team and team not in team_ids:
-                team_ids.append(team)
-
-    return team_ids
+ROERBOT_BEGREBER_FILE = Path("projektstyring/data/roerbot_begreber.json")
 
 
-def progress_for_activity(activity_type, progress):
-    if activity_type == "hovedledning":
-        return progress.get("hovedledning", 0)
+def load_roerbot_begreber():
+    if not ROERBOT_BEGREBER_FILE.exists():
+        return {}
 
-    if activity_type == "stikforberedelse":
-        return progress.get("stikopmaaling", 0)
-
-    if activity_type == "stik":
-        return progress.get("stikaabning", 0)
-
-    if activity_type == "kontrol":
-        return progress.get("stikaabning", 0)
-
-    if activity_type == "korthat":
-        return 0
-
-    if activity_type == "broend":
-        return 0
-
-    return 0
-
-
-def build_progress_report(project, activities):
-    planned = {}
-
-    for activity in activities:
-        installation_id = str(activity.installation_id)
-        planned.setdefault(installation_id, [])
-        planned[installation_id].append(activity)
-
-    report = []
-    today = date.today()
-
-    for installation in project.get("installations", []):
-        installation_id = str(installation.get("id"))
-        progress = installation.get("progress", {})
-        planned_activities = planned.get(installation_id, [])
-
-        status = "Ingen plan"
-        status_class = "status-muted"
-
-        if planned_activities:
-            overdue = False
-            in_progress = False
-            complete = True
-
-            for activity in planned_activities:
-                percent = progress_for_activity(
-                    activity.type,
-                    progress,
-                )
-
-                if percent < 100:
-                    complete = False
-
-                    if activity.slut_dato and activity.slut_dato < today:
-                        overdue = True
-                    else:
-                        in_progress = True
-
-            if complete:
-                status = "Færdig"
-                status_class = "status-ok"
-            elif overdue:
-                status = "Bagud"
-                status_class = "status-error"
-            elif in_progress:
-                status = "Planlagt"
-                status_class = "status-warning"
-
-        report.append(
-            {
-                "installation_id": installation_id,
-                "active_stik": installation.get("active_stik", 0),
-                "planned_activities": planned_activities,
-                "progress": progress,
-                "status": status,
-                "status_class": status_class,
-                "notes": installation.get("notes", ""),
-            }
-        )
-
-    return report
-
+    with ROERBOT_BEGREBER_FILE.open("r", encoding="utf-8") as file:
+        return json.load(file)
 
 @app.get("/")
 def index(request: Request):
@@ -351,6 +243,70 @@ def active_projects_plan(request: Request):
         },
     )
 
+@app.get("/projects/{project_id}/assistant", response_class=HTMLResponse)
+def project_assistant_page(request: Request, project_id: str):
+    project = repository.load_project(project_id)
+
+    return templates.TemplateResponse(
+        "assistant.html",
+        {
+            "request": request,
+            "project": project,
+            "answer": None,
+            "question": "",
+        },
+    )
+@app.post("/assistant/ask")
+def roerbot_ask(question: str = Form(...)):
+    print("Roerbot spørgsmål:", question)
+
+    prompt = f"""
+Du er Roerbot, projektassistent.
+
+Spørgsmål:
+{question}
+"""
+
+    answer = ask_mistral(
+        prompt,
+        model="mistral-small-latest"
+    )
+
+    return {"answer": answer}
+
+
+@app.post("/projects/{project_id}/assistant", response_class=HTMLResponse)
+def project_assistant_ask(
+    request: Request,
+    project_id: str,
+    question: str = Form(...),
+):
+    project = repository.load_project(project_id)
+
+    prompt = f"""
+Du er projektassistent.
+
+Projekt:
+{project.id} - {project.name}
+
+Spørgsmål:
+{question}
+"""
+
+    answer = ask_mistral(
+        prompt,
+        model="mistral-small-latest"
+    )
+
+    return templates.TemplateResponse(
+        "assistant.html",
+        {
+            "request": request,
+            "project": project,
+            "answer": answer,
+            "question": question,
+        },
+    )
 
 @app.get("/projects/new")
 def new_project_form(request: Request):
@@ -422,6 +378,41 @@ def project_detail(request: Request, project_id: str):
         },
     )
 
+def build_work_cards_by_week(activities):
+    work_cards = {}
+
+    for activity in activities:
+        hold = activity.hold or "Ikke tildelt"
+
+        if not activity.start_dato:
+            continue
+
+        iso = activity.start_dato.isocalendar()
+        week_key = f"{iso.year}-W{iso.week:02d}"
+        week_label = f"Uge {iso.week} / {iso.year}"
+
+        work_cards.setdefault(hold, {})
+        work_cards[hold].setdefault(
+            week_key,
+            {
+                "label": week_label,
+                "activities": [],
+            },
+        )
+
+        work_cards[hold][week_key]["activities"].append(activity)
+
+    for hold in work_cards:
+        for week_key in work_cards[hold]:
+            work_cards[hold][week_key]["activities"] = sorted(
+                work_cards[hold][week_key]["activities"],
+                key=activity_sort_key,
+            )
+
+    return {
+        hold: dict(sorted(weeks.items()))
+        for hold, weeks in sorted(work_cards.items())
+    }
 
 @app.post("/projects/{project_id}/save")
 async def save_project_detail(request: Request, project_id: str):
@@ -612,11 +603,11 @@ def project_plan(
                 activity
                 for activity in activities
                 if activity.start_dato
-                and (
-                    activity.start_dato.isocalendar().week >= week_from
-                    or activity.start_dato.isocalendar().week <= week_to
-                )
-            ]
+               and (
+                activity.start_dato.isocalendar().week >= week_from
+                or activity.start_dato.isocalendar().week <= week_to
+            )
+        ]
     elif week_from:
         activities = [
             activity
@@ -624,6 +615,7 @@ def project_plan(
             if activity.start_dato
             and activity.start_dato.isocalendar().week >= week_from
         ]
+
     elif week_to:
         activities = [
             activity
@@ -659,6 +651,19 @@ def project_plan(
     )
 
 
+def get_project_assigned_team_ids(project):
+    team_ids = []
+
+    for assignments in project.get("task_assignments", {}).values():
+        for assignment in assignments:
+            team = assignment.get("team", "").strip()
+
+            if team and team not in team_ids:
+                team_ids.append(team)
+
+    return team_ids
+
+
 @app.get("/projects/{project_id}/work-cards")
 def project_work_cards(request: Request, project_id: str):
     project = repo.load_project(project_id)
@@ -674,6 +679,91 @@ def project_work_cards(request: Request, project_id: str):
         },
     )
 
+
+def progress_for_activity(activity_type, progress):
+    if activity_type == "hovedledning":
+        return progress.get("hovedledning", 0)
+
+    if activity_type == "stikforberedelse":
+        return progress.get("stikopmaaling", 0)
+
+    if activity_type == "stik":
+        return progress.get("stikaabning", 0)
+
+    if activity_type == "kontrol":
+        return progress.get("stikaabning", 0)
+
+    if activity_type == "korthat":
+        return 0
+
+    if activity_type == "broend":
+        return 0
+
+    return 0
+
+
+def build_progress_report(project, activities):
+    planned = {}
+
+    for activity in activities:
+        installation_id = str(activity.installation_id)
+        planned.setdefault(installation_id, [])
+        planned[installation_id].append(activity)
+
+    report = []
+
+    today = date.today()
+
+    for installation in project.get("installations", []):
+        installation_id = str(installation.get("id"))
+        progress = installation.get("progress", {})
+        planned_activities = planned.get(installation_id, [])
+
+        status = "Ingen plan"
+        status_class = "status-muted"
+
+        if planned_activities:
+            overdue = False
+            in_progress = False
+            complete = True
+
+            for activity in planned_activities:
+                percent = progress_for_activity(
+                    activity.type,
+                    progress,
+                )
+
+                if percent < 100:
+                    complete = False
+
+                    if activity.slut_dato and activity.slut_dato < today:
+                        overdue = True
+                    else:
+                        in_progress = True
+
+            if complete:
+                status = "Færdig"
+                status_class = "status-ok"
+            elif overdue:
+                status = "Bagud"
+                status_class = "status-error"
+            elif in_progress:
+                status = "Planlagt"
+                status_class = "status-warning"
+
+        report.append(
+            {
+                "installation_id": installation_id,
+                "active_stik": installation.get("active_stik", 0),
+                "planned_activities": planned_activities,
+                "progress": progress,
+                "status": status,
+                "status_class": status_class,
+                "notes": installation.get("notes", ""),
+            }
+        )
+
+    return report
 
 @app.get("/projects/{project_id}/c5-import")
 def c5_import_form(request: Request, project_id: str):
@@ -729,69 +819,90 @@ async def c5_import_apply(request: Request, project_id: str):
         status_code=303,
     )
 
+def detect_team_capacity_change(question: str):
+    text = question.lower()
+
+    if "stik2" in text or "stik 2" in text:
+        team = "stik2"
+    else:
+        team = None
+
+    if "6" in text and ("langhat" in text or "stik" in text):
+        new_capacity = 6
+    else:
+        new_capacity = None
+
+    if team and new_capacity:
+        return {
+            "intent": "update_team_capacity",
+            "team": team,
+            "field": "langhatte_per_day",
+            "new_value": new_capacity,
+            "requires_confirmation": True,
+        }
+
+    return None
 
 @app.post("/projects/{project_id}/assistant/ask")
 def roerbot_project_ask(
     project_id: str,
     question: str = Form(...),
 ):
+    def as_int(value):
+        try:
+            return int(value or 0)
+        except (TypeError, ValueError):
+            return 0
+
     project = repo.load_project(project_id)
 
-    task_assignments = project.get("task_assignments", {})
+    roerbot_begreber = load_roerbot_begreber()
+
+    print("ROERBOT QUESTION:", question)
+
+    change_proposal = detect_team_capacity_change(question)
+    print("CHANGE PROPOSAL:", change_proposal)
+
+        if change_proposal:
+            answer = f"""
+    Jeg har forstået det som et ændringsforslag:
+
+    Hold: {change_proposal["team"]}
+    Ændring: kapacitet sættes til {change_proposal["new_value"]} langhatte pr. dag.
+
+    Jeg har ikke ændret noget endnu.
+    Dette kræver godkendelse, før data må gemmes.
+    """
+
+        return {
+            "answer": answer,
+            "proposal": change_proposal,
+        }
+
+    task_assignments = project.get("task_assignments", [])
     installations = project.get("installations", [])
 
     installation_summary = [
         {
             "id": installation.get("id"),
             "active": installation.get("active"),
-            "hoveddato": installation.get("hoveddato"),
-            "expected_stik": to_int(installation.get("expected_stik")),
-            "active_stik": to_int(installation.get("active_stik")),
-            "langhatte": to_int(installation.get("langhatte")),
-            "korthatte_extra": to_int(installation.get("korthatte_extra")),
-            "broende": to_int(installation.get("broende")),
+            "expected_stik": as_int(installation.get("expected_stik")),
+            "active_stik": as_int(installation.get("active_stik")),
+            "langhatte": as_int(installation.get("langhatte")),
+            "korthatte_extra": as_int(installation.get("korthatte_extra")),
+            "broende": as_int(installation.get("broende")),
+            "main_date": installation.get("main_date"),
             "notes": installation.get("notes"),
         }
         for installation in installations
     ]
 
-    assigned_teams = sorted({
-    assignment.get("team")
-    for task_groups in task_assignments.values()
-    for assignment in task_groups
-    if assignment.get("team")
-})
-
-
-
     prompt = f"""
 Du er Roerbot, projektassistent for strømpeforingsprojekter.
 
-Du må svare ud fra tre videnslag:
-
-1. Projektdata
-- Projekt
-- Holdtildelinger
-- Installationer
-
-2. Virksomhedens begreber
-- Interne fagord
-- Synonymer
-- Arbejdsmetoder
-
-3. Generel faglig viden
-- Kloak
-- Anlæg
-- Rørarbejde
-- Strømpeforing
-- Brøndarbejde
-
-Vigtige regler:
-- Når brugeren spørger om konkrete tal, datoer, hold, installationer eller status i dette projekt, må du kun bruge projektdata.
-- Når brugeren spørger hvad et fagudtryk betyder, må du bruge virksomhedens begreber og generel faglig viden.
-- Hvis du bruger generel faglig viden, så skriv kort at det er en generel forklaring.
-- Du må ikke opfinde projektdata.
-- Hvis projektdata mangler, skal du sige det.
+Du må kun svare ud fra de data, du får her.
+Du må ikke gætte.
+Hvis data ikke findes i projektdataene, skal du sige det.
 
 Svarregler:
 - Svar kort og præcist.
@@ -809,11 +920,10 @@ Virksomhedens begreber:
 Projekt:
 ID: {project.get("id")}
 Navn: {project.get("name")}
-
-Projektets hold:
+Tilknyttede hold:
 {json.dumps(assigned_teams, indent=2, ensure_ascii=False)}
 
-Antal projekt-hold:
+Antal tilknyttede hold:
 {len(assigned_teams)}
 
 Holdtildelinger:
