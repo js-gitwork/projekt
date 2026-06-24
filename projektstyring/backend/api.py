@@ -1,4 +1,3 @@
-import json
 from datetime import date
 
 from fastapi import FastAPI, Form, Request
@@ -6,7 +5,6 @@ from fastapi.responses import RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 
-from core.ai_assistent import ask_mistral
 from projektstyring.backend.c5_importer import (
     apply_c5_updates_to_project,
     parse_c5_csv,
@@ -19,7 +17,7 @@ from projektstyring.backend.project_planner import (
 from projektstyring.backend.project_repository import ProjectRepository
 from projektstyring.backend.project_writer import save_project
 from projektstyring.backend.team_loader import load_teams
-
+from projektstyring.backend.roerbot_service import ask_roerbot
 
 app = FastAPI()
 
@@ -34,7 +32,6 @@ templates = Jinja2Templates(
 )
 
 repo = ProjectRepository()
-
 
 TASK_TYPES = [
     "hovedledning",
@@ -730,105 +727,8 @@ async def c5_import_apply(request: Request, project_id: str):
     )
 
 
-@app.post("/projects/{project_id}/assistant/ask")
-def roerbot_project_ask(
-    project_id: str,
+@app.post("/assistant/ask")
+def roerbot_global_ask(
     question: str = Form(...),
 ):
-    project = repo.load_project(project_id)
-
-    task_assignments = project.get("task_assignments", {})
-    installations = project.get("installations", [])
-
-    installation_summary = [
-        {
-            "id": installation.get("id"),
-            "active": installation.get("active"),
-            "hoveddato": installation.get("hoveddato"),
-            "expected_stik": to_int(installation.get("expected_stik")),
-            "active_stik": to_int(installation.get("active_stik")),
-            "langhatte": to_int(installation.get("langhatte")),
-            "korthatte_extra": to_int(installation.get("korthatte_extra")),
-            "broende": to_int(installation.get("broende")),
-            "notes": installation.get("notes"),
-        }
-        for installation in installations
-    ]
-
-    assigned_teams = sorted({
-    assignment.get("team")
-    for task_groups in task_assignments.values()
-    for assignment in task_groups
-    if assignment.get("team")
-})
-
-
-
-    prompt = f"""
-Du er Roerbot, projektassistent for strømpeforingsprojekter.
-
-Du må svare ud fra tre videnslag:
-
-1. Projektdata
-- Projekt
-- Holdtildelinger
-- Installationer
-
-2. Virksomhedens begreber
-- Interne fagord
-- Synonymer
-- Arbejdsmetoder
-
-3. Generel faglig viden
-- Kloak
-- Anlæg
-- Rørarbejde
-- Strømpeforing
-- Brøndarbejde
-
-Vigtige regler:
-- Når brugeren spørger om konkrete tal, datoer, hold, installationer eller status i dette projekt, må du kun bruge projektdata.
-- Når brugeren spørger hvad et fagudtryk betyder, må du bruge virksomhedens begreber og generel faglig viden.
-- Hvis du bruger generel faglig viden, så skriv kort at det er en generel forklaring.
-- Du må ikke opfinde projektdata.
-- Hvis projektdata mangler, skal du sige det.
-
-Svarregler:
-- Svar kort og præcist.
-- Svar kun på det brugeren spørger om.
-- Hvis brugeren spørger "hvilke installationer", så svar kun med installationsnumre.
-- Hvis brugeren spørger "hvor mange", så svar med tallet først.
-- Vis ikke noter, adresser, strækninger eller bemærkninger medmindre brugeren specifikt beder om dem.
-- Hold svar under 5 linjer hvis muligt.
-- Vær faktuel frem for hjælpsom.
-- Forklar ikke hvordan du kom frem til svaret medmindre brugeren spørger.
-
-Virksomhedens begreber:
-{json.dumps(roerbot_begreber, indent=2, ensure_ascii=False)}
-
-Projekt:
-ID: {project.get("id")}
-Navn: {project.get("name")}
-
-Projektets hold:
-{json.dumps(assigned_teams, indent=2, ensure_ascii=False)}
-
-Antal projekt-hold:
-{len(assigned_teams)}
-
-Holdtildelinger:
-{json.dumps(task_assignments, indent=2, ensure_ascii=False)}
-
-Installationer:
-{json.dumps(installation_summary, indent=2, ensure_ascii=False)}
-
-Spørgsmål:
-{question}
-"""
-
-    answer = ask_mistral(
-        prompt,
-        model="mistral-small-latest"
-    )
-
-    return {"answer": answer}
+    return ask_roerbot(question)

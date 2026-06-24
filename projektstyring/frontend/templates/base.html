@@ -4,6 +4,7 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>{% block title %}Projektstyring{% endblock %}</title>
+    <link rel="icon" type="image/png" href="/static/images/roerbot.png">
     <link rel="stylesheet" href="/static/style.css">
 </head>
 <body>
@@ -25,7 +26,7 @@
 
             <div class="roerbot-messages" id="roerbotMessages">
                 <div class="roerbot-message bot">
-                    Hej, jeg er Roerbot. Spørg mig om projektet.
+                    Hej, jeg er Roerbot. Spørg mig om projekter, hold og planlægning.
                 </div>
             </div>
 
@@ -40,9 +41,13 @@
             </form>
         </div>
 
-        <button type="button" class="roerbot-avatar" id="roerbotAvatar">
-            R
-        </button>
+        <div class="roerbot-avatar" id="roerbotAvatar">
+            <img
+                src="/static/images/roerbot.png"
+                alt="Roerbot"
+            >
+        </div>
+
     </div>
 
     <script>
@@ -66,31 +71,25 @@
         event.preventDefault();
 
         const question = roerbotInput.value.trim();
-        if (!question) return;
+
+        if (!question) {
+            return;
+        }
 
         addRoerbotMessage(question, "user");
         roerbotInput.value = "";
 
-        const thinkingMessage = addRoerbotMessage("Jeg tænker...", "bot");
+        const thinkingMessage = addRoerbotMessage(
+            "Jeg tænker...",
+            "bot"
+        );
 
         try {
             const formData = new FormData();
             formData.append("question", question);
 
-            const pathParts = window.location.pathname.split("/");
-            const projectId =
-                pathParts[1] === "projects"
-                    ? pathParts[2]
-                    : null;
-
-            if (!projectId) {
-                thinkingMessage.textContent =
-                    "Jeg kan kun bruges inde på et projekt.";
-                return;
-            }
-
             const response = await fetch(
-                `/projects/${projectId}/assistant/ask`,
+                "/assistant/ask",
                 {
                     method: "POST",
                     body: formData
@@ -107,19 +106,30 @@
 
             thinkingMessage.textContent =
                 data.answer || "Jeg fik ikke noget svar.";
+
         } catch (error) {
             thinkingMessage.textContent =
                 "Der opstod en fejl ved AI-kaldet.";
+
             console.error(error);
         }
     });
 
     function addRoerbotMessage(text, sender) {
         const div = document.createElement("div");
-        div.className = "roerbot-message " + sender;
-        div.textContent = text;
+
+        div.className =
+            "roerbot-message " + sender;
+
+        div.innerText = text;
+
         roerbotMessages.appendChild(div);
-        roerbotMessages.scrollTop = roerbotMessages.scrollHeight;
+
+        roerbotMessages.scrollTop =
+            roerbotMessages.scrollHeight;
+
         return div;
     }
-</script>
+    </script>
+</body>
+</html>
