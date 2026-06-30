@@ -3,10 +3,8 @@ import re
 from pathlib import Path
 
 from core.ai_assistent import ask_mistral
-from projektstyring.backend.project_repository import ProjectRepository
+from projektstyring.backend.assistant_tools import run_tool
 
-
-repo = ProjectRepository()
 
 BEGREBER_PATH = Path("projektstyring/data/roerbot_begreber.json")
 
@@ -19,33 +17,22 @@ def load_roerbot_begreber():
         return json.load(file)
 
 
-def value_of(item, key, default=""):
-    if isinstance(item, dict):
-        return item.get(key, default)
+def extract_project_id(text):
+    match = re.search(r"\bV\d+\b", text.upper())
 
-    return getattr(item, key, default)
+    if not match:
+        return None
 
-
-def normalize_project(project):
-    return {
-        "id": value_of(project, "id"),
-        "name": value_of(project, "name"),
-        "customer": value_of(project, "customer"),
-        "city": value_of(project, "city"),
-        "status": value_of(project, "status"),
-        "start_date": str(value_of(project, "start_date")),
-    }
+    return match.group(0)
 
 
-def get_all_projects():
-    return [
-        normalize_project(project)
-        for project in repo.list_projects()
-    ]
+def extract_date(text):
+    match = re.search(r"\b\d{4}-\d{2}-\d{2}\b", text)
 
+    if not match:
+        return None
 
-def get_project(project_id):
-    return repo.load_project(project_id)
+    return match.group(0)
 
 
 def format_projects(projects):
@@ -106,15 +93,6 @@ def format_project(project):
     return "\n".join(lines)
 
 
-def extract_project_id(text):
-    match = re.search(r"\bV\d+\b", text.upper())
-
-    if not match:
-        return None
-
-    return match.group(0)
-
-
 def choose_tool(question):
     tools = [
         {
@@ -127,6 +105,17 @@ def choose_tool(question):
             "description": "Bruges når brugeren spørger om et bestemt projekt-id.",
             "args": {
                 "project_id": "V-nummer, fx V165460"
+            },
+        },
+        {
+            "tool": "simulate_project_start_change",
+            "description": (
+                "Bruges når brugeren vil simulere eller konsekvensberegne "
+                "en ændret startdato for et projekt."
+            ),
+            "args": {
+                "project_id": "V-nummer, fx V165460",
+                "new_start_date": "Ny startdato i formatet YYYY-MM-DD"
             },
         },
         {
@@ -148,9 +137,11 @@ Mulige tools:
 
 Regler:
 - Vælg get_all_projects hvis brugeren spørger efter en liste over projekter/sager/opgaver.
-- Vælg get_project hvis brugeren nævner et konkret V-nummer.
+- Vælg get_project hvis brugeren nævner et konkret V-nummer og blot spørger om projektet.
+- Vælg simulate_project_start_change hvis brugeren vil simulere, flytte, ændre startdato eller konsekvensberegne et projekt.
 - Vælg general_answer hvis intet tool passer sikkert.
 - Opfind aldrig projekt-id.
+- Opfind aldrig datoer.
 
 Spørgsmål:
 {question}
@@ -178,7 +169,7 @@ Svarformat:
 
 def build_general_prompt(question):
     roerbot_begreber = load_roerbot_begreber()
-    projects = get_all_projects()
+    projects = run_tool("get_all_projects")
 
     return f"""
 Du er Roerbot, global projektassistent for strømpeforingsprojekter.
@@ -214,7 +205,7 @@ def ask_roerbot(question):
     args = tool_call.get("args", {})
 
     if tool_name == "get_all_projects":
-        projects = get_all_projects()
+        projects = run_tool("get_all_projects")
 
         return {
             "answer": format_projects(projects)
@@ -228,10 +219,39 @@ def ask_roerbot(question):
                 "answer": "Jeg mangler projekt-id. Skriv fx V165460."
             }
 
-        project = get_project(project_id)
+        project = run_tool(
+            "get_project",
+            {"project_id": project_id},
+        )
 
         return {
             "answer": format_project(project)
+        }
+
+    if tool_name == "simulate_project_start_change":
+        project_id = args.get("project_id") or extract_project_id(question)
+        new_start_date = args.get("new_start_date") or extract_date(question)
+
+        if not project_id:
+            return {
+                "answer": "Jeg mangler projekt-id. Skriv fx V165460."
+            }
+
+        if not new_start_date:
+            return {
+                "answer": "Jeg mangler ny startdato. Brug formatet YYYY-MM-DD."
+            }
+
+        result = run_tool(
+            "simulate_project_start_change",
+            {
+                "project_id": project_id,
+                "new_start_date": new_start_date,
+            },
+        )
+
+        return {
+            "answer": result["answer"]
         }
 
     prompt = build_general_prompt(question)
