@@ -2,8 +2,11 @@ import json
 import re
 from pathlib import Path
 
-from core.ai_assistent import ask_mistral
+from core.ai_assistent import ask_mistral, ask_mistral_fast
 from projektstyring.backend.assistant_tools import run_tool
+from projektstyring.backend.repositories.conversation_state_repository import (
+    get_active_conversation,
+)
 
 
 BEGREBER_PATH = Path("projektstyring/data/roerbot_begreber.json")
@@ -93,7 +96,109 @@ def format_project(project):
     return "\n".join(lines)
 
 
+def is_project_creation_request(question):
+    lower = question.strip().lower()
+
+    return (
+        "opret projekt" in lower
+        or "opret nyt projekt" in lower
+        or lower.startswith("opret v")
+    )
+
+
+def is_status_change_request(question):
+    lower = question.strip().lower()
+
+    status_words = [
+        "opmålt",
+        "opmaalt",
+        "klar til planlægning",
+        "klar til planlaegning",
+        "kommende",
+        "i gang",
+        "igang",
+        "aktiv",
+        "afsluttet",
+        "færdig",
+        "faerdig",
+        "mangler opmåling",
+        "mangler opmaaling",
+    ]
+
+    return extract_project_id(question) and any(
+        word in lower
+        for word in status_words
+    )
+
+
+def normalize_project_status(text, raw_status=None):
+    value = (raw_status or "").strip().lower()
+    lower = text.strip().lower()
+
+    status_aliases = {
+        "survey": "survey",
+        "opmåling": "survey",
+        "opmaaling": "survey",
+        "mangler opmåling": "survey",
+        "mangler opmaaling": "survey",
+
+        "upcoming": "upcoming",
+        "kommende": "upcoming",
+        "klar": "upcoming",
+        "klar til planlægning": "upcoming",
+        "klar til planlaegning": "upcoming",
+        "opmålt": "upcoming",
+        "opmaalt": "upcoming",
+
+        "active": "active",
+        "aktiv": "active",
+        "i gang": "active",
+        "igang": "active",
+
+        "completed": "completed",
+        "afsluttet": "completed",
+        "færdig": "completed",
+        "faerdig": "completed",
+    }
+
+    if value in status_aliases:
+        return status_aliases[value]
+
+    for phrase, status in status_aliases.items():
+        if phrase in lower:
+            return status
+
+    return None
+
+
 def choose_tool(question):
+    active_state = get_active_conversation("default")
+
+    if active_state and active_state.workflow == "project_creation":
+        return {
+            "tool": "analyze_project_creation_request",
+            "args": {
+                "question": question,
+            },
+        }
+
+    if is_project_creation_request(question):
+        return {
+            "tool": "analyze_project_creation_request",
+            "args": {
+                "question": question,
+            },
+        }
+
+    if is_status_change_request(question):
+        return {
+            "tool": "update_project_status",
+            "args": {
+                "project_id": extract_project_id(question),
+                "status": None,
+            },
+        }
+
     tools = [
         {
             "tool": "get_all_projects",
@@ -104,7 +209,7 @@ def choose_tool(question):
             "tool": "get_project",
             "description": "Bruges når brugeren spørger om et bestemt projekt-id.",
             "args": {
-                "project_id": "V-nummer, fx V165460"
+                "project_id": "V-nummer, fx V165460",
             },
         },
         {
@@ -115,7 +220,18 @@ def choose_tool(question):
             ),
             "args": {
                 "project_id": "V-nummer, fx V165460",
-                "new_start_date": "Ny startdato i formatet YYYY-MM-DD"
+                "new_start_date": "Ny startdato i formatet YYYY-MM-DD",
+            },
+        },
+        {
+            "tool": "update_project_status",
+            "description": (
+                "Bruges når brugeren vil ændre status på et projekt, "
+                "fx markere det som opmålt, kommende, aktivt eller afsluttet."
+            ),
+            "args": {
+                "project_id": "V-nummer, fx V165930",
+                "status": "survey, upcoming, active eller completed",
             },
         },
         {
@@ -139,6 +255,7 @@ Regler:
 - Vælg get_all_projects hvis brugeren spørger efter en liste over projekter/sager/opgaver.
 - Vælg get_project hvis brugeren nævner et konkret V-nummer og blot spørger om projektet.
 - Vælg simulate_project_start_change hvis brugeren vil simulere, flytte, ændre startdato eller konsekvensberegne et projekt.
+- Vælg update_project_status hvis brugeren vil ændre projektets status.
 - Vælg general_answer hvis intet tool passer sikkert.
 - Opfind aldrig projekt-id.
 - Opfind aldrig datoer.
@@ -153,10 +270,7 @@ Svarformat:
 }}
 """
 
-    raw_answer = ask_mistral(
-        prompt,
-        model="mistral-small-latest",
-    )
+    raw_answer = ask_mistral_fast(prompt)
 
     try:
         return json.loads(raw_answer)
@@ -204,6 +318,18 @@ def ask_roerbot(question):
     tool_name = tool_call.get("tool")
     args = tool_call.get("args", {})
 
+    if tool_name == "analyze_project_creation_request":
+        result = run_tool(
+            "analyze_project_creation_request",
+            {
+                "question": question,
+            },
+        )
+
+        return {
+            "answer": result["answer"]
+        }
+
     if tool_name == "get_all_projects":
         projects = run_tool("get_all_projects")
 
@@ -229,8 +355,14 @@ def ask_roerbot(question):
         }
 
     if tool_name == "simulate_project_start_change":
-        project_id = args.get("project_id") or extract_project_id(question)
-        new_start_date = args.get("new_start_date") or extract_date(question)
+        project_id = (
+            args.get("project_id")
+            or extract_project_id(question)
+        )
+        new_start_date = (
+            args.get("new_start_date")
+            or extract_date(question)
+        )
 
         if not project_id:
             return {
@@ -254,12 +386,43 @@ def ask_roerbot(question):
             "answer": result["answer"]
         }
 
-    prompt = build_general_prompt(question)
+    if tool_name == "update_project_status":
+        project_id = (
+            args.get("project_id")
+            or extract_project_id(question)
+        )
+        status = normalize_project_status(
+            question,
+            args.get("status"),
+        )
 
-    answer = ask_mistral(
-        prompt,
-        model="mistral-small-latest",
-    )
+        if not project_id:
+            return {
+                "answer": "Jeg mangler projekt-id. Skriv fx V165930."
+            }
+
+        if not status:
+            return {
+                "answer": (
+                    "Jeg kunne ikke afgøre status. Brug fx "
+                    "opmåling, kommende, i gang eller afsluttet."
+                )
+            }
+
+        result = run_tool(
+            "update_project_status",
+            {
+                "project_id": project_id,
+                "status": status,
+            },
+        )
+
+        return {
+            "answer": result["answer"]
+        }
+
+    prompt = build_general_prompt(question)
+    answer = ask_mistral(prompt)
 
     return {
         "answer": answer

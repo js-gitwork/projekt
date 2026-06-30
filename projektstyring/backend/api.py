@@ -72,8 +72,17 @@ def to_int(value, default=0):
     except (TypeError, ValueError):
         return default
 
-
 def calculate_project_status(project):
+    status = project.get("status")
+
+    if status in [
+        "survey",
+        "upcoming",
+        "active",
+        "completed",
+    ]:
+        return status
+
     start_date = project.get("start_date")
 
     if not start_date:
@@ -86,7 +95,6 @@ def calculate_project_status(project):
         return "upcoming"
 
     return "upcoming"
-
 
 def installation_sort_key(installation):
     return (

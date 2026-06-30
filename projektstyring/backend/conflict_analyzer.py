@@ -1,17 +1,38 @@
 from collections import defaultdict
+from datetime import date, timedelta
+
+
+def parse_date(value):
+    if not value:
+        return None
+
+    if isinstance(value, date):
+        return value
+
+    try:
+        return date.fromisoformat(str(value))
+    except ValueError:
+        return None
 
 
 def activity_date_range(activity):
-    start = activity.get("start")
-    end = activity.get("end")
+    start = parse_date(activity.get("start"))
+    end = parse_date(activity.get("end"))
 
     if not start or not end:
         return []
 
-    if start == end:
-        return [start]
+    if end < start:
+        return []
 
-    return [start, end]
+    days = []
+    current = start
+
+    while current <= end:
+        days.append(str(current))
+        current += timedelta(days=1)
+
+    return days
 
 
 def build_team_day_index(plans):
@@ -32,6 +53,8 @@ def build_team_day_index(plans):
                         "type": activity.get("type"),
                         "team": team,
                         "date": day,
+                        "start": activity.get("start"),
+                        "end": activity.get("end"),
                     }
                 )
 
@@ -61,16 +84,42 @@ def find_team_conflicts(plans):
             }
         )
 
-    return conflicts
+    return sorted(
+        conflicts,
+        key=lambda conflict: (
+            conflict["date"],
+            conflict["team"],
+        ),
+    )
 
 
 def summarize_conflicts(conflicts):
+    affected_teams = sorted({
+        conflict["team"]
+        for conflict in conflicts
+        if conflict.get("team")
+    })
+
+    affected_projects = sorted({
+        project_id
+        for conflict in conflicts
+        for project_id in conflict.get("projects", [])
+    })
+
+    dates = sorted({
+        conflict["date"]
+        for conflict in conflicts
+        if conflict.get("date")
+    })
+
     return {
         "conflict_count": len(conflicts),
-        "affected_teams": sorted({
-            conflict["team"]
-            for conflict in conflicts
-        }),
+        "affected_teams": affected_teams,
+        "affected_team_count": len(affected_teams),
+        "affected_projects": affected_projects,
+        "affected_project_count": len(affected_projects),
+        "first_conflict_date": dates[0] if dates else None,
+        "last_conflict_date": dates[-1] if dates else None,
         "conflicts": conflicts,
     }
 

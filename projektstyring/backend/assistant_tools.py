@@ -1,3 +1,6 @@
+from projektstyring.backend.conversation_engine import (
+    handle_project_creation_message,
+)
 from projektstyring.backend.decision_engine import simulate_project_start_change
 from projektstyring.backend.project_repository import ProjectRepository
 
@@ -42,10 +45,38 @@ def run_simulate_project_start_change(
     )
 
 
+def update_project_status(
+    project_id: str,
+    status: str,
+):
+    project = repo.update_project_status(
+        project_id,
+        status,
+    )
+
+    return {
+        "answer": (
+            f"Projekt {project['id']} — {project['name']} "
+            f"er nu sat til status: {status}."
+        ),
+        "project": project,
+    }
+
+
+def analyze_project_creation_request(question: str):
+    return handle_project_creation_message(
+        question,
+        default_year=2026,
+        user_key="default",
+    )
+
+
 TOOLS = {
     "get_all_projects": get_all_projects,
     "get_project": get_project,
     "simulate_project_start_change": run_simulate_project_start_change,
+    "update_project_status": update_project_status,
+    "analyze_project_creation_request": analyze_project_creation_request,
 }
 
 

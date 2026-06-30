@@ -60,6 +60,46 @@ class ProjectRepository:
         ) as file:
             return json.load(file)
 
+    def save_project(
+        self,
+        project,
+    ):
+        self.project_directory.mkdir(
+            parents=True,
+            exist_ok=True,
+        )
+
+        project_id = project["id"]
+
+        filename = (
+            self.project_directory
+            / f"{project_id}_project.json"
+        )
+
+        with open(
+            filename,
+            "w",
+            encoding="utf-8",
+        ) as file:
+            json.dump(
+                project,
+                file,
+                ensure_ascii=False,
+                indent=2,
+            )
+
+        return project
+
+    def update_project_status(
+        self,
+        project_id,
+        status,
+    ):
+        project = self.load_project(project_id)
+        project["status"] = status
+        self.save_project(project)
+        return project
+
     def delete_project(
         self,
         project_id,
@@ -88,5 +128,3 @@ class ProjectRepository:
                 )
 
         return projects
-
-        return False
