@@ -90,6 +90,25 @@ class ProjectRepository:
 
         return project
 
+    def update_project_fields(self, project_id, updates):
+        project = self.load_project(project_id)
+
+        allowed_fields = {
+            "name",
+            "customer",
+            "city",
+            "start_date",
+            "status",
+            "notes",
+        }
+
+        for key, value in updates.items():
+            if key in allowed_fields and value not in [None, ""]:
+                project[key] = value
+
+        self.save_project(project)
+        return project
+
     def update_project_status(
         self,
         project_id,

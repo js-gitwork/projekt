@@ -1,0 +1,30 @@
+{
+    "id": "V165930",
+    "name": "Gistrup",
+    "customer": "Ålborg Forsyning",
+    "city": "dag",
+    "start_date": "2026-07-01",
+    "status": "survey",
+    "installations": [
+        {
+            "id": 1,
+            "active": true,
+            "hoveddato": "",
+            "expected_stik": 0,
+            "active_stik": 0,
+            "langhatte": 0,
+            "korthatte_extra": 0,
+            "broende": 0,
+            "notes": ""
+        }
+    ],
+    "task_assignments": {
+        "hovedledning": [],
+        "stikforberedelse": [],
+        "stik": [],
+        "kontrol": [],
+        "korthat": [],
+        "broend": []
+    },
+    "notes": "Oprettet som udkast via Roerbot."
+}

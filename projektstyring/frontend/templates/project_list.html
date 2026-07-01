@@ -40,13 +40,14 @@
                 data-status="{{ project.status }}"
                 onclick="window.location='/projects/{{ project.id }}'"
             >
-
                 <td>{{ project.id }}</td>
                 <td>{{ project.name }}</td>
                 <td>{{ project.customer }}</td>
                 <td>{{ project.city }}</td>
                 <td>
-                    {% if project.status == "upcoming" %}
+                    {% if project.status == "survey" %}
+                        Opmåling
+                    {% elif project.status == "upcoming" %}
                         Kommende
                     {% elif project.status == "active" %}
                         I gang

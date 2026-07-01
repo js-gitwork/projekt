@@ -62,6 +62,16 @@ def update_project_status(
         "project": project,
     }
 
+def update_project_fields(project_id: str, updates: dict):
+    project = repo.update_project_fields(project_id, updates)
+
+    return {
+        "answer": (
+            f"Projekt {project['id']} — {project['name']} "
+            "er opdateret."
+        ),
+        "project": project,
+    }
 
 def analyze_project_creation_request(question: str):
     return handle_project_creation_message(
@@ -75,8 +85,9 @@ TOOLS = {
     "get_all_projects": get_all_projects,
     "get_project": get_project,
     "simulate_project_start_change": run_simulate_project_start_change,
-    "update_project_status": update_project_status,
     "analyze_project_creation_request": analyze_project_creation_request,
+    "update_project_status": update_project_status,
+    "update_project_fields": update_project_fields,
 }
 
 
