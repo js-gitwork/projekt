@@ -1,5 +1,6 @@
 import json
 from pathlib import Path
+from projektstyring.backend.survey_model import ensure_survey
 
 
 class ProjectRepository:
@@ -58,7 +59,9 @@ class ProjectRepository:
             "r",
             encoding="utf-8",
         ) as file:
-            return json.load(file)
+            project = json.load(file)
+
+        return ensure_survey(project)
 
     def save_project(
         self,

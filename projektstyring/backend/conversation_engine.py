@@ -12,6 +12,7 @@ from projektstyring.backend.workflow_engine import (
     PROJECT_CREATION_WORKFLOW,
 )
 from projektstyring.backend.project_repository import ProjectRepository
+from projektstyring.backend.survey_model import default_survey
 
 FIELD_LABELS = {
     "project_id": "V-nummer",
@@ -142,7 +143,10 @@ def build_project_from_creation_data(data):
         "customer": data.get("customer"),
         "city": data.get("city"),
         "start_date": data.get("start_date"),
+
         "status": "survey",
+        "survey": default_survey(data.get("start_date")),
+
         "installations": installations,
         "task_assignments": {},
         "notes": "Oprettet som udkast via Roerbot.",

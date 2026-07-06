@@ -26,5 +26,18 @@
         "korthat": [],
         "broend": []
     },
-    "notes": "Oprettet som udkast via Roerbot."
+    "notes": "Oprettet som udkast via Roerbot.",
+    "survey": {
+        "status": "pending",
+        "planned_date": "2026-07-01",
+        "completed_date": null,
+        "responsible": null,
+        "notes": "",
+        "measurements": {
+            "expected_stik": null,
+            "expected_broende": null,
+            "main_dimensions": [],
+            "notes": ""
+        }
+    }
 }

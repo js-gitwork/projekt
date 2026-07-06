@@ -266,5 +266,18 @@
                 "stikaabning": 100
             }
         }
-    ]
+    ],
+    "survey": {
+        "status": "pending",
+        "planned_date": "2026-05-18",
+        "completed_date": null,
+        "responsible": null,
+        "notes": "",
+        "measurements": {
+            "expected_stik": null,
+            "expected_broende": null,
+            "main_dimensions": [],
+            "notes": ""
+        }
+    }
 }
