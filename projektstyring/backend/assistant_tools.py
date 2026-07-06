@@ -3,6 +3,7 @@ from projektstyring.backend.conversation_engine import (
 )
 from projektstyring.backend.decision_engine import simulate_project_start_change
 from projektstyring.backend.project_repository import ProjectRepository
+from projektstyring.backend.roerbot_project_insight import build_project_insight
 
 
 repo = ProjectRepository()
@@ -33,6 +34,10 @@ def get_all_projects():
 
 def get_project(project_id: str):
     return repo.load_project(project_id)
+
+def get_project_insight(project_id: str):
+    project = repo.load_project(project_id)
+    return build_project_insight(project)
 
 
 def run_simulate_project_start_change(
@@ -88,6 +93,7 @@ TOOLS = {
     "analyze_project_creation_request": analyze_project_creation_request,
     "update_project_status": update_project_status,
     "update_project_fields": update_project_fields,
+    "get_project_insight": get_project_insight,
 }
 
 
