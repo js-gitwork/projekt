@@ -17,7 +17,7 @@
 
 <div class="project-layout">
     <div class="project-side-menu">
-        
+
         <a href="/" class="btn">
             Tilbage
         </a>
@@ -30,32 +30,47 @@
             Importer C5-status
         </a>
 
+        {% if project.status == "survey" %}
+        <form method="post" action="/projects/{{ project.id }}/complete-survey" class="installation-add-form">
+            <label for="complete_survey_installation_count">
+                Antal installationer efter survey
+            </label>
+
+            <input type="number" id="complete_survey_installation_count" name="installation_count" value="1" min="1"
+                class="form-control">
+
+            <button type="submit" class="btn">
+                Afslut survey
+            </button>
+        </form>
+        {% endif %}
+
+        {% if project.status == "upcoming" %}
+        <form method="post" action="/projects/{{ project.id }}/start">
+            <button type="submit" class="btn">
+                Start projekt
+            </button>
+        </form>
+        {% endif %}
+
         <button type="submit" form="project-save-form" class="btn">
             Gem alle ændringer
         </button>
 
-        <form
-            method="post"
-            action="/projects/{{ project.id }}/installations/add"
-            class="installation-add-form"
-        >
+        {% if project.status != "survey" %}
+        <form method="post" action="/projects/{{ project.id }}/installations/add" class="installation-add-form">
             <label for="installation_count_add">
                 Antal installationer
             </label>
 
-            <input
-                type="number"
-                id="installation_count_add"
-                name="installation_count"
-                value="1"
-                min="1"
-                class="form-control"
-            >
+            <input type="number" id="installation_count_add" name="installation_count" value="1" min="1"
+                class="form-control">
 
             <button type="submit" class="btn">
                 Tilføj installationer
             </button>
         </form>
+        {% endif %}
     </div>
 
     <div class="project-main">
@@ -72,41 +87,20 @@
                 </p>
 
                 <label for="customer">Kunde</label>
-                <input
-                    type="text"
-                    id="customer"
-                    name="customer"
-                    value="{{ project.customer }}"
-                    class="form-control"
-                >
+                <input type="text" id="customer" name="customer" value="{{ project.customer }}" class="form-control">
 
                 <label for="city">By</label>
-                <input
-                    type="text"
-                    id="city"
-                    name="city"
-                    value="{{ project.city }}"
-                    class="form-control"
-                >
+                <input type="text" id="city" name="city" value="{{ project.city }}" class="form-control">
 
                 <label for="start_date">Startdato</label>
-                <input
-                    type="date"
-                    id="start_date"
-                    name="start_date"
-                    value="{{ project.start_date }}"
-                    class="form-control"
-                >
+                <input type="date" id="start_date" name="start_date" value="{{ project.start_date }}"
+                    class="form-control">
             </div>
 
             <div class="card">
                 <h2>Installationer</h2>
 
-                <input
-                    type="hidden"
-                    name="installation_count"
-                    value="{{ project.installations|length }}"
-                >
+                <input type="hidden" name="installation_count" value="{{ project.installations|length }}">
 
                 <table class="project-table">
                     <thead>
@@ -130,65 +124,39 @@
 
                         <tr>
                             <td>
-                                <input
-                                    type="text"
-                                    name="id_{{ loop.index0 }}"
-                                    value="{{ installation.id }}"
-                                    class="table-input small-input"
-                                >
+                                <input type="text" name="id_{{ loop.index0 }}" value="{{ installation.id }}"
+                                    class="table-input small-input">
                             </td>
 
                             <td>
-                                <input
-                                    type="checkbox"
-                                    name="active_{{ loop.index0 }}"
-                                    {% if installation.active|default(true) %}checked{% endif %}
-                                >
+                                <input type="checkbox" name="active_{{ loop.index0 }}" {% if
+                                    installation.active|default(true) %}checked{% endif %}>
                             </td>
 
                             <td>
-                                <input
-                                    type="date"
-                                    name="hoveddato_{{ loop.index0 }}"
-                                    value="{{ installation.hoveddato or '' }}"
-                                    class="table-input"
-                                >
+                                <input type="date" name="hoveddato_{{ loop.index0 }}"
+                                    value="{{ installation.hoveddato or '' }}" class="table-input">
                             </td>
 
                             <td>
-                                <input
-                                    type="number"
-                                    name="expected_stik_{{ loop.index0 }}"
-                                    value="{{ installation.expected_stik }}"
-                                    class="table-input small-input"
-                                >
+                                <input type="number" name="expected_stik_{{ loop.index0 }}"
+                                    value="{{ installation.expected_stik }}" class="table-input small-input">
                             </td>
 
                             <td>
-                                <input
-                                    type="number"
-                                    name="active_stik_{{ loop.index0 }}"
+                                <input type="number" name="active_stik_{{ loop.index0 }}"
                                     value="{{ installation.active_stik|default(0, true) }}"
-                                    class="table-input small-input"
-                                >
+                                    class="table-input small-input">
                             </td>
 
                             <td>
-                                <input
-                                    type="number"
-                                    name="langhatte_{{ loop.index0 }}"
-                                    value="{{ langhatte }}"
-                                    class="table-input small-input"
-                                >
+                                <input type="number" name="langhatte_{{ loop.index0 }}" value="{{ langhatte }}"
+                                    class="table-input small-input">
                             </td>
 
                             <td>
-                                <input
-                                    type="number"
-                                    name="korthatte_extra_{{ loop.index0 }}"
-                                    value="{{ korthatte_extra }}"
-                                    class="table-input small-input"
-                                >
+                                <input type="number" name="korthatte_extra_{{ loop.index0 }}"
+                                    value="{{ korthatte_extra }}" class="table-input small-input">
                             </td>
 
                             <td>
@@ -196,21 +164,13 @@
                             </td>
 
                             <td>
-                                <input
-                                    type="number"
-                                    name="broende_{{ loop.index0 }}"
-                                    value="{{ installation.broende }}"
-                                    class="table-input small-input"
-                                >
+                                <input type="number" name="broende_{{ loop.index0 }}" value="{{ installation.broende }}"
+                                    class="table-input small-input">
                             </td>
 
                             <td>
-                                <input
-                                    type="text"
-                                    name="notes_{{ loop.index0 }}"
-                                    value="{{ installation.notes }}"
-                                    class="table-input"
-                                >
+                                <input type="text" name="notes_{{ loop.index0 }}" value="{{ installation.notes }}"
+                                    class="table-input">
                             </td>
                         </tr>
                         {% else %}
@@ -245,98 +205,29 @@
                     </thead>
                     <tbody>
                         {% for task_type, rows in assignments.items() %}
-                            {% for row in rows %}
-                            <tr>
-                                <td>
-                                    <select
-                                        name="assignment_task_{{ ns.row_index }}"
-                                        class="table-input"
-                                    >
-                                        <option value="">Vælg opgave</option>
-
-                                        {% for available_task_type in task_types %}
-                                        <option
-                                            value="{{ available_task_type }}"
-                                            {% if task_type == available_task_type %}selected{% endif %}
-                                        >
-                                            {% if available_task_type == "hovedledning" %}
-                                                Hovedledning
-                                            {% elif available_task_type == "stikforberedelse" %}
-                                                Stikforberedelse
-                                            {% elif available_task_type == "stik" %}
-                                                Stik
-                                            {% elif available_task_type == "kontrol" %}
-                                                Kontrol
-                                            {% elif available_task_type == "korthat" %}
-                                                Korthat
-                                            {% elif available_task_type == "broend" %}
-                                                Brønd
-                                            {% else %}
-                                                {{ available_task_type }}
-                                            {% endif %}
-                                        </option>
-                                        {% endfor %}
-                                    </select>
-                                </td>
-
-                                <td>
-                                    <select
-                                        name="assignment_team_{{ ns.row_index }}"
-                                        class="table-input"
-                                    >
-                                        <option value="">Vælg hold</option>
-
-                                        {% for team in teams.values() %}
-                                            {% if task_type in team.task_types %}
-                                            <option
-                                                value="{{ team.id }}"
-                                                {% if row.team|default('') == team.id %}selected{% endif %}
-                                            >
-                                                {{ team.name }}
-                                            </option>
-                                            {% endif %}
-                                        {% endfor %}
-                                    </select>
-                                </td>
-
-                                <td>
-                                    <input
-                                        type="text"
-                                        name="assignment_installations_{{ ns.row_index }}"
-                                        value="{{ row.installations|default([])|join(',') }}"
-                                        class="table-input"
-                                    >
-                                </td>
-                            </tr>
-
-                            {% set ns.row_index = ns.row_index + 1 %}
-                            {% endfor %}
-                        {% endfor %}
-
+                        {% for row in rows %}
                         <tr>
                             <td>
-                                <select
-                                    name="assignment_task_{{ ns.row_index }}"
-                                    class="table-input"
-                                >
+                                <select name="assignment_task_{{ ns.row_index }}" class="table-input">
                                     <option value="">Vælg opgave</option>
 
                                     {% for available_task_type in task_types %}
-                                    <option value="{{ available_task_type }}">
+                                    <option value="{{ available_task_type }}" {% if task_type==available_task_type
+                                        %}selected{% endif %}>
                                         {% if available_task_type == "hovedledning" %}
-                                            Hovedledning
+                                        Hovedledning
                                         {% elif available_task_type == "stikforberedelse" %}
-                                            Stikforberedelse
+                                        Stikforberedelse
                                         {% elif available_task_type == "stik" %}
-                                            Stik
+                                        Stik
                                         {% elif available_task_type == "kontrol" %}
-                                            Kontrol
+                                        Kontrol
                                         {% elif available_task_type == "korthat" %}
-                                            Korthat
+                                        Korthat
                                         {% elif available_task_type == "broend" %}
-                                            Brønd
+                                        Brønd
                                         {% else %}
-                                            {{ available_task_type }}
+                                        {{ available_task_type }}
                                         {% endif %}
                                     </option>
                                     {% endfor %}
@@ -344,10 +235,59 @@
                             </td>
 
                             <td>
-                                <select
-                                    name="assignment_team_{{ ns.row_index }}"
-                                    class="table-input"
-                                >
+                                <select name="assignment_team_{{ ns.row_index }}" class="table-input">
+                                    <option value="">Vælg hold</option>
+
+                                    {% for team in teams.values() %}
+                                    {% if task_type in team.task_types %}
+                                    <option value="{{ team.id }}" {% if row.team|default('')==team.id %}selected{% endif
+                                        %}>
+                                        {{ team.name }}
+                                    </option>
+                                    {% endif %}
+                                    {% endfor %}
+                                </select>
+                            </td>
+
+                            <td>
+                                <input type="text" name="assignment_installations_{{ ns.row_index }}"
+                                    value="{{ row.installations|default([])|join(',') }}" class="table-input">
+                            </td>
+                        </tr>
+
+                        {% set ns.row_index = ns.row_index + 1 %}
+                        {% endfor %}
+                        {% endfor %}
+
+                        <tr>
+                            <td>
+                                <select name="assignment_task_{{ ns.row_index }}" class="table-input">
+                                    <option value="">Vælg opgave</option>
+
+                                    {% for available_task_type in task_types %}
+                                    <option value="{{ available_task_type }}">
+                                        {% if available_task_type == "hovedledning" %}
+                                        Hovedledning
+                                        {% elif available_task_type == "stikforberedelse" %}
+                                        Stikforberedelse
+                                        {% elif available_task_type == "stik" %}
+                                        Stik
+                                        {% elif available_task_type == "kontrol" %}
+                                        Kontrol
+                                        {% elif available_task_type == "korthat" %}
+                                        Korthat
+                                        {% elif available_task_type == "broend" %}
+                                        Brønd
+                                        {% else %}
+                                        {{ available_task_type }}
+                                        {% endif %}
+                                    </option>
+                                    {% endfor %}
+                                </select>
+                            </td>
+
+                            <td>
+                                <select name="assignment_team_{{ ns.row_index }}" class="table-input">
                                     <option value="">Vælg hold</option>
 
                                     {% for team in teams.values() %}
@@ -359,23 +299,14 @@
                             </td>
 
                             <td>
-                                <input
-                                    type="text"
-                                    name="assignment_installations_{{ ns.row_index }}"
-                                    value=""
-                                    class="table-input"
-                                    placeholder="fx 1,2,3"
-                                >
+                                <input type="text" name="assignment_installations_{{ ns.row_index }}" value=""
+                                    class="table-input" placeholder="fx 1,2,3">
                             </td>
                         </tr>
                     </tbody>
                 </table>
 
-                <input
-                    type="hidden"
-                    name="assignment_count"
-                    value="{{ ns.row_index + 1 }}"
-                >
+                <input type="hidden" name="assignment_count" value="{{ ns.row_index + 1 }}">
             </div>
 
         </form>

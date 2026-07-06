@@ -61,6 +61,12 @@ Survey må bruges af Roerbot til at vurdere, om projektet er klar til planlægni
 
 Survey må ikke optage ressourcer i produktionsplanen.
 
+Survey fastlægger projektets grundlag før installationer oprettes.
+Survey indeholder ikke installationer.
+Installationer oprettes efter survey som en opdeling af projektet.
+Forarbejde er ikke survey.
+Forarbejde er en del af udførelsen og kan ændre registreringen af stik.
+
 ## Upcoming
 
 Projektet er klar til planlægning.

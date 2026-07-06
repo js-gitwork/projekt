@@ -13,6 +13,7 @@ from projektstyring.backend.workflow_engine import (
 )
 from projektstyring.backend.project_repository import ProjectRepository
 from projektstyring.backend.survey_model import default_survey
+from projektstyring.backend.project_factory import create_project
 
 FIELD_LABELS = {
     "project_id": "V-nummer",
@@ -118,39 +119,20 @@ def is_confirmation(text):
 
 
 def build_project_from_creation_data(data):
-    installation_count = int(data.get("installation_count", 0))
-
     installations = []
 
-    for number in range(1, installation_count + 1):
-        installations.append(
-            {
-                "id": number,
-                "active": True,
-                "hoveddato": "",
-                "expected_stik": 0,
-                "active_stik": 0,
-                "langhatte": 0,
-                "korthatte_extra": 0,
-                "broende": 0,
-                "notes": "",
-            }
-        )
+    project = create_project(
+        project_id=data.get("project_id"),
+        name=data.get("name"),
+        customer=data.get("customer", ""),
+        city=data.get("city", ""),
+        start_date=data.get("start_date", ""),
+        notes="Oprettet som udkast via Roerbot.",
+    )
 
-    return {
-        "id": data.get("project_id"),
-        "name": data.get("name"),
-        "customer": data.get("customer"),
-        "city": data.get("city"),
-        "start_date": data.get("start_date"),
+    project["installations"] = installations
 
-        "status": "survey",
-        "survey": default_survey(data.get("start_date")),
-
-        "installations": installations,
-        "task_assignments": {},
-        "notes": "Oprettet som udkast via Roerbot.",
-    }
+    return project
 
 def handle_project_creation_message(
     text,

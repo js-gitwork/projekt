@@ -18,6 +18,18 @@ from projektstyring.backend.project_repository import ProjectRepository
 from projektstyring.backend.project_writer import save_project
 from projektstyring.backend.team_loader import load_teams
 from projektstyring.backend.roerbot_service import ask_roerbot
+from projektstyring.backend.project_factory import create_project as make_project
+from projektstyring.backend.survey_model import default_survey
+from projektstyring.backend.project_workflow import (
+    complete_survey,
+    start_project,
+)
+from projektstyring.backend.task_assignments import (
+    TASK_TYPES,
+    empty_task_assignments,
+    ensure_task_assignments,
+)
+
 
 app = FastAPI()
 
@@ -32,15 +44,6 @@ templates = Jinja2Templates(
 )
 
 repo = ProjectRepository()
-
-TASK_TYPES = [
-    "hovedledning",
-    "stikforberedelse",
-    "stik",
-    "kontrol",
-    "korthat",
-    "broend",
-]
 
 
 def get_teams():
@@ -375,33 +378,21 @@ def create_project(
     start_date: str = Form(...),
     installation_count: int = Form(0),
 ):
-    project = {
-        "id": project_id.strip(),
-        "name": name.strip(),
-        "customer": customer.strip(),
-        "city": city.strip(),
-        "start_date": start_date,
-        "status": "upcoming",
-        "task_assignments": empty_task_assignments(),
-        "installations": [],
-    }
-
-    project["status"] = calculate_project_status(project)
-
-    if installation_count > 0:
-        project = add_installations(
-            project,
-            installation_count,
-        )
+    project = make_project(
+        project_id=project_id,
+        name=name,
+        customer=customer,
+        city=city,
+        start_date=start_date,
+        notes="Oprettet via web.",
+    )
 
     save_project(project)
 
     return RedirectResponse(
-        url="/",
+        url=f"/projects/{project_id.strip()}",
         status_code=303,
     )
-
-
 @app.get("/projects/{project_id}")
 def project_detail(request: Request, project_id: str):
     project = repo.load_project(project_id)
@@ -427,6 +418,18 @@ def project_detail(request: Request, project_id: str):
         },
     )
 
+@app.post("/projects/{project_id}/start")
+def start_project_route(project_id: str):
+    project = repo.load_project(project_id)
+
+    project = start_project(project)
+
+    save_project(project)
+
+    return RedirectResponse(
+        url=f"/projects/{project_id}",
+        status_code=303,
+    )
 
 @app.post("/projects/{project_id}/save")
 async def save_project_detail(request: Request, project_id: str):
@@ -536,6 +539,25 @@ async def save_project_detail(request: Request, project_id: str):
         status_code=303,
     )
 
+@app.post("/projects/{project_id}/complete-survey")
+def complete_project_survey(
+    project_id: str,
+    installation_count: int = Form(...),
+):
+    project = repo.load_project(project_id)
+
+    project = complete_survey(
+        project,
+        installation_count,
+    )
+
+    project = ensure_task_assignments(project)
+    save_project(project)
+
+    return RedirectResponse(
+        url=f"/projects/{project_id}",
+        status_code=303,
+    )
 
 @app.post("/projects/{project_id}/installations/add")
 def add_project_installations(
