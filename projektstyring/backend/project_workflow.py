@@ -1,6 +1,6 @@
 from projektstyring.backend.installation_service import create_installations
 from projektstyring.backend.survey_service import update_status
-
+from projektstyring.backend.baseline_service import create_baseline, has_baseline
 
 def complete_survey(project, installation_count):
     """
@@ -29,15 +29,17 @@ def start_project(project):
     """
     Starter projektets udførelsesfase.
 
-    Når projektet bliver active, er planen ikke længere et frit udkast.
-    Fremtidige ændringer skal senere registreres som afvigelser.
+    Når projektet bliver active, gemmes et øjebliksbillede som baseline.
+    Senere ændringer må gerne foretages, men kan sammenlignes med baseline.
     """
 
     if project.get("status") != "upcoming":
         raise ValueError("Kun kommende projekter kan startes.")
 
+    if not has_baseline(project):
+        project["baseline"] = create_baseline(project)
+
     project["status"] = "active"
-    project.setdefault("baseline", None)
     project.setdefault("deviations", [])
 
     return project

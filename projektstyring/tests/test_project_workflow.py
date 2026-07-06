@@ -1,6 +1,6 @@
 import pytest
 
-from projektstyring.backend.project_workflow import complete_survey
+from projektstyring.backend.project_workflow import (complete_survey, start_project,)
 from projektstyring.backend.survey_model import default_survey
 
 
@@ -36,3 +36,14 @@ def test_requires_installations():
 
     with pytest.raises(ValueError):
         complete_survey(project, 0)
+
+def test_start_project_creates_baseline():
+    project = make_project()
+    complete_survey(project, 3)
+
+    start_project(project)
+
+    assert project["status"] == "active"
+    assert project["baseline"]["project_id"] == "VTEST"
+    assert len(project["baseline"]["installations"]) == 3
+    assert project["deviations"] == []

@@ -29,7 +29,7 @@ from projektstyring.backend.task_assignments import (
     empty_task_assignments,
     ensure_task_assignments,
 )
-
+from projektstyring.backend.snapshot_service import add_snapshot
 
 app = FastAPI()
 
@@ -435,6 +435,12 @@ def start_project_route(project_id: str):
 async def save_project_detail(request: Request, project_id: str):
     project = repo.load_project(project_id)
     form = await request.form()
+
+    if project.get("status") == "active":
+        project = add_snapshot(
+            project,
+            reason="before_project_save",
+        )
 
     project["customer"] = form.get("customer", "").strip()
     project["city"] = form.get("city", "").strip()
