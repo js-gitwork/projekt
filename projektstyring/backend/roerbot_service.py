@@ -7,6 +7,7 @@ from projektstyring.backend.assistant_tools import run_tool
 from projektstyring.backend.repositories.conversation_state_repository import (
     get_active_conversation,
 )
+from projektstyring.backend.conversation_router import route_conversation
 
 
 BEGREBER_PATH = Path("projektstyring/data/roerbot_begreber.json")
@@ -312,6 +313,18 @@ def ask_roerbot(question):
     if not question:
         return {
             "answer": "Du skal skrive et spørgsmål."
+        }
+
+    route = route_conversation(question)
+
+    if route["route"] == "tool":
+        result = run_tool(
+            route["tool"],
+            route.get("args", {}),
+        )
+
+        return {
+            "answer": result["answer"]
         }
 
     tool_call = choose_tool(question)

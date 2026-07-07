@@ -37,7 +37,7 @@ def has_exception(
     return False
 
 
-def resolve_workflow_exceptions(project: dict) -> dict:
+def resolve_project_rules(project: dict) -> dict:
     """
     Returnerer en kopi af projektet, hvor godkendte workflow-undtagelser
     er gjort tilgængelige for planlæggeren.
@@ -90,3 +90,6 @@ def is_task_allowed_before(
             return True
 
     return False
+
+# Midlertidigt alias mens resten af projektet migreres.
+resolve_workflow_exceptions = resolve_project_rules

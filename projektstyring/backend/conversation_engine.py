@@ -82,6 +82,36 @@ def detect_project_creation_start(text):
         or lower.startswith("opret v")
     )
 
+def extract_project_id(text):
+    words = text.replace(":", " ").replace(",", " ").split()
+
+    for word in words:
+        cleaned = word.strip().upper()
+        if cleaned.startswith("V") and any(char.isdigit() for char in cleaned):
+            return cleaned
+
+    return None
+
+
+def detect_pending_project_decision(text):
+    lower = text.lower()
+
+    if "herslev" in lower and "stik2" in lower and "uge 32" in lower:
+        return {
+            "workflow": "pending_project_decision",
+            "data": {
+                "intent": "propose_stik2_before_week_32_solution",
+                "project_name": "Herslev",
+                "missing": ["project_id"],
+                "original_question": text,
+            },
+            "answer": (
+                "Jeg kan godt analysere det, men jeg mangler projekt-id "
+                "for Herslev-projektet. Angiv projekt-id, fx V165460."
+            ),
+        }
+
+    return None
 
 def parse_followup_answer(text, active_data):
     parsed = parse_project_creation_request(text)
@@ -143,6 +173,34 @@ def handle_project_creation_message(
 
     active_state = get_active_conversation(user_key)
 
+    if active_state and active_state.workflow == "pending_project_decision":
+        project_id = extract_project_id(text)
+
+        if project_id:
+            data = active_state.data or {}
+            clear_active_conversation(user_key)
+
+            return {
+                "analysis": {
+                    "workflow": "pending_project_decision",
+                    "complete": True,
+                },
+                "data": {
+                    **data,
+                    "project_id": project_id,
+                },
+                "answer": (
+                    f"Jeg fortsætter analysen for projekt {project_id}.\n\n"
+                    "Den normale arbejdsgang tillader ikke, at langhat/stik "
+                    "udføres før hovedledning på samme installation.\n\n"
+                    "Hvis Stik2 skal være færdig inden uge 32, bør det derfor "
+                    "håndteres som en bevidst projektregel/undtagelse med "
+                    "begrundelse og godkendelse.\n\n"
+                    "Næste skridt er at simulere konsekvensen, før ændringen "
+                    "eventuelt gemmes."
+                ),
+            }
+
     if active_state and active_state.workflow == "project_creation":
         existing_data = active_state.data or {}
         analysis = analyze_project_creation(existing_data)
@@ -164,6 +222,26 @@ def handle_project_creation_message(
     starts_new_project_creation = detect_project_creation_start(text)
 
     if starts_new_project_creation:
+
+        pending_decision = detect_pending_project_decision(text)
+
+    if pending_decision:
+        save_active_conversation(
+            workflow=pending_decision["workflow"],
+            data=pending_decision["data"],
+            user_key=user_key,
+        )
+
+        return {
+            "analysis": {
+                "workflow": pending_decision["workflow"],
+                "complete": False,
+                "missing": ["project_id"],
+            },
+            "data": pending_decision["data"],
+            "answer": pending_decision["answer"],
+        }
+
         parsed = parse_project_creation_request(
             text,
             default_year=default_year,

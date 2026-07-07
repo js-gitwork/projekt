@@ -8,6 +8,9 @@ from projektstyring.backend.models import (
 )
 from projektstyring.backend.multi_schedule_engine import MultiScheduleEngine
 from projektstyring.backend.team_loader import load_teams
+from projektstyring.backend.project_rule_resolver import (
+    resolve_project_rules,
+)
 
 
 def parse_date(value):
@@ -36,6 +39,8 @@ def find_team_for_installation(
 
 
 def build_installations_from_project(project: dict) -> list[Installation]:
+    project = resolve_project_rules(project)
+
     installations = []
 
     for index, item in enumerate(project.get("installations", []), start=1):
@@ -167,7 +172,7 @@ def build_installations_from_project(project: dict) -> list[Installation]:
                 )
 
                     
-            dtvk_hold = find_team_for_installation(
+        dtvk_hold = find_team_for_installation(
             project,
             "dtvk",
             installation_id,
