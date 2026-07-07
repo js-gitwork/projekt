@@ -12,6 +12,7 @@ class ProjectInstallationInput:
     langhatte: int | None = None
     korthatte: int | None = None
     broende: int = 0
+    main_length_m: float = 0.0
     notes: str = ""
 
 

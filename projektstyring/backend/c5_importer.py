@@ -27,6 +27,17 @@ def to_int(value, default=0):
         return default
 
 
+def to_float(value, default=0.0):
+    try:
+        value = str(value or "").strip()
+        if not value:
+            return default
+        value = value.replace(",", ".")
+        return float(value)
+    except ValueError:
+        return default
+
+
 def parse_percent(value):
     return to_int(value, 0)
 
@@ -36,6 +47,20 @@ def clean_c5_fraction(value):
     value = value.replace("=", "")
     value = value.replace('"', "")
     return value
+
+
+def get_length_m(row):
+    """
+    Projektoversigten har typisk både Eks.lng og Ny lng.m.
+    Vi bruger Ny lng.m først, fordi den er mest relevant for arbejdet.
+    Hvis den mangler, falder vi tilbage til Eks.lng.
+    """
+    return (
+        to_float(row.get("Ny lng.m"))
+        or to_float(row.get("Ny længde"))
+        or to_float(row.get("Eks.lng"))
+        or 0.0
+    )
 
 
 def parse_c5_csv(csv_text):
@@ -70,6 +95,9 @@ def parse_c5_csv(csv_text):
                 "stretches": [],
                 "expected_stik": 0,
                 "active_stik": 0,
+                "main_length_m": 0.0,
+                "hovedledning_meter": 0.0,
+                "bronde_total": 0,
                 "progress": {
                     "opmaaling": 100,
                     "forarbejde": 100,
@@ -88,10 +116,29 @@ def parse_c5_csv(csv_text):
             },
         )
 
+        from_brond = str(row.get("Brønd 1", "")).strip()
+        to_brond = str(row.get("Brønd 2", "")).strip()
+
         stik_antal = to_int(row.get("Stik antal"))
+        length_m = get_length_m(row)
 
         item["expected_stik"] += stik_antal
         item["active_stik"] += stik_antal
+        item["main_length_m"] += length_m
+        item["hovedledning_meter"] += length_m
+
+        if from_brond or to_brond or length_m:
+            item["stretches"].append(
+                {
+                    "from_brond": from_brond,
+                    "to_brond": to_brond,
+                    "length_m": length_m,
+                    "dimension": str(row.get("Ny dim.mm") or row.get("Eks.dim") or "").strip(),
+                    "material": str(row.get("Eks.mat") or "").strip(),
+                    "stik": stik_antal,
+                    "notes": str(row.get("Bemærkninger") or "").strip(),
+                }
+            )
 
         item["progress"]["opmaaling"] = min(
             item["progress"]["opmaaling"],
@@ -114,14 +161,6 @@ def parse_c5_csv(csv_text):
             parse_percent(row.get("Stikåbn.")),
         )
 
-        from_brond = row.get("Brønd 1", "").strip()
-        to_brond = row.get("Brønd 2", "").strip()
-
-        if from_brond or to_brond:
-            item["stretches"].append(
-                f"{from_brond}-{to_brond}"
-            )
-
         for c5_key, column in [
             ("korthat", "Korthat"),
             ("langhat", "Langhat"),
@@ -133,9 +172,22 @@ def parse_c5_csv(csv_text):
             if value:
                 item["c5_values"][c5_key].append(value)
 
-        note = row.get("Bemærkninger", "").strip()
+        note = str(row.get("Bemærkninger") or "").strip()
         if note:
             item["notes"].append(note)
+
+    for item in installations.values():
+        bronde = set()
+
+        for stretch in item.get("stretches", []):
+            if stretch.get("from_brond"):
+                bronde.add(stretch["from_brond"])
+            if stretch.get("to_brond"):
+                bronde.add(stretch["to_brond"])
+
+        item["bronde_total"] = len(bronde)
+        item["main_length_m"] = round(item["main_length_m"], 2)
+        item["hovedledning_meter"] = round(item["hovedledning_meter"], 2)
 
     return list(installations.values())
 
@@ -161,6 +213,10 @@ def apply_c5_updates_to_project(project, updates):
                 "langhatte": 0,
                 "korthatte_extra": 0,
                 "broende": 0,
+                "main_length_m": 0.0,
+                "hovedledning_meter": 0.0,
+                "bronde_total": 0,
+                "stretches": [],
                 "notes": "",
             }
             project.setdefault("installations", []).append(
@@ -169,6 +225,10 @@ def apply_c5_updates_to_project(project, updates):
 
         installation["expected_stik"] = update["expected_stik"]
         installation["active_stik"] = update["active_stik"]
+        installation["main_length_m"] = update.get("main_length_m", 0.0)
+        installation["hovedledning_meter"] = update.get("hovedledning_meter", 0.0)
+        installation["bronde_total"] = update.get("bronde_total", 0)
+        installation["stretches"] = update.get("stretches", [])
         installation["progress"] = update["progress"]
 
         notes = []
@@ -177,10 +237,22 @@ def apply_c5_updates_to_project(project, updates):
             notes.append(update["address"])
 
         if update.get("stretches"):
-            notes.append(
-                "Strækninger: "
-                + ", ".join(update["stretches"])
-            )
+            stretch_texts = []
+            for stretch in update["stretches"]:
+                from_brond = stretch.get("from_brond", "")
+                to_brond = stretch.get("to_brond", "")
+                length_m = stretch.get("length_m", 0)
+
+                if from_brond or to_brond:
+                    stretch_texts.append(
+                        f"{from_brond}-{to_brond} ({length_m} m)"
+                    )
+
+            if stretch_texts:
+                notes.append(
+                    "Strækninger: "
+                    + ", ".join(stretch_texts)
+                )
 
         if update.get("notes"):
             notes.append(

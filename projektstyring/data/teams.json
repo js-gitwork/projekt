@@ -11,7 +11,7 @@
   {"id": "tv23", "name": "TV23", "role": "cutter", "calendar_id": "standard_ma_to", "capacity_per_day": 0, "task_types": ["cutter"]},
   {"id": "broend1", "name": "Brønd 1", "role": "broend", "calendar_id": "standard_ma_to", "capacity_per_day": 6, "task_types": ["broend"]},
   {"id": "broend2", "name": "Brønd 2", "role": "broend", "calendar_id": "standard_ma_to", "capacity_per_day": 6, "task_types": ["broend"]},
-  {"id": "tv10_dtvk", "name": "TV10 DTVK", "role": "dtvk", "calendar_id": "standard_ma_to", "capacity_per_day": 30, "task_types": ["stikforberedelse", "kontrol"]},
+  {"id": "tv10_dtvk", "name": "TV10 DTVK", "role": "dtvk", "calendar_id": "standard_ma_to", "capacity_per_day": 30, "task_types": ["stikforberedelse", "kontrol", "dtvk"]},
   {"id": "tv14_dtvk", "name": "TV14 DTVK", "role": "dtvk", "calendar_id": "standard_ma_to", "capacity_per_day": 30, "task_types": ["stikforberedelse", "kontrol"]},
   {"id": "tv22oe_dtvk", "name": "TV22Ø DTVK", "role": "dtvk", "calendar_id": "standard_ma_to", "capacity_per_day": 30, "task_types": ["stikforberedelse", "kontrol"]},
   {"id": "led1", "name": "Led 1", "role": "ledning", "calendar_id": "standard_ma_fre", "capacity_per_day": 0, "task_types": ["hovedledning"]},

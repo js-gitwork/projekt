@@ -51,6 +51,11 @@ def build_installations_from_project(project: dict) -> list[Installation]:
         langhatte = int(item.get("langhatte") or 0)
         korthatte_extra = int(item.get("korthatte_extra") or 0)
         broende = int(item.get("broende") or 0)
+        hovedledning_meter = float(
+            item.get("hovedledning_meter")
+            or item.get("main_length_m")
+            or 0
+        )
 
         korthatte_total = langhatte + korthatte_extra
 
@@ -161,11 +166,31 @@ def build_installations_from_project(project: dict) -> list[Installation]:
                     )
                 )
 
+                    
+            dtvk_hold = find_team_for_installation(
+            project,
+            "dtvk",
+            installation_id,
+        )
+
+        if dtvk_hold and (hovedledning_meter > 0 or planned_stik > 0):
+            aktiviteter.append(
+                Aktivitet(
+                    id=f"{installation_id}-dtvk",
+                    installation_id=installation_id,
+                    type=Aktivitetstype.DTVK,
+                    hold=dtvk_hold,
+                    antal_stik=planned_stik,
+                    hovedledning_meter=hovedledning_meter,
+                )
+            )
+
         installations.append(
             Installation(
                 id=installation_id,
                 projekt_id=project["id"],
                 rækkefølge=index,
+                hovedledning_meter=hovedledning_meter,
                 aktiviteter=aktiviteter,
             )
         )

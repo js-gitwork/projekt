@@ -5,6 +5,7 @@ TASK_TYPES = [
     "kontrol",
     "korthat",
     "broend",
+    "dtvk",
 ]
 
 def empty_task_assignments():
