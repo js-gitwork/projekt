@@ -66,6 +66,101 @@ def get_project_insight(project_id: str):
     return build_project_insight(project)
 
 
+def get_installation_progress(
+    project_id: str,
+    installation_id: str,
+):
+    project = repo.load_project(project_id)
+
+    installation = next(
+        (
+            item
+            for item in project.get("installations", [])
+            if str(item.get("id")) == str(installation_id)
+        ),
+        None,
+    )
+
+    if installation is None:
+        return {
+            "error": (
+                f"Installation {installation_id} findes ikke "
+                f"i projekt {project_id}."
+            ),
+        }
+
+    progress = installation.get("progress") or {}
+
+    assignments = []
+
+    for task_type, task_groups in (
+        project.get("task_assignments") or {}
+    ).items():
+        for assignment in task_groups:
+            installation_numbers = {
+                str(value)
+                for value in assignment.get(
+                    "installations",
+                    [],
+                )
+            }
+
+            if str(installation_id) in installation_numbers:
+                assignments.append(
+                    {
+                        "task_type": task_type,
+                        "team": assignment.get("team"),
+                    }
+                )
+
+    return {
+        "project_id": project.get("id"),
+        "project_name": project.get("name"),
+        "installation_id": str(installation_id),
+        "active": installation.get("active", True),
+        "hoveddato": installation.get("hoveddato"),
+        "expected_stik": installation.get(
+            "expected_stik",
+            0,
+        ),
+        "active_stik": installation.get(
+            "active_stik",
+            0,
+        ),
+        "opened_stik": installation.get(
+            "opened_stik",
+            0,
+        ),
+        "langhatte": installation.get(
+            "langhatte",
+            0,
+        ),
+        "korthatte_extra": installation.get(
+            "korthatte_extra",
+            0,
+        ),
+        "broende": installation.get(
+            "broende",
+            0,
+        ),
+        "progress": {
+            "opmaaling": progress.get("opmaaling"),
+            "forarbejde": progress.get("forarbejde"),
+            "stikopmaaling": progress.get(
+                "stikopmaaling"
+            ),
+            "hovedledning": progress.get(
+                "hovedledning"
+            ),
+            "stikaabning": progress.get(
+                "stikaabning"
+            ),
+        },
+        "assignments": assignments,
+        "notes": installation.get("notes", ""),
+    }
+
+
 def run_simulate_project_start_change(project_id: str, new_start_date: str):
     return simulate_project_start_change(project_id, new_start_date)
 
@@ -328,6 +423,7 @@ def analyze_project_creation_request(question: str):
 TOOLS = {
     "get_all_projects": get_all_projects,
     "get_project": get_project,
+    "get_installation_progress": get_installation_progress,
     "simulate_project_start_change": run_simulate_project_start_change,
     "simulate_team_deadline_goal": simulate_team_deadline_goal,
     "simulate_workflow_exception": simulate_workflow_exception,

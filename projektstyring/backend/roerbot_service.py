@@ -53,6 +53,142 @@ def format_projects(projects):
         + "\n".join(lines)
     )
 
+def extract_installation_id(question):
+    patterns = [
+        r"\binstallation\s+(?:nr\.?\s*)?([a-z0-9_-]+)\b",
+        r"\binst(?:allation)?\.?\s*(?:nr\.?\s*)?([a-z0-9_-]+)\b",
+    ]
+
+    lower = question.lower()
+
+    for pattern in patterns:
+        match = re.search(
+            pattern,
+            lower,
+            flags=re.IGNORECASE,
+        )
+
+        if match:
+            return match.group(1)
+
+    return None
+
+
+def is_installation_question(question):
+    lower = question.lower()
+
+    installation_id = extract_installation_id(
+        question
+    )
+
+    if not installation_id:
+        return False
+
+    question_phrases = [
+        "hvor langt",
+        "status",
+        "fremdrift",
+        "hvor meget",
+        "hvordan går",
+        "hvad mangler",
+        "færdig",
+        "faerdig",
+        "progress",
+    ]
+
+    return any(
+        phrase in lower
+        for phrase in question_phrases
+    )
+
+
+def format_percent(value):
+    if value is None:
+        return "Ikke oplyst"
+
+    number = float(value)
+
+    if number.is_integer():
+        return f"{int(number)} %"
+
+    return f"{number:.1f} %"
+
+
+def format_installation_progress(data):
+    if data.get("error"):
+        return data["error"]
+
+    progress = data.get("progress") or {}
+
+    lines = [
+        (
+            f"Installation {data['installation_id']} "
+            f"i {data['project_id']} — "
+            f"{data.get('project_name', '')}"
+        ),
+        "",
+        (
+            "Opmåling: "
+            + format_percent(
+                progress.get("opmaaling")
+            )
+        ),
+        (
+            "Forarbejde: "
+            + format_percent(
+                progress.get("forarbejde")
+            )
+        ),
+        (
+            "Stikopmåling: "
+            + format_percent(
+                progress.get("stikopmaaling")
+            )
+        ),
+        (
+            "Hovedledning: "
+            + format_percent(
+                progress.get("hovedledning")
+            )
+        ),
+        (
+            "Stikåbning: "
+            + format_percent(
+                progress.get("stikaabning")
+            )
+        ),
+        "",
+        f"Forventede stik: {data.get('expected_stik', 0)}",
+        f"Aktive stik: {data.get('active_stik', 0)}",
+        f"Genåbnede stik: {data.get('opened_stik', 0)}",
+    ]
+
+    if data.get("hoveddato"):
+        lines.append(
+            f"Hovedledning planlagt: {data['hoveddato']}"
+        )
+
+    assignments = data.get("assignments") or []
+
+    if assignments:
+        lines.append("")
+        lines.append("Tildelte opgaver:")
+
+        for assignment in assignments:
+            lines.append(
+                f"• {assignment['task_type']} "
+                f"— {assignment['team']}"
+            )
+
+    if data.get("notes"):
+        lines.extend(
+            [
+                "",
+                f"Bemærkning: {data['notes']}",
+            ]
+        )
+
+    return "\n".join(lines)
 
 def format_project(project):
     if not project:
@@ -188,6 +324,24 @@ def normalize_project_status(text, raw_status=None):
 
 def choose_tool(question):
     active_state = get_active_conversation("default")
+
+    project_id = extract_project_id(question)
+    installation_id = extract_installation_id(
+        question
+    )
+
+    if (
+        project_id
+        and installation_id
+        and is_installation_question(question)
+    ):
+        return {
+            "tool": "get_installation_progress",
+            "args": {
+                "project_id": project_id,
+                "installation_id": installation_id,
+            },
+        }
 
     if active_state and active_state.workflow == "project_creation":
         return {
@@ -362,6 +516,45 @@ def ask_roerbot(question):
 
         return {
             "answer": format_projects(projects)
+        }
+
+    if tool_name == "get_installation_progress":
+        project_id = (
+            args.get("project_id")
+            or extract_project_id(question)
+        )
+        installation_id = (
+            args.get("installation_id")
+            or extract_installation_id(question)
+        )
+
+        if not project_id:
+            return {
+                "answer": (
+                    "Jeg mangler projekt-id. "
+                    "Skriv fx V165460."
+                )
+            }
+
+        if not installation_id:
+            return {
+                "answer": (
+                    "Jeg mangler installationsnummeret."
+                )
+            }
+
+        result = run_tool(
+            "get_installation_progress",
+            {
+                "project_id": project_id,
+                "installation_id": installation_id,
+            },
+        )
+
+        return {
+            "answer": format_installation_progress(
+                result
+            )
         }
 
     if tool_name == "get_project":

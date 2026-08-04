@@ -7,7 +7,9 @@ from projektstyring.backend.models import (
     Aktivitetstype,
 )
 from projektstyring.backend.multi_schedule_engine import MultiScheduleEngine
-from projektstyring.backend.team_loader import load_teams
+from projektstyring.backend.repositories.team_repository import (
+    TeamRepository,
+)
 from projektstyring.backend.project_rule_resolver import (
     resolve_project_rules,
 )
@@ -204,7 +206,7 @@ def build_installations_from_project(project: dict) -> list[Installation]:
 
 
 def generate_plan_for_project(project: dict):
-    teams = load_teams("projektstyring/data/teams.json")
+    teams = TeamRepository().load_team_map()
 
     engine = MultiScheduleEngine(
         hold_map=teams,
@@ -224,7 +226,7 @@ def generate_plan_for_active_projects():
         if project.get("status") == "active"
     ]
 
-    teams = load_teams("projektstyring/data/teams.json")
+    teams = TeamRepository().load_team_map()
 
     engine = MultiScheduleEngine(
         hold_map=teams,

@@ -15,8 +15,9 @@ from projektstyring.backend.project_planner import (
     generate_plan_for_project,
 )
 from projektstyring.backend.project_repository import ProjectRepository
-from projektstyring.backend.project_writer import save_project
-from projektstyring.backend.team_loader import load_teams
+from projektstyring.backend.repositories.team_repository import (
+    TeamRepository,
+)
 from projektstyring.backend.roerbot_service import ask_roerbot
 from projektstyring.backend.project_factory import create_project as make_project
 from projektstyring.backend.survey_model import default_survey
@@ -44,10 +45,11 @@ templates = Jinja2Templates(
 )
 
 repo = ProjectRepository()
+team_repo = TeamRepository()
 
 
 def get_teams():
-    return load_teams("projektstyring/data/teams.json")
+    return team_repo.load_team_map()
 
 
 def empty_task_assignments():
@@ -387,7 +389,7 @@ def create_project(
         notes="Oprettet via web.",
     )
 
-    save_project(project)
+    repo.save_project(project)
 
     return RedirectResponse(
         url=f"/projects/{project_id.strip()}",
@@ -405,7 +407,7 @@ def project_detail(request: Request, project_id: str):
         key=installation_sort_key,
     )
 
-    save_project(project)
+    repo.save_project(project)
 
     return templates.TemplateResponse(
         request,
@@ -424,7 +426,7 @@ def start_project_route(project_id: str):
 
     project = start_project(project)
 
-    save_project(project)
+    repo.save_project(project)
 
     return RedirectResponse(
         url=f"/projects/{project_id}",
@@ -538,7 +540,7 @@ async def save_project_detail(request: Request, project_id: str):
             status_code=400,
         )
 
-    save_project(project)
+    repo.save_project(project)
 
     return RedirectResponse(
         url=f"/projects/{project_id}",
@@ -558,7 +560,7 @@ def complete_project_survey(
     )
 
     project = ensure_task_assignments(project)
-    save_project(project)
+    repo.save_project(project)
 
     return RedirectResponse(
         url=f"/projects/{project_id}",
@@ -586,7 +588,7 @@ def add_project_installations(
 
     project["status"] = calculate_project_status(project)
 
-    save_project(project)
+    repo.save_project(project)
 
     return RedirectResponse(
         url=f"/projects/{project_id}",
@@ -723,25 +725,6 @@ def c5_import_form(request: Request, project_id: str):
     )
 
 
-@app.post("/projects/{project_id}/c5-import/preview")
-async def c5_import_preview(request: Request, project_id: str):
-    project = repo.load_project(project_id)
-    form = await request.form()
-
-    csv_text = form.get("csv_text", "")
-    updates = parse_c5_csv(csv_text)
-
-    return templates.TemplateResponse(
-        request,
-        "c5_import.html",
-        {
-            "project": project,
-            "csv_text": csv_text,
-            "updates": updates,
-        },
-    )
-
-
 @app.post("/projects/{project_id}/c5-import/apply")
 async def c5_import_apply(request: Request, project_id: str):
     project = repo.load_project(project_id)
@@ -755,13 +738,12 @@ async def c5_import_apply(request: Request, project_id: str):
         updates,
     )
 
-    save_project(project)
+    repo.save_project(project)
 
     return RedirectResponse(
         url=f"/projects/{project_id}",
         status_code=303,
     )
-
 
 @app.post("/assistant/ask")
 def roerbot_global_ask(
