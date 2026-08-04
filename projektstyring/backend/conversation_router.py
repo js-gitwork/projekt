@@ -1,14 +1,27 @@
 from projektstyring.backend.repositories.conversation_state_repository import (
+    clear_active_conversation,
     get_active_conversation,
 )
+
+
+APPROVAL_PREFIXES = (
+    "godkendt af ",
+    "godkend af ",
+    "godkendt ",
+)
+
+
+def looks_like_approval(question):
+    lower = question.lower().strip()
+    return lower.startswith(APPROVAL_PREFIXES)
 
 
 def route_conversation(question, user_key="default"):
     """
     Første routinglag for Roerbot.
 
-    Afgør om beskeden skal fortsætte en aktiv samtale,
-    starte en beslutningsdialog, eller sendes videre til normal tool-routing.
+    Routeren må ikke kende konkrete projekter, hold eller deadlines.
+    Den må kun afgøre samtaletilstand og generel beslutningstype.
     """
 
     active_state = get_active_conversation(user_key)
@@ -18,19 +31,28 @@ def route_conversation(question, user_key="default"):
             return {
                 "route": "tool",
                 "tool": "analyze_project_creation_request",
-                "args": {
-                    "question": question,
-                },
+                "args": {"question": question},
             }
 
         if active_state.workflow == "pending_project_decision":
             return {
                 "route": "tool",
                 "tool": "continue_pending_project_decision",
-                "args": {
-                    "question": question,
-                },
+                "args": {"question": question},
             }
+
+        if active_state.workflow == "pending_solution_choice":
+            clear_active_conversation(user_key)
+
+        if active_state.workflow == "pending_decision_approval":
+            if looks_like_approval(question):
+                return {
+                    "route": "tool",
+                    "tool": "approve_pending_decision",
+                    "args": {"question": question},
+                }
+
+            clear_active_conversation(user_key)
 
     pending_decision = detect_project_decision_intent(question)
 
@@ -46,41 +68,61 @@ def route_conversation(question, user_key="default"):
 
     return {
         "route": "legacy_tool_routing",
-        "args": {
-            "question": question,
-        },
+        "args": {"question": question},
     }
+
+
+def contains_any(text, phrases):
+    return any(phrase in text for phrase in phrases)
 
 
 def detect_project_decision_intent(question):
     lower = question.lower()
 
-    if (
-        "stik2" in lower
-        and ("uge 32" in lower or "inden uge 32" in lower)
-        and ("herslev" in lower or "v165460" in lower)
-    ):
+    deadline_words = (
+        "færdig inden",
+        "færdige inden",
+        "klar inden",
+        "afsluttet inden",
+        "senest",
+        "deadline",
+        "inden uge",
+    )
+
+    workflow_words = (
+        "før",
+        "inden",
+        "førend",
+    )
+
+    task_words = (
+        "forarbejde",
+        "hovedledning",
+        "stikforberedelse",
+        "stik",
+        "kontrol",
+        "korthat",
+        "langhat",
+        "langhatte",
+        "brønd",
+        "broend",
+        "dtvk",
+    )
+
+    if contains_any(lower, deadline_words):
         return {
-            "type": "stik2_before_week_32",
+            "type": "deadline_goal",
             "requires_decision": True,
             "requires_project": True,
-            "description": (
-                "Stik2 skal være færdig inden uge 32, "
-                "muligvis med workflow-undtagelse."
-            ),
+            "description": "Der ønskes analyse af et deadline-mål.",
         }
 
-    if (
-        ("langhat" in lower or "langhatte" in lower)
-        and ("før hovedledning" in lower or "inden hovedledning" in lower)
-    ):
+    if contains_any(lower, workflow_words) and contains_any(lower, task_words):
         return {
-            "type": "allow_langhat_before_hovedledning",
+            "type": "workflow_exception",
             "requires_decision": True,
             "requires_project": True,
-            "description": (
-                "Langhat ønskes udført før normal hovedledningsafhængighed."
-            ),
+            "description": "Der ønskes analyse af en mulig workflow-undtagelse.",
         }
 
     return None

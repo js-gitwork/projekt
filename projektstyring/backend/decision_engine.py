@@ -197,6 +197,140 @@ def find_workflow_breaks(plan, task_type, before_task_type):
 
     return breaks
 
+def simulate_team_deadline_goal(
+    project_id,
+    *,
+    task_type,
+    deadline,
+    team=None,
+    reason="Manuel projektlederbeslutning",
+):
+    """
+    Analyserer om et hold kan nå en bestemt opgave inden en deadline.
+
+    Gemmer ikke noget.
+    Dette er ikke en workflow-undtagelse, men et deadline-/ressourcescenarie.
+    """
+
+    original_project = repo.load_project(project_id)
+
+    before_result = generate_plan_for_project(original_project)
+    plan = summarize_plan(before_result)
+
+    deadline_date = parse_date(deadline)
+
+    relevant_activities = [
+        item
+        for item in plan
+        if item.get("type") == task_type
+        and (not team or item.get("team") == team)
+    ]
+
+    latest_end = None
+
+    for activity in relevant_activities:
+        end_date = parse_date(activity.get("end"))
+
+        if end_date and (latest_end is None or end_date > latest_end):
+            latest_end = end_date
+
+    can_meet_deadline = (
+        bool(deadline_date and latest_end)
+        and latest_end <= deadline_date
+    )
+
+    days_over_deadline = None
+
+    if deadline_date and latest_end:
+        days_over_deadline = (latest_end - deadline_date).days
+
+    simulation = {
+        "project_id": project_id,
+        "change": {
+            "type": "team_deadline_goal",
+            "task_type": task_type,
+            "deadline": str(deadline) if deadline else None,
+            "team": team,
+            "reason": reason,
+        },
+        "activities": relevant_activities,
+        "latest_end": str(latest_end) if latest_end else None,
+        "can_meet_deadline": can_meet_deadline,
+        "days_over_deadline": days_over_deadline,
+        "saved": False,
+    }
+
+    return {
+        "simulation": simulation,
+        "answer": format_team_deadline_goal_answer(simulation),
+    }
+
+def format_team_deadline_goal_answer(simulation):
+    change = simulation["change"]
+    activities = simulation.get("activities", [])
+    latest_end = simulation.get("latest_end")
+    can_meet_deadline = simulation.get("can_meet_deadline")
+    days_over_deadline = simulation.get("days_over_deadline")
+
+    lines = [
+        f"Scenario for projekt {simulation['project_id']}",
+        "",
+        "Mål:",
+        f"- Opgave: {change['task_type']}",
+    ]
+
+    if change.get("team"):
+        lines.append(f"- Hold: {change['team']}")
+
+    if change.get("deadline"):
+        lines.append(f"- Skal være færdig senest: {change['deadline']}")
+
+    lines.extend([
+        f"- Begrundelse: {change['reason']}",
+        "",
+        "Vurdering:",
+    ])
+
+    if not activities:
+        lines.append(
+            "- Jeg fandt ingen planlagte aktiviteter, der matcher opgave og hold."
+        )
+    else:
+        lines.append(
+            f"- Jeg fandt {len(activities)} relevante aktiviteter."
+        )
+
+        if latest_end:
+            lines.append(f"- Seneste planlagte slutdato er {latest_end}.")
+
+        if can_meet_deadline:
+            lines.append("- Målet ser ud til at kunne nås i den nuværende plan.")
+        else:
+            lines.append("- Målet ser ikke ud til at kunne nås i den nuværende plan.")
+
+            if days_over_deadline is not None and days_over_deadline > 0:
+                lines.append(
+                    f"- Planen ligger {days_over_deadline} dage efter deadline."
+                )
+
+            lines.extend([
+                "",
+                "Mulige løsninger:",
+                "- Lade holdet arbejde i ferieperioden.",
+                "- Give holdet ekstra arbejdsdage eller lørdagsarbejde.",
+                "- Flytte relevante stikopgaver tidligere, hvis afhængighederne tillader det.",
+                "- Overveje ekstra stikhold eller ændret kapacitet.",
+                "- Kun hvis nødvendigt: simulere en konkret workflow-undtagelse.",
+            ])
+
+    lines.extend([
+        "",
+        "Bemærk:",
+        "Dette er kun en analyse. Projektet er ikke ændret.",
+        "Eventuelle ændringer bør først gemmes efter projektlederens godkendelse.",
+    ])
+
+    return "\n".join(lines)
 
 def simulate_workflow_exception(
     project_id,
@@ -289,9 +423,16 @@ def format_workflow_exception_answer(simulation):
         "",
         "Ændring:",
         f"- Opgave: {change['task_type']}",
-        f"- Tillades før: {change['before_task_type']}",
-        f"- Begrundelse: {change['reason']}",
     ]
+
+    if change.get("before_task_type"):
+        lines.append(
+            f"- Tillades før: {change['before_task_type']}"
+        )
+
+    lines.extend([
+        f"- Begrundelse: {change['reason']}",
+    ])
 
     if change.get("deadline"):
         lines.append(f"- Deadline: {change['deadline']}")

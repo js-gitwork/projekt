@@ -158,16 +158,30 @@ def normalize_project_status(text, raw_status=None):
 
         "completed": "completed",
         "afsluttet": "completed",
-        "færdig": "completed",
-        "faerdig": "completed",
     }
 
     if value in status_aliases:
         return status_aliases[value]
 
-    for phrase, status in status_aliases.items():
-        if phrase in lower:
-            return status
+    if lower in status_aliases:
+        return status_aliases[lower]
+
+    status_phrases = {
+        "sæt projektet til": status_aliases,
+        "saet projektet til": status_aliases,
+        "ændr projektet til": status_aliases,
+        "aendr projektet til": status_aliases,
+        "marker projektet som": status_aliases,
+        "sæt status til": status_aliases,
+        "saet status til": status_aliases,
+        "ændr status til": status_aliases,
+        "aendr status til": status_aliases,
+    }
+
+    for prefix, aliases in status_phrases.items():
+        if lower.startswith(prefix):
+            rest = lower.replace(prefix, "", 1).strip()
+            return aliases.get(rest)
 
     return None
 

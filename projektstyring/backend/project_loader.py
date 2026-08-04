@@ -25,7 +25,10 @@ def load_project_installations(filename: str) -> list[Installation]:
 
     installations = []
 
-    for item in project["installations"]:
+    for default_sequence, item in enumerate(
+        project["installations"],
+        start=1,
+    ):
         expected_stik = item.get("expected_stik", 0)
 
         langhatte = item.get("langhatte")
@@ -40,7 +43,7 @@ def load_project_installations(filename: str) -> list[Installation]:
         inst = make_installation(
             project_id=project["id"],
             inst_id=item["id"],
-            sequence=item["sequence"],
+            sequence=item.get("sequence", default_sequence),
             hoveddato=item.get("hoveddato"),
             expected_stik=expected_stik,
             langhatte=langhatte,
