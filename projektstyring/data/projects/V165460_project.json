@@ -12,28 +12,7 @@
             "langhatte": 0,
             "korthatte_extra": 0,
             "broende": 1,
-            "notes": "Digevænget | Strækninger: 4612007-4612008 (5.3 m)",
-            "main_length_m": 5.3,
-            "hovedledning_meter": 5.3,
-            "bronde_total": 2,
-            "stretches": [
-                {
-                    "from_brond": "4612007",
-                    "to_brond": "4612008",
-                    "length_m": 5.3,
-                    "dimension": "150",
-                    "material": "BT",
-                    "stik": 1,
-                    "notes": ""
-                }
-            ],
-            "progress": {
-                "opmaaling": 100,
-                "forarbejde": 100,
-                "stikopmaaling": 100,
-                "hovedledning": 100,
-                "stikaabning": 0
-            }
+            "notes": "Digevænget | Strækninger: 4612007-4612008 (5.3 m)"
         },
         {
             "id": "8",
@@ -44,28 +23,7 @@
             "langhatte": 0,
             "korthatte_extra": 0,
             "broende": 2,
-            "notes": "Herslev Bygade | Strækninger: 4621005-4621004 (60.83 m)",
-            "main_length_m": 60.83,
-            "hovedledning_meter": 60.83,
-            "bronde_total": 2,
-            "stretches": [
-                {
-                    "from_brond": "4621005",
-                    "to_brond": "4621004",
-                    "length_m": 60.83,
-                    "dimension": "300",
-                    "material": "BT",
-                    "stik": 4,
-                    "notes": ""
-                }
-            ],
-            "progress": {
-                "opmaaling": 100,
-                "forarbejde": 100,
-                "stikopmaaling": 100,
-                "hovedledning": 100,
-                "stikaabning": 100
-            }
+            "notes": "Herslev Bygade | Strækninger: 4621005-4621004 (60.83 m)"
         },
         {
             "id": "9",
@@ -76,46 +34,7 @@
             "langhatte": 0,
             "korthatte_extra": 0,
             "broende": 1,
-            "notes": "Herslev Bygade | Strækninger: 4621004-4621003 (39.87 m), 4621003-4621002 (49.23 m), 4621002-4621001 (56.86 m) | Bemærkninger: er mål igennem | Hårde aflejringer skal muligvis HT spules",
-            "main_length_m": 145.96,
-            "hovedledning_meter": 145.96,
-            "bronde_total": 4,
-            "stretches": [
-                {
-                    "from_brond": "4621004",
-                    "to_brond": "4621003",
-                    "length_m": 39.87,
-                    "dimension": "200",
-                    "material": "BT",
-                    "stik": 3,
-                    "notes": ""
-                },
-                {
-                    "from_brond": "4621003",
-                    "to_brond": "4621002",
-                    "length_m": 49.23,
-                    "dimension": "200",
-                    "material": "BT",
-                    "stik": 3,
-                    "notes": "er mål igennem"
-                },
-                {
-                    "from_brond": "4621002",
-                    "to_brond": "4621001",
-                    "length_m": 56.86,
-                    "dimension": "200",
-                    "material": "BT",
-                    "stik": 5,
-                    "notes": "Hårde aflejringer skal muligvis HT spules"
-                }
-            ],
-            "progress": {
-                "opmaaling": 100,
-                "forarbejde": 100,
-                "stikopmaaling": 100,
-                "hovedledning": 100,
-                "stikaabning": 100
-            }
+            "notes": "Herslev Bygade | Strækninger: 4621004-4621003 (39.87 m), 4621003-4621002 (49.23 m), 4621002-4621001 (56.86 m) | Bemærkninger: er mål igennem | Hårde aflejringer skal muligvis HT spules"
         },
         {
             "id": "19",
@@ -148,37 +67,7 @@
             "langhatte": 0,
             "korthatte_extra": 0,
             "broende": 2,
-            "notes": "Digevænget | Strækninger: 4612008-4612009 (51.72 m), 4612009-4612010 (59.55 m) | Bemærkninger: vand 5-10 % | der er målt i medstrøm med målebånd og TV Mål og urf er i modløb 10-15 % vand",
-            "main_length_m": 111.27,
-            "hovedledning_meter": 111.27,
-            "bronde_total": 3,
-            "stretches": [
-                {
-                    "from_brond": "4612008",
-                    "to_brond": "4612009",
-                    "length_m": 51.72,
-                    "dimension": "200",
-                    "material": "BT",
-                    "stik": 5,
-                    "notes": "vand 5-10 %"
-                },
-                {
-                    "from_brond": "4612009",
-                    "to_brond": "4612010",
-                    "length_m": 59.55,
-                    "dimension": "200",
-                    "material": "BT",
-                    "stik": 8,
-                    "notes": "der er målt i medstrøm med målebånd og TV Mål og urf er i modløb 10-15 % vand"
-                }
-            ],
-            "progress": {
-                "opmaaling": 100,
-                "forarbejde": 100,
-                "stikopmaaling": 100,
-                "hovedledning": 100,
-                "stikaabning": 100
-            }
+            "notes": "Digevænget | Strækninger: 4612008-4612009 (51.72 m), 4612009-4612010 (59.55 m) | Bemærkninger: vand 5-10 % | der er målt i medstrøm med målebånd og TV Mål og urf er i modløb 10-15 % vand"
         },
         {
             "id": "5",
@@ -189,64 +78,7 @@
             "langhatte": 0,
             "korthatte_extra": 0,
             "broende": 1,
-            "notes": "Herslev Kirkevej | Strækninger: 4612013-4612014 (42.71 m), 4612014-4612017 (42.99 m), 4612017-4612022 (54.67 m), 4612022-4612023 (50.51 m), 4612023-4612024 (26.22 m) | Bemærkninger: Det er kun 1 af brøndskud som skal fores. efter tegning er der 2 kl 9 - der er kørt tv på den ene. og tegning fra operatør nævner kun 1 med pvc efter 2 mtr.- opklares!! | Stik 2 skal lukkes | Stik nr5 er markeret til lukning. ingen førtv på det. Brønd4312023 har stik på tegning. ikke på tv. spules før inst | stor afvigelse i måling./ skal kontrolleres er opmålt medstrøms",
-            "main_length_m": 217.1,
-            "hovedledning_meter": 217.1,
-            "bronde_total": 6,
-            "stretches": [
-                {
-                    "from_brond": "4612013",
-                    "to_brond": "4612014",
-                    "length_m": 42.71,
-                    "dimension": "400",
-                    "material": "BT",
-                    "stik": 0,
-                    "notes": ""
-                },
-                {
-                    "from_brond": "4612014",
-                    "to_brond": "4612017",
-                    "length_m": 42.99,
-                    "dimension": "400",
-                    "material": "BT",
-                    "stik": 2,
-                    "notes": "Det er kun 1 af brøndskud som skal fores. efter tegning er der 2 kl 9 - der er kørt tv på den ene. og tegning fra operatør nævner kun 1 med pvc efter 2 mtr.- opklares!!"
-                },
-                {
-                    "from_brond": "4612017",
-                    "to_brond": "4612022",
-                    "length_m": 54.67,
-                    "dimension": "400",
-                    "material": "BT",
-                    "stik": 3,
-                    "notes": "Stik 2 skal lukkes"
-                },
-                {
-                    "from_brond": "4612022",
-                    "to_brond": "4612023",
-                    "length_m": 50.51,
-                    "dimension": "400",
-                    "material": "BT",
-                    "stik": 7,
-                    "notes": "Stik nr5 er markeret til lukning. ingen førtv på det. Brønd4312023 har stik på tegning. ikke på tv. spules før inst"
-                },
-                {
-                    "from_brond": "4612023",
-                    "to_brond": "4612024",
-                    "length_m": 26.22,
-                    "dimension": "400",
-                    "material": "BT",
-                    "stik": 3,
-                    "notes": "stor afvigelse i måling./ skal kontrolleres er opmålt medstrøms"
-                }
-            ],
-            "progress": {
-                "opmaaling": 100,
-                "forarbejde": 100,
-                "stikopmaaling": 100,
-                "hovedledning": 100,
-                "stikaabning": 0
-            }
+            "notes": "Herslev Kirkevej | Strækninger: 4612013-4612014 (42.71 m), 4612014-4612017 (42.99 m), 4612017-4612022 (54.67 m), 4612022-4612023 (50.51 m), 4612023-4612024 (26.22 m) | Bemærkninger: Det er kun 1 af brøndskud som skal fores. efter tegning er der 2 kl 9 - der er kørt tv på den ene. og tegning fra operatør nævner kun 1 med pvc efter 2 mtr.- opklares!! | Stik 2 skal lukkes | Stik nr5 er markeret til lukning. ingen førtv på det. Brønd4312023 har stik på tegning. ikke på tv. spules før inst | stor afvigelse i måling./ skal kontrolleres er opmålt medstrøms"
         },
         {
             "id": "3",
@@ -257,28 +89,7 @@
             "langhatte": 0,
             "korthatte_extra": 0,
             "broende": 1,
-            "notes": "Herslev Kirkevej | Strækninger: 4612010-4612012 (46.93 m) | Bemærkninger: Dimensionsskifte lige før 4612010 - ca 30 cm - der sidste rørstylkke inden brønden er plantmed bund og mindre i top",
-            "main_length_m": 46.93,
-            "hovedledning_meter": 46.93,
-            "bronde_total": 2,
-            "stretches": [
-                {
-                    "from_brond": "4612010",
-                    "to_brond": "4612012",
-                    "length_m": 46.93,
-                    "dimension": "300",
-                    "material": "BT",
-                    "stik": 0,
-                    "notes": "Dimensionsskifte lige før 4612010 - ca 30 cm - der sidste rørstylkke inden brønden er plantmed bund og mindre i top"
-                }
-            ],
-            "progress": {
-                "opmaaling": 100,
-                "forarbejde": 100,
-                "stikopmaaling": 100,
-                "hovedledning": 100,
-                "stikaabning": 0
-            }
+            "notes": "Herslev Kirkevej | Strækninger: 4612010-4612012 (46.93 m) | Bemærkninger: Dimensionsskifte lige før 4612010 - ca 30 cm - der sidste rørstylkke inden brønden er plantmed bund og mindre i top"
         },
         {
             "id": "4",
@@ -289,28 +100,7 @@
             "langhatte": 0,
             "korthatte_extra": 0,
             "broende": 1,
-            "notes": "Herslev Kirkevej | Strækninger: 4612012-4612013 (44.86 m) | Bemærkninger: Forhindring klemt fast i samling. skæres ud / er fjernet TEG 26-06-2026",
-            "main_length_m": 44.86,
-            "hovedledning_meter": 44.86,
-            "bronde_total": 2,
-            "stretches": [
-                {
-                    "from_brond": "4612012",
-                    "to_brond": "4612013",
-                    "length_m": 44.86,
-                    "dimension": "300",
-                    "material": "BT",
-                    "stik": 1,
-                    "notes": "Forhindring klemt fast i samling. skæres ud / er fjernet TEG 26-06-2026"
-                }
-            ],
-            "progress": {
-                "opmaaling": 100,
-                "forarbejde": 100,
-                "stikopmaaling": 100,
-                "hovedledning": 100,
-                "stikaabning": 0
-            }
+            "notes": "Herslev Kirkevej | Strækninger: 4612012-4612013 (44.86 m) | Bemærkninger: Forhindring klemt fast i samling. skæres ud / er fjernet TEG 26-06-2026"
         },
         {
             "id": "6",
@@ -321,55 +111,7 @@
             "langhatte": 0,
             "korthatte_extra": 0,
             "broende": 4,
-            "notes": "Herslev Bygade | Strækninger: 4612024-4612025 (62.57 m), 4612025-4612026 (37.59 m), 4612026-4621009 (60.78 m), 4621009-4621008 (35.01 m)",
-            "main_length_m": 195.95,
-            "hovedledning_meter": 195.95,
-            "bronde_total": 5,
-            "stretches": [
-                {
-                    "from_brond": "4612024",
-                    "to_brond": "4612025",
-                    "length_m": 62.57,
-                    "dimension": "500",
-                    "material": "BT",
-                    "stik": 1,
-                    "notes": ""
-                },
-                {
-                    "from_brond": "4612025",
-                    "to_brond": "4612026",
-                    "length_m": 37.59,
-                    "dimension": "500",
-                    "material": "BT",
-                    "stik": 3,
-                    "notes": ""
-                },
-                {
-                    "from_brond": "4612026",
-                    "to_brond": "4621009",
-                    "length_m": 60.78,
-                    "dimension": "500",
-                    "material": "BT",
-                    "stik": 4,
-                    "notes": ""
-                },
-                {
-                    "from_brond": "4621009",
-                    "to_brond": "4621008",
-                    "length_m": 35.01,
-                    "dimension": "500",
-                    "material": "BT",
-                    "stik": 3,
-                    "notes": ""
-                }
-            ],
-            "progress": {
-                "opmaaling": 100,
-                "forarbejde": 0,
-                "stikopmaaling": 0,
-                "hovedledning": 0,
-                "stikaabning": 0
-            }
+            "notes": "Herslev Bygade | Strækninger: 4612024-4612025 (62.57 m), 4612025-4612026 (37.59 m), 4612026-4621009 (60.78 m), 4621009-4621008 (35.01 m) | Bemærkninger: der er målt igennem br 4612026"
         },
         {
             "id": "7",
@@ -380,46 +122,7 @@
             "langhatte": 0,
             "korthatte_extra": 0,
             "broende": 2,
-            "notes": "Herslev Bygade | Strækninger: 4621008-4621007 (24.52 m), 4621007-4621006 (10.62 m), 4621006-4621005 (59.8 m)",
-            "main_length_m": 94.94,
-            "hovedledning_meter": 94.94,
-            "bronde_total": 4,
-            "stretches": [
-                {
-                    "from_brond": "4621008",
-                    "to_brond": "4621007",
-                    "length_m": 24.52,
-                    "dimension": "500",
-                    "material": "BT",
-                    "stik": 2,
-                    "notes": ""
-                },
-                {
-                    "from_brond": "4621007",
-                    "to_brond": "4621006",
-                    "length_m": 10.62,
-                    "dimension": "500",
-                    "material": "BT",
-                    "stik": 2,
-                    "notes": ""
-                },
-                {
-                    "from_brond": "4621006",
-                    "to_brond": "4621005",
-                    "length_m": 59.8,
-                    "dimension": "500",
-                    "material": "BT",
-                    "stik": 5,
-                    "notes": ""
-                }
-            ],
-            "progress": {
-                "opmaaling": 100,
-                "forarbejde": 0,
-                "stikopmaaling": 0,
-                "hovedledning": 0,
-                "stikaabning": 0
-            }
+            "notes": "Herslev Bygade | Strækninger: 4621008-4621007 (24.52 m), 4621007-4621006 (10.62 m), 4621006-4621005 (59.8 m)"
         },
         {
             "id": "10",
@@ -430,28 +133,7 @@
             "langhatte": 0,
             "korthatte_extra": 0,
             "broende": 1,
-            "notes": "Herslev Kirkevej | Strækninger: 4621007-4621022 (76.97 m)",
-            "main_length_m": 76.97,
-            "hovedledning_meter": 76.97,
-            "bronde_total": 2,
-            "stretches": [
-                {
-                    "from_brond": "4621007",
-                    "to_brond": "4621022",
-                    "length_m": 76.97,
-                    "dimension": "200",
-                    "material": "BT",
-                    "stik": 4,
-                    "notes": ""
-                }
-            ],
-            "progress": {
-                "opmaaling": 100,
-                "forarbejde": 100,
-                "stikopmaaling": 100,
-                "hovedledning": 100,
-                "stikaabning": 100
-            }
+            "notes": "Herslev Kirkevej | Strækninger: 4621007-4621022 (76.97 m)"
         },
         {
             "id": "11",
@@ -462,28 +144,7 @@
             "langhatte": 0,
             "korthatte_extra": 0,
             "broende": 1,
-            "notes": "Mølleåvej | Strækninger: 4621005-4623007 (59.55 m)",
-            "main_length_m": 59.55,
-            "hovedledning_meter": 59.55,
-            "bronde_total": 2,
-            "stretches": [
-                {
-                    "from_brond": "4621005",
-                    "to_brond": "4623007",
-                    "length_m": 59.55,
-                    "dimension": "600",
-                    "material": "BT",
-                    "stik": 3,
-                    "notes": ""
-                }
-            ],
-            "progress": {
-                "opmaaling": 100,
-                "forarbejde": 0,
-                "stikopmaaling": 0,
-                "hovedledning": 0,
-                "stikaabning": 0
-            }
+            "notes": "Mølleåvej | Strækninger: 4621005-4623007 (59.55 m)"
         },
         {
             "id": "12",
@@ -494,37 +155,7 @@
             "langhatte": 0,
             "korthatte_extra": 0,
             "broende": 1,
-            "notes": "Herslev Kirkevej | Strækninger: 4621005-4621021 (47.77 m), 4621021-4621017 (59.37 m) | Bemærkninger: Fritlægning af 4621021 er prblematisk. der er afsat dæksel med pæl. og det er den som er målt. | Rødder nør 4621021/ er opmålt i medstrøm med målebånd / 61.50 til midt br stik kl 2-3",
-            "main_length_m": 107.14,
-            "hovedledning_meter": 107.14,
-            "bronde_total": 3,
-            "stretches": [
-                {
-                    "from_brond": "4621005",
-                    "to_brond": "4621021",
-                    "length_m": 47.77,
-                    "dimension": "0",
-                    "material": "BT",
-                    "stik": 4,
-                    "notes": "Fritlægning af 4621021 er prblematisk. der er afsat dæksel med pæl. og det er den som er målt."
-                },
-                {
-                    "from_brond": "4621021",
-                    "to_brond": "4621017",
-                    "length_m": 59.37,
-                    "dimension": "600",
-                    "material": "BT",
-                    "stik": 7,
-                    "notes": "Rødder nør 4621021/ er opmålt i medstrøm med målebånd / 61.50 til midt br stik kl 2-3"
-                }
-            ],
-            "progress": {
-                "opmaaling": 100,
-                "forarbejde": 0,
-                "stikopmaaling": 0,
-                "hovedledning": 0,
-                "stikaabning": 0
-            }
+            "notes": "Herslev Kirkevej | Strækninger: 4621005-4621021 (47.77 m), 4621021-4621017 (59.37 m) | Bemærkninger: Fritlægning af 4621021 er prblematisk. der er afsat dæksel med pæl. og det er den som er målt. | Rødder nør 4621021/ er opmålt i medstrøm med målebånd / 61.50 til midt br stik kl 2-3"
         },
         {
             "id": "18",
@@ -535,37 +166,7 @@
             "langhatte": 0,
             "korthatte_extra": 0,
             "broende": 3,
-            "notes": "Kirketoften/Herslev Bygade | Strækninger: 4612115-4612031 (28.45 m), 4612031-4612030 (36.0 m) | Bemærkninger: Overgang til PVC ved 22.8mtr | Rodklump ved 30.5mtr / skal spules godt pga grus og sten",
-            "main_length_m": 64.45,
-            "hovedledning_meter": 64.45,
-            "bronde_total": 3,
-            "stretches": [
-                {
-                    "from_brond": "4612115",
-                    "to_brond": "4612031",
-                    "length_m": 28.45,
-                    "dimension": "200",
-                    "material": "BT",
-                    "stik": 0,
-                    "notes": "Overgang til PVC ved 22.8mtr"
-                },
-                {
-                    "from_brond": "4612031",
-                    "to_brond": "4612030",
-                    "length_m": 36.0,
-                    "dimension": "200",
-                    "material": "BT",
-                    "stik": 0,
-                    "notes": "Rodklump ved 30.5mtr / skal spules godt pga grus og sten"
-                }
-            ],
-            "progress": {
-                "opmaaling": 100,
-                "forarbejde": 0,
-                "stikopmaaling": 0,
-                "hovedledning": 0,
-                "stikaabning": 0
-            }
+            "notes": "Kirketoften/Herslev Bygade | Strækninger: 4612115-4612031 (28.45 m), 4612031-4612030 (36.0 m) | Bemærkninger: Overgang til PVC ved 22.8mtr | Rodklump ved 30.5mtr / skal spules godt pga grus og sten"
         },
         {
             "id": "13",
@@ -576,37 +177,7 @@
             "langhatte": 0,
             "korthatte_extra": 0,
             "broende": 3,
-            "notes": "Herslev Kirkevej | Strækninger: 4621017-4621015 (40.22 m), 4621015-4621014 (60.66 m) | Bemærkninger: Skal spules godt meget papir / vand på til 40 % | der er målt gennem BR 4621015",
-            "main_length_m": 100.88,
-            "hovedledning_meter": 100.88,
-            "bronde_total": 3,
-            "stretches": [
-                {
-                    "from_brond": "4621017",
-                    "to_brond": "4621015",
-                    "length_m": 40.22,
-                    "dimension": "300",
-                    "material": "BT",
-                    "stik": 3,
-                    "notes": "Skal spules godt meget papir / vand på til 40 %"
-                },
-                {
-                    "from_brond": "4621015",
-                    "to_brond": "4621014",
-                    "length_m": 60.66,
-                    "dimension": "300",
-                    "material": "BT",
-                    "stik": 4,
-                    "notes": "der er målt gennem BR 4621015"
-                }
-            ],
-            "progress": {
-                "opmaaling": 100,
-                "forarbejde": 0,
-                "stikopmaaling": 0,
-                "hovedledning": 0,
-                "stikaabning": 0
-            }
+            "notes": "Herslev Kirkevej | Strækninger: 4621017-4621015 (40.22 m), 4621015-4621014 (60.66 m) | Bemærkninger: Skal spules godt meget papir / vand på til 40 % | der er målt gennem BR 4621015"
         },
         {
             "id": "14",
@@ -617,28 +188,7 @@
             "langhatte": 0,
             "korthatte_extra": 0,
             "broende": 1,
-            "notes": "Herslev Kirkevej | Strækninger: 4621015-4621016 (39.1 m)",
-            "main_length_m": 39.1,
-            "hovedledning_meter": 39.1,
-            "bronde_total": 2,
-            "stretches": [
-                {
-                    "from_brond": "4621015",
-                    "to_brond": "4621016",
-                    "length_m": 39.1,
-                    "dimension": "200",
-                    "material": "BT",
-                    "stik": 3,
-                    "notes": ""
-                }
-            ],
-            "progress": {
-                "opmaaling": 100,
-                "forarbejde": 0,
-                "stikopmaaling": 0,
-                "hovedledning": 0,
-                "stikaabning": 0
-            }
+            "notes": "Herslev Kirkevej | Strækninger: 4621015-4621016 (39.1 m)"
         },
         {
             "id": "15",
@@ -649,37 +199,7 @@
             "langhatte": 0,
             "korthatte_extra": 0,
             "broende": 1,
-            "notes": "Herslev Kirkevej | Strækninger: 4621017-4621018 (39.59 m), 4621018-4621019 (39.09 m) | Bemærkninger: skal spules",
-            "main_length_m": 78.68,
-            "hovedledning_meter": 78.68,
-            "bronde_total": 3,
-            "stretches": [
-                {
-                    "from_brond": "4621017",
-                    "to_brond": "4621018",
-                    "length_m": 39.59,
-                    "dimension": "600",
-                    "material": "BT",
-                    "stik": 2,
-                    "notes": "skal spules"
-                },
-                {
-                    "from_brond": "4621018",
-                    "to_brond": "4621019",
-                    "length_m": 39.09,
-                    "dimension": "600",
-                    "material": "BT",
-                    "stik": 3,
-                    "notes": ""
-                }
-            ],
-            "progress": {
-                "opmaaling": 100,
-                "forarbejde": 0,
-                "stikopmaaling": 0,
-                "hovedledning": 0,
-                "stikaabning": 0
-            }
+            "notes": "Herslev Kirkevej | Strækninger: 4621017-4621018 (39.59 m), 4621018-4621019 (39.09 m) | Bemærkninger: skal spules"
         },
         {
             "id": "16",
@@ -690,28 +210,7 @@
             "langhatte": 0,
             "korthatte_extra": 0,
             "broende": 2,
-            "notes": "Herslev Kirkevej | Strækninger: 4621019-4621020 (29.22 m)",
-            "main_length_m": 29.22,
-            "hovedledning_meter": 29.22,
-            "bronde_total": 2,
-            "stretches": [
-                {
-                    "from_brond": "4621019",
-                    "to_brond": "4621020",
-                    "length_m": 29.22,
-                    "dimension": "200",
-                    "material": "BT",
-                    "stik": 4,
-                    "notes": ""
-                }
-            ],
-            "progress": {
-                "opmaaling": 100,
-                "forarbejde": 0,
-                "stikopmaaling": 0,
-                "hovedledning": 0,
-                "stikaabning": 0
-            }
+            "notes": "Herslev Kirkevej | Strækninger: 4621019-4621020 (29.22 m)"
         },
         {
             "id": "17",
@@ -722,46 +221,7 @@
             "langhatte": 0,
             "korthatte_extra": 0,
             "broende": 1,
-            "notes": "Kirketoften | Strækninger: 4612038-4612034 (29.08 m), 4612034-4612032 (38.03 m), 4612032-4612031 (22.74 m) | Bemærkninger: hvid og stor  50 % vand ved BR 4612032",
-            "main_length_m": 89.85,
-            "hovedledning_meter": 89.85,
-            "bronde_total": 4,
-            "stretches": [
-                {
-                    "from_brond": "4612038",
-                    "to_brond": "4612034",
-                    "length_m": 29.08,
-                    "dimension": "200",
-                    "material": "BT",
-                    "stik": 0,
-                    "notes": ""
-                },
-                {
-                    "from_brond": "4612034",
-                    "to_brond": "4612032",
-                    "length_m": 38.03,
-                    "dimension": "200",
-                    "material": "BT",
-                    "stik": 1,
-                    "notes": ""
-                },
-                {
-                    "from_brond": "4612032",
-                    "to_brond": "4612031",
-                    "length_m": 22.74,
-                    "dimension": "200",
-                    "material": "BT",
-                    "stik": 2,
-                    "notes": "hvid og stor  50 % vand ved BR 4612032"
-                }
-            ],
-            "progress": {
-                "opmaaling": 100,
-                "forarbejde": 0,
-                "stikopmaaling": 0,
-                "hovedledning": 0,
-                "stikaabning": 0
-            }
+            "notes": "Kirketoften | Strækninger: 4612038-4612034 (29.08 m), 4612034-4612032 (38.03 m), 4612032-4612031 (22.74 m) | Bemærkninger: hvid og stor  50 % vand ved BR 4612032"
         }
     ],
     "customer": "Fredericia Spildevand og Energi A/S",
@@ -1333,6 +793,1634 @@
                     }
                 ],
                 "dtvk": []
+            }
+        },
+        {
+            "created_at": "2026-07-10T08:38:24",
+            "project_id": "V165460",
+            "reason": "before_project_save",
+            "status": "active",
+            "installations": [
+                {
+                    "id": "1",
+                    "active": true,
+                    "hoveddato": "2026-07-01",
+                    "expected_stik": 1,
+                    "active_stik": 1,
+                    "langhatte": 0,
+                    "korthatte_extra": 0,
+                    "broende": 1,
+                    "notes": "Digevænget | Strækninger: 4612007-4612008 (5.3 m)",
+                    "main_length_m": 5.3,
+                    "hovedledning_meter": 5.3,
+                    "bronde_total": 2,
+                    "stretches": [
+                        {
+                            "from_brond": "4612007",
+                            "to_brond": "4612008",
+                            "length_m": 5.3,
+                            "dimension": "150",
+                            "material": "BT",
+                            "stik": 1,
+                            "expected_stik": 1,
+                            "progress": {
+                                "opmaaling": 100.0,
+                                "forarbejde": 100.0,
+                                "stikopmaaling": 100.0,
+                                "hovedledning": 100.0,
+                                "stikaabning": 0.0
+                            },
+                            "notes": ""
+                        }
+                    ],
+                    "progress": {
+                        "opmaaling": 100,
+                        "forarbejde": 100,
+                        "stikopmaaling": 100,
+                        "hovedledning": 100,
+                        "stikaabning": 0
+                    },
+                    "c5_values": {
+                        "korthat": [
+                            "0/0"
+                        ],
+                        "langhat": [
+                            "0/0"
+                        ],
+                        "broendskud": [
+                            "1/1"
+                        ],
+                        "raaskud": [
+                            "0/0"
+                        ],
+                        "pkt_rep": [
+                            "0/0"
+                        ]
+                    }
+                },
+                {
+                    "id": "8",
+                    "active": true,
+                    "hoveddato": "2026-07-01",
+                    "expected_stik": 4,
+                    "active_stik": 4,
+                    "langhatte": 0,
+                    "korthatte_extra": 0,
+                    "broende": 2,
+                    "notes": "Herslev Bygade | Strækninger: 4621005-4621004 (60.83 m)",
+                    "main_length_m": 60.83,
+                    "hovedledning_meter": 60.83,
+                    "bronde_total": 2,
+                    "stretches": [
+                        {
+                            "from_brond": "4621005",
+                            "to_brond": "4621004",
+                            "length_m": 60.83,
+                            "dimension": "300",
+                            "material": "BT",
+                            "stik": 4,
+                            "expected_stik": 4,
+                            "progress": {
+                                "opmaaling": 100.0,
+                                "forarbejde": 100.0,
+                                "stikopmaaling": 100.0,
+                                "hovedledning": 100.0,
+                                "stikaabning": 100.0
+                            },
+                            "notes": ""
+                        }
+                    ],
+                    "progress": {
+                        "opmaaling": 100,
+                        "forarbejde": 100,
+                        "stikopmaaling": 100,
+                        "hovedledning": 100,
+                        "stikaabning": 100
+                    },
+                    "c5_values": {
+                        "korthat": [
+                            "2/0"
+                        ],
+                        "langhat": [
+                            "2/2"
+                        ],
+                        "broendskud": [
+                            "0/0"
+                        ],
+                        "raaskud": [
+                            "0/0"
+                        ],
+                        "pkt_rep": [
+                            "0/0"
+                        ]
+                    }
+                },
+                {
+                    "id": "9",
+                    "active": true,
+                    "hoveddato": "2026-07-01",
+                    "expected_stik": 11,
+                    "active_stik": 11,
+                    "langhatte": 0,
+                    "korthatte_extra": 0,
+                    "broende": 1,
+                    "notes": "Herslev Bygade | Strækninger: 4621004-4621003 (39.87 m), 4621003-4621002 (49.23 m), 4621002-4621001 (56.86 m) | Bemærkninger: er mål igennem | Hårde aflejringer skal muligvis HT spules",
+                    "main_length_m": 145.96,
+                    "hovedledning_meter": 145.96,
+                    "bronde_total": 4,
+                    "stretches": [
+                        {
+                            "from_brond": "4621004",
+                            "to_brond": "4621003",
+                            "length_m": 39.87,
+                            "dimension": "200",
+                            "material": "BT",
+                            "stik": 3,
+                            "expected_stik": 3,
+                            "progress": {
+                                "opmaaling": 100.0,
+                                "forarbejde": 100.0,
+                                "stikopmaaling": 100.0,
+                                "hovedledning": 100.0,
+                                "stikaabning": 100.0
+                            },
+                            "notes": ""
+                        },
+                        {
+                            "from_brond": "4621003",
+                            "to_brond": "4621002",
+                            "length_m": 49.23,
+                            "dimension": "200",
+                            "material": "BT",
+                            "stik": 3,
+                            "expected_stik": 3,
+                            "progress": {
+                                "opmaaling": 100.0,
+                                "forarbejde": 100.0,
+                                "stikopmaaling": 100.0,
+                                "hovedledning": 100.0,
+                                "stikaabning": 100.0
+                            },
+                            "notes": "er mål igennem"
+                        },
+                        {
+                            "from_brond": "4621002",
+                            "to_brond": "4621001",
+                            "length_m": 56.86,
+                            "dimension": "200",
+                            "material": "BT",
+                            "stik": 5,
+                            "expected_stik": 5,
+                            "progress": {
+                                "opmaaling": 100.0,
+                                "forarbejde": 100.0,
+                                "stikopmaaling": 100.0,
+                                "hovedledning": 100.0,
+                                "stikaabning": 100.0
+                            },
+                            "notes": "Hårde aflejringer skal muligvis HT spules"
+                        }
+                    ],
+                    "progress": {
+                        "opmaaling": 100,
+                        "forarbejde": 100,
+                        "stikopmaaling": 100,
+                        "hovedledning": 100,
+                        "stikaabning": 100
+                    },
+                    "c5_values": {
+                        "korthat": [
+                            "3/3",
+                            "2/0",
+                            "3/0"
+                        ],
+                        "langhat": [
+                            "3/3",
+                            "1/1",
+                            "3/3"
+                        ],
+                        "broendskud": [
+                            "0/0",
+                            "0/0",
+                            "0/0"
+                        ],
+                        "raaskud": [
+                            "0/0",
+                            "0/0",
+                            "0/0"
+                        ],
+                        "pkt_rep": [
+                            "0/0",
+                            "0/0",
+                            "0/0"
+                        ]
+                    }
+                },
+                {
+                    "id": "19",
+                    "active": true,
+                    "hoveddato": "2026-07-01",
+                    "expected_stik": 0,
+                    "active_stik": 0,
+                    "langhatte": 0,
+                    "korthatte_extra": 0,
+                    "broende": 1,
+                    "notes": ""
+                },
+                {
+                    "id": "20",
+                    "active": true,
+                    "hoveddato": "2026-07-01",
+                    "expected_stik": 0,
+                    "active_stik": 0,
+                    "langhatte": 0,
+                    "korthatte_extra": 0,
+                    "broende": 1,
+                    "notes": ""
+                },
+                {
+                    "id": "2",
+                    "active": true,
+                    "hoveddato": "2026-07-02",
+                    "expected_stik": 13,
+                    "active_stik": 13,
+                    "langhatte": 0,
+                    "korthatte_extra": 0,
+                    "broende": 2,
+                    "notes": "Digevænget | Strækninger: 4612008-4612009 (51.72 m), 4612009-4612010 (59.55 m) | Bemærkninger: vand 5-10 % | der er målt i medstrøm med målebånd og TV Mål og urf er i modløb 10-15 % vand",
+                    "main_length_m": 111.27,
+                    "hovedledning_meter": 111.27,
+                    "bronde_total": 3,
+                    "stretches": [
+                        {
+                            "from_brond": "4612008",
+                            "to_brond": "4612009",
+                            "length_m": 51.72,
+                            "dimension": "200",
+                            "material": "BT",
+                            "stik": 5,
+                            "expected_stik": 5,
+                            "progress": {
+                                "opmaaling": 100.0,
+                                "forarbejde": 100.0,
+                                "stikopmaaling": 100.0,
+                                "hovedledning": 100.0,
+                                "stikaabning": 100.0
+                            },
+                            "notes": "vand 5-10 %"
+                        },
+                        {
+                            "from_brond": "4612009",
+                            "to_brond": "4612010",
+                            "length_m": 59.55,
+                            "dimension": "200",
+                            "material": "BT",
+                            "stik": 8,
+                            "expected_stik": 8,
+                            "progress": {
+                                "opmaaling": 100.0,
+                                "forarbejde": 100.0,
+                                "stikopmaaling": 100.0,
+                                "hovedledning": 100.0,
+                                "stikaabning": 100.0
+                            },
+                            "notes": "der er målt i medstrøm med målebånd og TV Mål og urf er i modløb 10-15 % vand"
+                        }
+                    ],
+                    "progress": {
+                        "opmaaling": 100,
+                        "forarbejde": 100,
+                        "stikopmaaling": 100,
+                        "hovedledning": 100,
+                        "stikaabning": 100
+                    },
+                    "c5_values": {
+                        "korthat": [
+                            "5/5",
+                            "6/6"
+                        ],
+                        "langhat": [
+                            "3/3",
+                            "4/4"
+                        ],
+                        "broendskud": [
+                            "0/0",
+                            "0/0"
+                        ],
+                        "raaskud": [
+                            "0/0",
+                            "0/0"
+                        ],
+                        "pkt_rep": [
+                            "0/0",
+                            "0/0"
+                        ]
+                    }
+                },
+                {
+                    "id": "5",
+                    "active": true,
+                    "hoveddato": "2026-07-02",
+                    "expected_stik": 15,
+                    "active_stik": 15,
+                    "langhatte": 0,
+                    "korthatte_extra": 0,
+                    "broende": 1,
+                    "notes": "Herslev Kirkevej | Strækninger: 4612013-4612014 (42.71 m), 4612014-4612017 (42.99 m), 4612017-4612022 (54.67 m), 4612022-4612023 (50.51 m), 4612023-4612024 (26.22 m) | Bemærkninger: Det er kun 1 af brøndskud som skal fores. efter tegning er der 2 kl 9 - der er kørt tv på den ene. og tegning fra operatør nævner kun 1 med pvc efter 2 mtr.- opklares!! | Stik 2 skal lukkes | Stik nr5 er markeret til lukning. ingen førtv på det. Brønd4312023 har stik på tegning. ikke på tv. spules før inst | stor afvigelse i måling./ skal kontrolleres er opmålt medstrøms",
+                    "main_length_m": 217.1,
+                    "hovedledning_meter": 217.1,
+                    "bronde_total": 6,
+                    "stretches": [
+                        {
+                            "from_brond": "4612013",
+                            "to_brond": "4612014",
+                            "length_m": 42.71,
+                            "dimension": "400",
+                            "material": "BT",
+                            "stik": 0,
+                            "expected_stik": 0,
+                            "progress": {
+                                "opmaaling": 100.0,
+                                "forarbejde": 100.0,
+                                "stikopmaaling": 100.0,
+                                "hovedledning": 100.0,
+                                "stikaabning": 0.0
+                            },
+                            "notes": ""
+                        },
+                        {
+                            "from_brond": "4612014",
+                            "to_brond": "4612017",
+                            "length_m": 42.99,
+                            "dimension": "400",
+                            "material": "BT",
+                            "stik": 2,
+                            "expected_stik": 2,
+                            "progress": {
+                                "opmaaling": 100.0,
+                                "forarbejde": 100.0,
+                                "stikopmaaling": 100.0,
+                                "hovedledning": 100.0,
+                                "stikaabning": 0.0
+                            },
+                            "notes": "Det er kun 1 af brøndskud som skal fores. efter tegning er der 2 kl 9 - der er kørt tv på den ene. og tegning fra operatør nævner kun 1 med pvc efter 2 mtr.- opklares!!"
+                        },
+                        {
+                            "from_brond": "4612017",
+                            "to_brond": "4612022",
+                            "length_m": 54.67,
+                            "dimension": "400",
+                            "material": "BT",
+                            "stik": 3,
+                            "expected_stik": 3,
+                            "progress": {
+                                "opmaaling": 100.0,
+                                "forarbejde": 100.0,
+                                "stikopmaaling": 100.0,
+                                "hovedledning": 100.0,
+                                "stikaabning": 100.0
+                            },
+                            "notes": "Stik 2 skal lukkes"
+                        },
+                        {
+                            "from_brond": "4612022",
+                            "to_brond": "4612023",
+                            "length_m": 50.51,
+                            "dimension": "400",
+                            "material": "BT",
+                            "stik": 7,
+                            "expected_stik": 7,
+                            "progress": {
+                                "opmaaling": 100.0,
+                                "forarbejde": 100.0,
+                                "stikopmaaling": 100.0,
+                                "hovedledning": 100.0,
+                                "stikaabning": 100.0
+                            },
+                            "notes": "Stik nr5 er markeret til lukning. ingen førtv på det. Brønd4312023 har stik på tegning. ikke på tv. spules før inst"
+                        },
+                        {
+                            "from_brond": "4612023",
+                            "to_brond": "4612024",
+                            "length_m": 26.22,
+                            "dimension": "400",
+                            "material": "BT",
+                            "stik": 3,
+                            "expected_stik": 3,
+                            "progress": {
+                                "opmaaling": 100.0,
+                                "forarbejde": 100.0,
+                                "stikopmaaling": 100.0,
+                                "hovedledning": 100.0,
+                                "stikaabning": 100.0
+                            },
+                            "notes": "stor afvigelse i måling./ skal kontrolleres er opmålt medstrøms"
+                        }
+                    ],
+                    "progress": {
+                        "opmaaling": 100,
+                        "forarbejde": 100,
+                        "stikopmaaling": 100,
+                        "hovedledning": 100,
+                        "stikaabning": 61
+                    },
+                    "c5_values": {
+                        "korthat": [
+                            "0/0",
+                            "0/0",
+                            "1/1",
+                            "3/3",
+                            "1/1"
+                        ],
+                        "langhat": [
+                            "0/0",
+                            "0/0",
+                            "1/1",
+                            "3/3",
+                            "1/1"
+                        ],
+                        "broendskud": [
+                            "0/0",
+                            "1/1",
+                            "0/0",
+                            "1/1",
+                            "0/0"
+                        ],
+                        "raaskud": [
+                            "0/0",
+                            "0/0",
+                            "0/0",
+                            "0/0",
+                            "0/0"
+                        ],
+                        "pkt_rep": [
+                            "0/0",
+                            "0/0",
+                            "0/0",
+                            "0/0",
+                            "0/0"
+                        ]
+                    }
+                },
+                {
+                    "id": "3",
+                    "active": true,
+                    "hoveddato": "2026-07-03",
+                    "expected_stik": 0,
+                    "active_stik": 0,
+                    "langhatte": 0,
+                    "korthatte_extra": 0,
+                    "broende": 1,
+                    "notes": "Herslev Kirkevej | Strækninger: 4612010-4612012 (46.93 m) | Bemærkninger: Dimensionsskifte lige før 4612010 - ca 30 cm - der sidste rørstylkke inden brønden er plantmed bund og mindre i top",
+                    "main_length_m": 46.93,
+                    "hovedledning_meter": 46.93,
+                    "bronde_total": 2,
+                    "stretches": [
+                        {
+                            "from_brond": "4612010",
+                            "to_brond": "4612012",
+                            "length_m": 46.93,
+                            "dimension": "300",
+                            "material": "BT",
+                            "stik": 0,
+                            "expected_stik": 0,
+                            "progress": {
+                                "opmaaling": 100.0,
+                                "forarbejde": 100.0,
+                                "stikopmaaling": 100.0,
+                                "hovedledning": 100.0,
+                                "stikaabning": 0.0
+                            },
+                            "notes": "Dimensionsskifte lige før 4612010 - ca 30 cm - der sidste rørstylkke inden brønden er plantmed bund og mindre i top"
+                        }
+                    ],
+                    "progress": {
+                        "opmaaling": 100,
+                        "forarbejde": 100,
+                        "stikopmaaling": 100,
+                        "hovedledning": 100,
+                        "stikaabning": 0
+                    },
+                    "c5_values": {
+                        "korthat": [
+                            "0/0"
+                        ],
+                        "langhat": [
+                            "0/0"
+                        ],
+                        "broendskud": [
+                            "0/0"
+                        ],
+                        "raaskud": [
+                            "0/0"
+                        ],
+                        "pkt_rep": [
+                            "0/0"
+                        ]
+                    }
+                },
+                {
+                    "id": "4",
+                    "active": true,
+                    "hoveddato": "2026-07-03",
+                    "expected_stik": 1,
+                    "active_stik": 1,
+                    "langhatte": 0,
+                    "korthatte_extra": 0,
+                    "broende": 1,
+                    "notes": "Herslev Kirkevej | Strækninger: 4612012-4612013 (44.86 m) | Bemærkninger: Forhindring klemt fast i samling. skæres ud / er fjernet TEG 26-06-2026",
+                    "main_length_m": 44.86,
+                    "hovedledning_meter": 44.86,
+                    "bronde_total": 2,
+                    "stretches": [
+                        {
+                            "from_brond": "4612012",
+                            "to_brond": "4612013",
+                            "length_m": 44.86,
+                            "dimension": "300",
+                            "material": "BT",
+                            "stik": 1,
+                            "expected_stik": 1,
+                            "progress": {
+                                "opmaaling": 100.0,
+                                "forarbejde": 100.0,
+                                "stikopmaaling": 100.0,
+                                "hovedledning": 100.0,
+                                "stikaabning": 0.0
+                            },
+                            "notes": "Forhindring klemt fast i samling. skæres ud / er fjernet TEG 26-06-2026"
+                        }
+                    ],
+                    "progress": {
+                        "opmaaling": 100,
+                        "forarbejde": 100,
+                        "stikopmaaling": 100,
+                        "hovedledning": 100,
+                        "stikaabning": 0
+                    },
+                    "c5_values": {
+                        "korthat": [
+                            "0/0"
+                        ],
+                        "langhat": [
+                            "0/0"
+                        ],
+                        "broendskud": [
+                            "0/0"
+                        ],
+                        "raaskud": [
+                            "0/0"
+                        ],
+                        "pkt_rep": [
+                            "0/0"
+                        ]
+                    }
+                },
+                {
+                    "id": "6",
+                    "active": true,
+                    "hoveddato": "2026-07-06",
+                    "expected_stik": 11,
+                    "active_stik": 11,
+                    "langhatte": 0,
+                    "korthatte_extra": 0,
+                    "broende": 4,
+                    "notes": "Herslev Bygade | Strækninger: 4612024-4612025 (62.57 m), 4612025-4612026 (37.59 m), 4612026-4621009 (60.78 m), 4621009-4621008 (35.01 m) | Bemærkninger: der er målt igennem br 4612026",
+                    "main_length_m": 195.95,
+                    "hovedledning_meter": 195.95,
+                    "bronde_total": 5,
+                    "stretches": [
+                        {
+                            "from_brond": "4612024",
+                            "to_brond": "4612025",
+                            "length_m": 62.57,
+                            "dimension": "500",
+                            "material": "BT",
+                            "stik": 1,
+                            "expected_stik": 1,
+                            "progress": {
+                                "opmaaling": 100.0,
+                                "forarbejde": 0.0,
+                                "stikopmaaling": 0.0,
+                                "hovedledning": 100.0,
+                                "stikaabning": 0.0
+                            },
+                            "notes": ""
+                        },
+                        {
+                            "from_brond": "4612025",
+                            "to_brond": "4612026",
+                            "length_m": 37.59,
+                            "dimension": "500",
+                            "material": "BT",
+                            "stik": 3,
+                            "expected_stik": 3,
+                            "progress": {
+                                "opmaaling": 100.0,
+                                "forarbejde": 100.0,
+                                "stikopmaaling": 100.0,
+                                "hovedledning": 100.0,
+                                "stikaabning": 100.0
+                            },
+                            "notes": "der er målt igennem br 4612026"
+                        },
+                        {
+                            "from_brond": "4612026",
+                            "to_brond": "4621009",
+                            "length_m": 60.78,
+                            "dimension": "500",
+                            "material": "BT",
+                            "stik": 4,
+                            "expected_stik": 4,
+                            "progress": {
+                                "opmaaling": 100.0,
+                                "forarbejde": 100.0,
+                                "stikopmaaling": 100.0,
+                                "hovedledning": 100.0,
+                                "stikaabning": 100.0
+                            },
+                            "notes": ""
+                        },
+                        {
+                            "from_brond": "4621009",
+                            "to_brond": "4621008",
+                            "length_m": 35.01,
+                            "dimension": "500",
+                            "material": "BT",
+                            "stik": 3,
+                            "expected_stik": 3,
+                            "progress": {
+                                "opmaaling": 100.0,
+                                "forarbejde": 100.0,
+                                "stikopmaaling": 100.0,
+                                "hovedledning": 100.0,
+                                "stikaabning": 100.0
+                            },
+                            "notes": ""
+                        }
+                    ],
+                    "progress": {
+                        "opmaaling": 100,
+                        "forarbejde": 68,
+                        "stikopmaaling": 68,
+                        "hovedledning": 100,
+                        "stikaabning": 68
+                    },
+                    "c5_values": {
+                        "korthat": [
+                            "0/0",
+                            "2/0",
+                            "2/0",
+                            "1/0"
+                        ],
+                        "langhat": [
+                            "0/0",
+                            "2/2",
+                            "2/2",
+                            "1/1"
+                        ],
+                        "broendskud": [
+                            "0/0",
+                            "0/0",
+                            "0/0",
+                            "1/0"
+                        ],
+                        "raaskud": [
+                            "0/0",
+                            "0/0",
+                            "0/0",
+                            "0/0"
+                        ],
+                        "pkt_rep": [
+                            "0/0",
+                            "0/0",
+                            "0/0",
+                            "0/0"
+                        ]
+                    }
+                },
+                {
+                    "id": "7",
+                    "active": true,
+                    "hoveddato": "2026-07-07",
+                    "expected_stik": 9,
+                    "active_stik": 9,
+                    "langhatte": 0,
+                    "korthatte_extra": 0,
+                    "broende": 2,
+                    "notes": "Herslev Bygade | Strækninger: 4621008-4621007 (24.52 m), 4621007-4621006 (10.62 m), 4621006-4621005 (59.8 m)",
+                    "main_length_m": 94.94,
+                    "hovedledning_meter": 94.94,
+                    "bronde_total": 4,
+                    "stretches": [
+                        {
+                            "from_brond": "4621008",
+                            "to_brond": "4621007",
+                            "length_m": 24.52,
+                            "dimension": "500",
+                            "material": "BT",
+                            "stik": 2,
+                            "expected_stik": 2,
+                            "progress": {
+                                "opmaaling": 100.0,
+                                "forarbejde": 0.0,
+                                "stikopmaaling": 0.0,
+                                "hovedledning": 0.0,
+                                "stikaabning": 0.0
+                            },
+                            "notes": ""
+                        },
+                        {
+                            "from_brond": "4621007",
+                            "to_brond": "4621006",
+                            "length_m": 10.62,
+                            "dimension": "500",
+                            "material": "BT",
+                            "stik": 2,
+                            "expected_stik": 2,
+                            "progress": {
+                                "opmaaling": 100.0,
+                                "forarbejde": 0.0,
+                                "stikopmaaling": 0.0,
+                                "hovedledning": 0.0,
+                                "stikaabning": 0.0
+                            },
+                            "notes": ""
+                        },
+                        {
+                            "from_brond": "4621006",
+                            "to_brond": "4621005",
+                            "length_m": 59.8,
+                            "dimension": "500",
+                            "material": "BT",
+                            "stik": 5,
+                            "expected_stik": 5,
+                            "progress": {
+                                "opmaaling": 100.0,
+                                "forarbejde": 0.0,
+                                "stikopmaaling": 0.0,
+                                "hovedledning": 0.0,
+                                "stikaabning": 0.0
+                            },
+                            "notes": ""
+                        }
+                    ],
+                    "progress": {
+                        "opmaaling": 100,
+                        "forarbejde": 0,
+                        "stikopmaaling": 0,
+                        "hovedledning": 0,
+                        "stikaabning": 0
+                    },
+                    "c5_values": {
+                        "korthat": [
+                            "2/0",
+                            "1/0",
+                            "2/0"
+                        ],
+                        "langhat": [
+                            "2/2",
+                            "1/1",
+                            "1/1"
+                        ],
+                        "broendskud": [
+                            "0/0",
+                            "0/0",
+                            "0/0"
+                        ],
+                        "raaskud": [
+                            "0/0",
+                            "0/0",
+                            "0/0"
+                        ],
+                        "pkt_rep": [
+                            "0/0",
+                            "0/0",
+                            "0/0"
+                        ]
+                    }
+                },
+                {
+                    "id": "10",
+                    "active": true,
+                    "hoveddato": "2026-07-07",
+                    "expected_stik": 4,
+                    "active_stik": 4,
+                    "langhatte": 0,
+                    "korthatte_extra": 0,
+                    "broende": 1,
+                    "notes": "Herslev Kirkevej | Strækninger: 4621007-4621022 (76.97 m)",
+                    "main_length_m": 76.97,
+                    "hovedledning_meter": 76.97,
+                    "bronde_total": 2,
+                    "stretches": [
+                        {
+                            "from_brond": "4621007",
+                            "to_brond": "4621022",
+                            "length_m": 76.97,
+                            "dimension": "200",
+                            "material": "BT",
+                            "stik": 4,
+                            "expected_stik": 4,
+                            "progress": {
+                                "opmaaling": 100.0,
+                                "forarbejde": 100.0,
+                                "stikopmaaling": 100.0,
+                                "hovedledning": 100.0,
+                                "stikaabning": 100.0
+                            },
+                            "notes": ""
+                        }
+                    ],
+                    "progress": {
+                        "opmaaling": 100,
+                        "forarbejde": 100,
+                        "stikopmaaling": 100,
+                        "hovedledning": 100,
+                        "stikaabning": 100
+                    },
+                    "c5_values": {
+                        "korthat": [
+                            "2/0"
+                        ],
+                        "langhat": [
+                            "1/1"
+                        ],
+                        "broendskud": [
+                            "0/0"
+                        ],
+                        "raaskud": [
+                            "0/0"
+                        ],
+                        "pkt_rep": [
+                            "0/0"
+                        ]
+                    }
+                },
+                {
+                    "id": "11",
+                    "active": true,
+                    "hoveddato": "2026-07-08",
+                    "expected_stik": 3,
+                    "active_stik": 3,
+                    "langhatte": 0,
+                    "korthatte_extra": 0,
+                    "broende": 1,
+                    "notes": "Mølleåvej | Strækninger: 4621005-4623007 (59.55 m)",
+                    "main_length_m": 59.55,
+                    "hovedledning_meter": 59.55,
+                    "bronde_total": 2,
+                    "stretches": [
+                        {
+                            "from_brond": "4621005",
+                            "to_brond": "4623007",
+                            "length_m": 59.55,
+                            "dimension": "600",
+                            "material": "BT",
+                            "stik": 3,
+                            "expected_stik": 3,
+                            "progress": {
+                                "opmaaling": 100.0,
+                                "forarbejde": 100.0,
+                                "stikopmaaling": 100.0,
+                                "hovedledning": 100.0,
+                                "stikaabning": 0.0
+                            },
+                            "notes": ""
+                        }
+                    ],
+                    "progress": {
+                        "opmaaling": 100,
+                        "forarbejde": 100,
+                        "stikopmaaling": 100,
+                        "hovedledning": 100,
+                        "stikaabning": 0
+                    },
+                    "c5_values": {
+                        "korthat": [
+                            "2/0"
+                        ],
+                        "langhat": [
+                            "1/0"
+                        ],
+                        "broendskud": [
+                            "0/0"
+                        ],
+                        "raaskud": [
+                            "0/0"
+                        ],
+                        "pkt_rep": [
+                            "0/0"
+                        ]
+                    }
+                },
+                {
+                    "id": "12",
+                    "active": true,
+                    "hoveddato": "2026-07-09",
+                    "expected_stik": 11,
+                    "active_stik": 11,
+                    "langhatte": 0,
+                    "korthatte_extra": 0,
+                    "broende": 1,
+                    "notes": "Herslev Kirkevej | Strækninger: 4621005-4621021 (47.77 m), 4621021-4621017 (59.37 m) | Bemærkninger: Fritlægning af 4621021 er prblematisk. der er afsat dæksel med pæl. og det er den som er målt. | Rødder nør 4621021/ er opmålt i medstrøm med målebånd / 61.50 til midt br stik kl 2-3",
+                    "main_length_m": 107.14,
+                    "hovedledning_meter": 107.14,
+                    "bronde_total": 3,
+                    "stretches": [
+                        {
+                            "from_brond": "4621005",
+                            "to_brond": "4621021",
+                            "length_m": 47.77,
+                            "dimension": "0",
+                            "material": "BT",
+                            "stik": 4,
+                            "expected_stik": 4,
+                            "progress": {
+                                "opmaaling": 100.0,
+                                "forarbejde": 100.0,
+                                "stikopmaaling": 100.0,
+                                "hovedledning": 100.0,
+                                "stikaabning": 100.0
+                            },
+                            "notes": "Fritlægning af 4621021 er prblematisk. der er afsat dæksel med pæl. og det er den som er målt."
+                        },
+                        {
+                            "from_brond": "4621021",
+                            "to_brond": "4621017",
+                            "length_m": 59.37,
+                            "dimension": "600",
+                            "material": "BT",
+                            "stik": 7,
+                            "expected_stik": 7,
+                            "progress": {
+                                "opmaaling": 100.0,
+                                "forarbejde": 100.0,
+                                "stikopmaaling": 100.0,
+                                "hovedledning": 100.0,
+                                "stikaabning": 100.0
+                            },
+                            "notes": "Rødder nør 4621021/ er opmålt i medstrøm med målebånd / 61.50 til midt br stik kl 2-3"
+                        }
+                    ],
+                    "progress": {
+                        "opmaaling": 100,
+                        "forarbejde": 100,
+                        "stikopmaaling": 100,
+                        "hovedledning": 100,
+                        "stikaabning": 100
+                    },
+                    "c5_values": {
+                        "korthat": [
+                            "1/0",
+                            "5/0"
+                        ],
+                        "langhat": [
+                            "0/0",
+                            "3/0"
+                        ],
+                        "broendskud": [
+                            "0/0",
+                            "0/0"
+                        ],
+                        "raaskud": [
+                            "0/0",
+                            "0/0"
+                        ],
+                        "pkt_rep": [
+                            "0/0",
+                            "0/0"
+                        ]
+                    }
+                },
+                {
+                    "id": "18",
+                    "active": true,
+                    "hoveddato": "2026-07-10",
+                    "expected_stik": 0,
+                    "active_stik": 0,
+                    "langhatte": 0,
+                    "korthatte_extra": 0,
+                    "broende": 3,
+                    "notes": "Kirketoften/Herslev Bygade | Strækninger: 4612115-4612031 (28.45 m), 4612031-4612030 (36.0 m) | Bemærkninger: Overgang til PVC ved 22.8mtr | Rodklump ved 30.5mtr / skal spules godt pga grus og sten",
+                    "main_length_m": 64.45,
+                    "hovedledning_meter": 64.45,
+                    "bronde_total": 3,
+                    "stretches": [
+                        {
+                            "from_brond": "4612115",
+                            "to_brond": "4612031",
+                            "length_m": 28.45,
+                            "dimension": "200",
+                            "material": "BT",
+                            "stik": 0,
+                            "expected_stik": 0,
+                            "progress": {
+                                "opmaaling": 100.0,
+                                "forarbejde": 0.0,
+                                "stikopmaaling": 0.0,
+                                "hovedledning": 0.0,
+                                "stikaabning": 0.0
+                            },
+                            "notes": "Overgang til PVC ved 22.8mtr"
+                        },
+                        {
+                            "from_brond": "4612031",
+                            "to_brond": "4612030",
+                            "length_m": 36.0,
+                            "dimension": "200",
+                            "material": "BT",
+                            "stik": 0,
+                            "expected_stik": 0,
+                            "progress": {
+                                "opmaaling": 100.0,
+                                "forarbejde": 0.0,
+                                "stikopmaaling": 0.0,
+                                "hovedledning": 0.0,
+                                "stikaabning": 0.0
+                            },
+                            "notes": "Rodklump ved 30.5mtr / skal spules godt pga grus og sten"
+                        }
+                    ],
+                    "progress": {
+                        "opmaaling": 100,
+                        "forarbejde": 0,
+                        "stikopmaaling": 0,
+                        "hovedledning": 0,
+                        "stikaabning": 0
+                    },
+                    "c5_values": {
+                        "korthat": [
+                            "0/0",
+                            "0/0"
+                        ],
+                        "langhat": [
+                            "0/0",
+                            "0/0"
+                        ],
+                        "broendskud": [
+                            "0/0",
+                            "0/0"
+                        ],
+                        "raaskud": [
+                            "0/0",
+                            "0/0"
+                        ],
+                        "pkt_rep": [
+                            "0/0",
+                            "0/0"
+                        ]
+                    }
+                },
+                {
+                    "id": "13",
+                    "active": true,
+                    "hoveddato": "2026-08-10",
+                    "expected_stik": 7,
+                    "active_stik": 7,
+                    "langhatte": 0,
+                    "korthatte_extra": 0,
+                    "broende": 3,
+                    "notes": "Herslev Kirkevej | Strækninger: 4621017-4621015 (40.22 m), 4621015-4621014 (60.66 m) | Bemærkninger: Skal spules godt meget papir / vand på til 40 % | der er målt gennem BR 4621015",
+                    "main_length_m": 100.88,
+                    "hovedledning_meter": 100.88,
+                    "bronde_total": 3,
+                    "stretches": [
+                        {
+                            "from_brond": "4621017",
+                            "to_brond": "4621015",
+                            "length_m": 40.22,
+                            "dimension": "300",
+                            "material": "BT",
+                            "stik": 3,
+                            "expected_stik": 3,
+                            "progress": {
+                                "opmaaling": 100.0,
+                                "forarbejde": 0.0,
+                                "stikopmaaling": 0.0,
+                                "hovedledning": 0.0,
+                                "stikaabning": 0.0
+                            },
+                            "notes": "Skal spules godt meget papir / vand på til 40 %"
+                        },
+                        {
+                            "from_brond": "4621015",
+                            "to_brond": "4621014",
+                            "length_m": 60.66,
+                            "dimension": "300",
+                            "material": "BT",
+                            "stik": 4,
+                            "expected_stik": 4,
+                            "progress": {
+                                "opmaaling": 100.0,
+                                "forarbejde": 0.0,
+                                "stikopmaaling": 0.0,
+                                "hovedledning": 0.0,
+                                "stikaabning": 0.0
+                            },
+                            "notes": "der er målt gennem BR 4621015"
+                        }
+                    ],
+                    "progress": {
+                        "opmaaling": 100,
+                        "forarbejde": 0,
+                        "stikopmaaling": 0,
+                        "hovedledning": 0,
+                        "stikaabning": 0
+                    },
+                    "c5_values": {
+                        "korthat": [
+                            "3/0",
+                            "2/0"
+                        ],
+                        "langhat": [
+                            "3/3",
+                            "2/2"
+                        ],
+                        "broendskud": [
+                            "0/0",
+                            "0/0"
+                        ],
+                        "raaskud": [
+                            "0/0",
+                            "0/0"
+                        ],
+                        "pkt_rep": [
+                            "0/0",
+                            "0/0"
+                        ]
+                    }
+                },
+                {
+                    "id": "14",
+                    "active": true,
+                    "hoveddato": "2026-08-10",
+                    "expected_stik": 3,
+                    "active_stik": 3,
+                    "langhatte": 0,
+                    "korthatte_extra": 0,
+                    "broende": 1,
+                    "notes": "Herslev Kirkevej | Strækninger: 4621015-4621016 (39.1 m)",
+                    "main_length_m": 39.1,
+                    "hovedledning_meter": 39.1,
+                    "bronde_total": 2,
+                    "stretches": [
+                        {
+                            "from_brond": "4621015",
+                            "to_brond": "4621016",
+                            "length_m": 39.1,
+                            "dimension": "200",
+                            "material": "BT",
+                            "stik": 3,
+                            "expected_stik": 3,
+                            "progress": {
+                                "opmaaling": 100.0,
+                                "forarbejde": 0.0,
+                                "stikopmaaling": 0.0,
+                                "hovedledning": 0.0,
+                                "stikaabning": 0.0
+                            },
+                            "notes": ""
+                        }
+                    ],
+                    "progress": {
+                        "opmaaling": 100,
+                        "forarbejde": 0,
+                        "stikopmaaling": 0,
+                        "hovedledning": 0,
+                        "stikaabning": 0
+                    },
+                    "c5_values": {
+                        "korthat": [
+                            "1/0"
+                        ],
+                        "langhat": [
+                            "1/1"
+                        ],
+                        "broendskud": [
+                            "0/0"
+                        ],
+                        "raaskud": [
+                            "0/0"
+                        ],
+                        "pkt_rep": [
+                            "0/0"
+                        ]
+                    }
+                },
+                {
+                    "id": "15",
+                    "active": true,
+                    "hoveddato": "2026-08-11",
+                    "expected_stik": 5,
+                    "active_stik": 5,
+                    "langhatte": 0,
+                    "korthatte_extra": 0,
+                    "broende": 1,
+                    "notes": "Herslev Kirkevej | Strækninger: 4621017-4621018 (39.59 m), 4621018-4621019 (39.09 m) | Bemærkninger: skal spules",
+                    "main_length_m": 78.68,
+                    "hovedledning_meter": 78.68,
+                    "bronde_total": 3,
+                    "stretches": [
+                        {
+                            "from_brond": "4621017",
+                            "to_brond": "4621018",
+                            "length_m": 39.59,
+                            "dimension": "600",
+                            "material": "BT",
+                            "stik": 2,
+                            "expected_stik": 2,
+                            "progress": {
+                                "opmaaling": 100.0,
+                                "forarbejde": 0.0,
+                                "stikopmaaling": 0.0,
+                                "hovedledning": 0.0,
+                                "stikaabning": 0.0
+                            },
+                            "notes": "skal spules"
+                        },
+                        {
+                            "from_brond": "4621018",
+                            "to_brond": "4621019",
+                            "length_m": 39.09,
+                            "dimension": "600",
+                            "material": "BT",
+                            "stik": 3,
+                            "expected_stik": 3,
+                            "progress": {
+                                "opmaaling": 100.0,
+                                "forarbejde": 100.0,
+                                "stikopmaaling": 100.0,
+                                "hovedledning": 0.0,
+                                "stikaabning": 0.0
+                            },
+                            "notes": ""
+                        }
+                    ],
+                    "progress": {
+                        "opmaaling": 100,
+                        "forarbejde": 50,
+                        "stikopmaaling": 50,
+                        "hovedledning": 0,
+                        "stikaabning": 0
+                    },
+                    "c5_values": {
+                        "korthat": [
+                            "2/0",
+                            "0/0"
+                        ],
+                        "langhat": [
+                            "1/0",
+                            "0/0"
+                        ],
+                        "broendskud": [
+                            "0/0",
+                            "1/1"
+                        ],
+                        "raaskud": [
+                            "0/0",
+                            "0/0"
+                        ],
+                        "pkt_rep": [
+                            "0/0",
+                            "0/0"
+                        ]
+                    }
+                },
+                {
+                    "id": "16",
+                    "active": true,
+                    "hoveddato": "2026-08-12",
+                    "expected_stik": 4,
+                    "active_stik": 4,
+                    "langhatte": 0,
+                    "korthatte_extra": 0,
+                    "broende": 2,
+                    "notes": "Herslev Kirkevej | Strækninger: 4621019-4621020 (29.22 m)",
+                    "main_length_m": 29.22,
+                    "hovedledning_meter": 29.22,
+                    "bronde_total": 2,
+                    "stretches": [
+                        {
+                            "from_brond": "4621019",
+                            "to_brond": "4621020",
+                            "length_m": 29.22,
+                            "dimension": "200",
+                            "material": "BT",
+                            "stik": 4,
+                            "expected_stik": 4,
+                            "progress": {
+                                "opmaaling": 100.0,
+                                "forarbejde": 0.0,
+                                "stikopmaaling": 0.0,
+                                "hovedledning": 0.0,
+                                "stikaabning": 0.0
+                            },
+                            "notes": ""
+                        }
+                    ],
+                    "progress": {
+                        "opmaaling": 100,
+                        "forarbejde": 0,
+                        "stikopmaaling": 0,
+                        "hovedledning": 0,
+                        "stikaabning": 0
+                    },
+                    "c5_values": {
+                        "korthat": [
+                            "2/0"
+                        ],
+                        "langhat": [
+                            "2/0"
+                        ],
+                        "broendskud": [
+                            "1/1"
+                        ],
+                        "raaskud": [
+                            "0/0"
+                        ],
+                        "pkt_rep": [
+                            "0/0"
+                        ]
+                    }
+                },
+                {
+                    "id": "17",
+                    "active": true,
+                    "hoveddato": "2026-08-12",
+                    "expected_stik": 3,
+                    "active_stik": 3,
+                    "langhatte": 0,
+                    "korthatte_extra": 0,
+                    "broende": 1,
+                    "notes": "Kirketoften | Strækninger: 4612038-4612034 (29.08 m), 4612034-4612032 (38.03 m), 4612032-4612031 (22.74 m) | Bemærkninger: hvid og stor  50 % vand ved BR 4612032",
+                    "main_length_m": 89.85,
+                    "hovedledning_meter": 89.85,
+                    "bronde_total": 4,
+                    "stretches": [
+                        {
+                            "from_brond": "4612038",
+                            "to_brond": "4612034",
+                            "length_m": 29.08,
+                            "dimension": "200",
+                            "material": "BT",
+                            "stik": 0,
+                            "expected_stik": 0,
+                            "progress": {
+                                "opmaaling": 100.0,
+                                "forarbejde": 0.0,
+                                "stikopmaaling": 0.0,
+                                "hovedledning": 0.0,
+                                "stikaabning": 0.0
+                            },
+                            "notes": ""
+                        },
+                        {
+                            "from_brond": "4612034",
+                            "to_brond": "4612032",
+                            "length_m": 38.03,
+                            "dimension": "200",
+                            "material": "BT",
+                            "stik": 1,
+                            "expected_stik": 1,
+                            "progress": {
+                                "opmaaling": 100.0,
+                                "forarbejde": 0.0,
+                                "stikopmaaling": 0.0,
+                                "hovedledning": 0.0,
+                                "stikaabning": 0.0
+                            },
+                            "notes": ""
+                        },
+                        {
+                            "from_brond": "4612032",
+                            "to_brond": "4612031",
+                            "length_m": 22.74,
+                            "dimension": "200",
+                            "material": "BT",
+                            "stik": 2,
+                            "expected_stik": 2,
+                            "progress": {
+                                "opmaaling": 100.0,
+                                "forarbejde": 0.0,
+                                "stikopmaaling": 0.0,
+                                "hovedledning": 0.0,
+                                "stikaabning": 0.0
+                            },
+                            "notes": "hvid og stor  50 % vand ved BR 4612032"
+                        }
+                    ],
+                    "progress": {
+                        "opmaaling": 100,
+                        "forarbejde": 0,
+                        "stikopmaaling": 0,
+                        "hovedledning": 0,
+                        "stikaabning": 0
+                    },
+                    "c5_values": {
+                        "korthat": [
+                            "0/0",
+                            "0/0",
+                            "1/0"
+                        ],
+                        "langhat": [
+                            "0/0",
+                            "0/0",
+                            "1/0"
+                        ],
+                        "broendskud": [
+                            "0/0",
+                            "0/0",
+                            "0/0"
+                        ],
+                        "raaskud": [
+                            "0/0",
+                            "0/0",
+                            "0/0"
+                        ],
+                        "pkt_rep": [
+                            "0/0",
+                            "0/0",
+                            "0/0"
+                        ]
+                    }
+                }
+            ],
+            "task_assignments": {
+                "hovedledning": [
+                    {
+                        "team": "filt_oest",
+                        "installations": [
+                            "2",
+                            "3",
+                            "4",
+                            "5",
+                            "6",
+                            "7",
+                            "8",
+                            "9",
+                            "10",
+                            "11",
+                            "12",
+                            "13",
+                            "14",
+                            "15",
+                            "16",
+                            "17",
+                            "18"
+                        ]
+                    }
+                ],
+                "stikforberedelse": [
+                    {
+                        "team": "tv22oe_dtvk",
+                        "installations": [
+                            "2",
+                            "3",
+                            "4",
+                            "5",
+                            "6",
+                            "7",
+                            "8",
+                            "9",
+                            "10",
+                            "11",
+                            "12",
+                            "13",
+                            "14",
+                            "15",
+                            "16",
+                            "17",
+                            "18"
+                        ]
+                    }
+                ],
+                "stik": [
+                    {
+                        "team": "stik2",
+                        "installations": [
+                            "2",
+                            "3",
+                            "4",
+                            "5",
+                            "6",
+                            "7",
+                            "8",
+                            "9",
+                            "10",
+                            "11",
+                            "12",
+                            "13",
+                            "14",
+                            "15",
+                            "16",
+                            "17",
+                            "18"
+                        ]
+                    }
+                ],
+                "kontrol": [
+                    {
+                        "team": "tv22oe_dtvk",
+                        "installations": [
+                            "2",
+                            "3",
+                            "4",
+                            "5",
+                            "6",
+                            "7",
+                            "8",
+                            "9",
+                            "10",
+                            "11",
+                            "12",
+                            "13",
+                            "14",
+                            "15",
+                            "16",
+                            "17",
+                            "18"
+                        ]
+                    }
+                ],
+                "korthat": [
+                    {
+                        "team": "tv11",
+                        "installations": [
+                            "2",
+                            "3",
+                            "4",
+                            "5",
+                            "6",
+                            "7",
+                            "8",
+                            "9",
+                            "10",
+                            "11",
+                            "12",
+                            "13",
+                            "14",
+                            "15",
+                            "16",
+                            "17",
+                            "18"
+                        ]
+                    }
+                ],
+                "broend": [
+                    {
+                        "team": "broend2",
+                        "installations": [
+                            "1",
+                            "2",
+                            "3",
+                            "4",
+                            "5",
+                            "6",
+                            "7",
+                            "8",
+                            "9",
+                            "10",
+                            "11",
+                            "12",
+                            "13",
+                            "14",
+                            "15",
+                            "16",
+                            "17",
+                            "18",
+                            "19",
+                            "20"
+                        ]
+                    }
+                ],
+                "dtvk": [
+                    {
+                        "team": "tv10_dtvk",
+                        "installations": [
+                            "1",
+                            "2",
+                            "3",
+                            "4",
+                            "5",
+                            "6",
+                            "7",
+                            "8",
+                            "9",
+                            "10",
+                            "11",
+                            "12",
+                            "13",
+                            "14",
+                            "15",
+                            "16",
+                            "17",
+                            "18",
+                            "19",
+                            "20"
+                        ]
+                    }
+                ]
             }
         }
     ]
