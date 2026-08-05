@@ -12,6 +12,13 @@ from projektstyring.backend.db_models.installation_detail import (
 )
 from projektstyring.backend.db_models.project import Project
 from projektstyring.backend.db_models.project_task import ProjectTask
+from projektstyring.backend.db_models.planning_scenario import (
+    PlanningScenario,
+    ScenarioActivity,
+    ScenarioChange,
+    ScenarioProject,
+    ScenarioRevision,
+)
 from projektstyring.backend.db_models.task_assignment import TaskAssignment
 from projektstyring.backend.db_models.task_quantity import TaskQuantity
 from projektstyring.backend.db_models.task_type import TaskType
@@ -25,7 +32,7 @@ from projektstyring.backend.db_models.work_calendar import (
     WorkCalendar,
     WorkCalendarRule,
 )
-
+from projektstyring.backend.db_models.project_task import ProjectTask
 
 __all__ = [
     "CalendarException",
@@ -47,4 +54,10 @@ __all__ = [
     "DecisionChange",
     "ProjectSnapshot",
     "SnapshotPlanActivity",
+
+    "PlanningScenario",
+    "ScenarioProject",
+    "ScenarioRevision",
+    "ScenarioActivity",
+    "ScenarioChange",
 ]

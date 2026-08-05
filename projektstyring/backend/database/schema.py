@@ -1,5 +1,7 @@
 from projektstyring.backend.database.connection import Base, engine
-from projektstyring.backend.db_models.conversation import ConversationState
+
+# Importerer alle database-modeller, så SQLAlchemy registrerer dem.
+import projektstyring.backend.db_models
 
 
 def create_tables():
