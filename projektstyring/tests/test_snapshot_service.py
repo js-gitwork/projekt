@@ -1,59 +1,65 @@
+from projektstyring.backend.project_repository import (
+    ProjectRepository,
+)
 from projektstyring.backend.snapshot_service import (
-    add_snapshot,
     create_snapshot,
     get_latest_snapshot,
+    get_snapshot,
+    list_snapshots,
 )
 
 
-def make_project():
-    return {
-        "id": "VTEST",
-        "status": "active",
-        "installations": [{"id": 1, "active_stik": 4}],
-        "task_assignments": {"hovedledning": ["filt_oest"]},
-    }
+PROJECT_ID = "V999999"
 
 
-def test_create_snapshot_copies_project_state():
-    project = make_project()
+def test_create_and_get_snapshot():
+    project = ProjectRepository().load_project(
+        PROJECT_ID
+    )
 
-    snapshot = create_snapshot(project, reason="before_plan_change")
+    created = create_snapshot(
+        project_id=PROJECT_ID,
+        project_state=project,
+        reason="Testsnapshot",
+        snapshot_type="test",
+        phase="standalone",
+    )
 
-    assert snapshot["project_id"] == "VTEST"
-    assert snapshot["reason"] == "before_plan_change"
-    assert snapshot["status"] == "active"
-    assert snapshot["installations"][0]["active_stik"] == 4
+    loaded = get_snapshot(created["id"])
 
-
-def test_create_snapshot_uses_deepcopy():
-    project = make_project()
-
-    snapshot = create_snapshot(project)
-
-    project["installations"][0]["active_stik"] = 9
-
-    assert snapshot["installations"][0]["active_stik"] == 4
-
-
-def test_add_snapshot():
-    project = make_project()
-
-    add_snapshot(project, reason="before_change")
-
-    assert len(project["snapshots"]) == 1
-    assert project["snapshots"][0]["reason"] == "before_change"
+    assert loaded is not None
+    assert loaded["id"] == created["id"]
+    assert loaded["project_id"] == PROJECT_ID
+    assert loaded["reason"] == "Testsnapshot"
+    assert loaded["project_state"]["id"] == PROJECT_ID
 
 
 def test_get_latest_snapshot():
-    project = make_project()
+    project = ProjectRepository().load_project(
+        PROJECT_ID
+    )
 
-    add_snapshot(project, reason="first")
-    add_snapshot(project, reason="second")
+    created = create_snapshot(
+        project_id=PROJECT_ID,
+        project_state=project,
+        reason="Seneste testsnapshot",
+        snapshot_type="test_latest",
+        phase="standalone",
+    )
 
-    latest = get_latest_snapshot(project)
+    latest = get_latest_snapshot(
+        PROJECT_ID,
+        snapshot_type="test_latest",
+    )
 
-    assert latest["reason"] == "second"
+    assert latest is not None
+    assert latest["id"] == created["id"]
 
 
-def test_get_latest_snapshot_returns_none_when_empty():
-    assert get_latest_snapshot({}) is None
+def test_list_snapshots():
+    snapshots = list_snapshots(PROJECT_ID)
+
+    assert isinstance(snapshots, list)
+
+    for snapshot in snapshots:
+        assert snapshot["project_id"] == PROJECT_ID

@@ -10,6 +10,7 @@ from sqlalchemy.orm import selectinload
 from projektstyring.backend.database.connection import SessionLocal
 from projektstyring.backend.database.import_project import import_project
 from projektstyring.backend.db_models import (
+    Decision,
     Installation,
     Project,
     ProjectTask,
@@ -94,7 +95,25 @@ class DatabaseProjectRepository:
                     f"Projektet '{project_id}' findes ikke."
                 )
 
-            project_data = self._project_to_dict(project)
+            committed_decisions = list(
+                session.scalars(
+                    select(Decision)
+                    .where(
+                        Decision.project_id == project_id
+                    )
+                    .where(
+                        Decision.status == "committed"
+                    )
+                    .order_by(
+                        Decision.id.asc()
+                    )
+                )
+            )
+
+            project_data = self._project_to_dict(
+                project,
+                committed_decisions=committed_decisions,
+            )
 
         return ensure_survey(project_data)
 
@@ -262,6 +281,7 @@ class DatabaseProjectRepository:
     def _project_to_dict(
         self,
         project: Project,
+        committed_decisions: list[Decision] | None = None,
     ) -> dict[str, Any]:
         installations = sorted(
             project.installations,
@@ -354,6 +374,33 @@ class DatabaseProjectRepository:
                 )
             ]
 
+        project_rules = []
+
+        for decision in committed_decisions or []:
+            metadata = decision.metadata_data or {}
+            rule = metadata.get("rule")
+
+            if isinstance(rule, dict):
+                project_rules.append(rule)
+                continue
+
+            project_rules.append(
+                {
+                    "type": decision.decision_type,
+                    "approved": True,
+                    "approved_by": decision.approved_by,
+                    "approved_at": (
+                        decision.approved_at.isoformat()
+                        if decision.approved_at
+                        else None
+                    ),
+                    "source": decision.trigger,
+                    "project_id": decision.project_id,
+                    "reason": decision.reason,
+                    "change": decision.change_set or {},
+                }
+            )
+
         return {
             "id": project.id,
             "name": project.name,
@@ -366,6 +413,7 @@ class DatabaseProjectRepository:
             "notes": project.notes,
             "installations": installation_data,
             "task_assignments": formatted_assignments,
+            "project_rules": project_rules,
         }
 
     @staticmethod

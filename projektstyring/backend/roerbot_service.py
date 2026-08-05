@@ -1,13 +1,18 @@
 import json
 import re
+from datetime import date
 from pathlib import Path
 
 from core.ai_assistent import ask_mistral, ask_mistral_fast
 from projektstyring.backend.assistant_tools import run_tool
 from projektstyring.backend.repositories.conversation_state_repository import (
     get_active_conversation,
+    save_active_conversation,
 )
 from projektstyring.backend.conversation_router import route_conversation
+from projektstyring.backend.roerbot_context import build_context
+from projektstyring.backend.roerbot_interpreter import interpret_question
+from projektstyring.backend.roerbot_reporter import create_report
 
 
 BEGREBER_PATH = Path("projektstyring/data/roerbot_begreber.json")
@@ -31,12 +36,29 @@ def extract_project_id(text):
 
 
 def extract_date(text):
-    match = re.search(r"\b\d{4}-\d{2}-\d{2}\b", text)
+    iso_match = re.search(
+        r"\b(\d{4})-(\d{2})-(\d{2})\b",
+        text,
+    )
 
-    if not match:
+    if iso_match:
+        return iso_match.group(0)
+
+    danish_match = re.search(
+        r"\b(\d{1,2})[./-](\d{1,2})[./-](\d{4})\b",
+        text,
+    )
+
+    if not danish_match:
         return None
 
-    return match.group(0)
+    day, month, year = danish_match.groups()
+
+    return (
+        f"{int(year):04d}-"
+        f"{int(month):02d}-"
+        f"{int(day):02d}"
+    )
 
 
 def format_projects(projects):
@@ -321,7 +343,6 @@ def normalize_project_status(text, raw_status=None):
 
     return None
 
-
 def choose_tool(question):
     active_state = get_active_conversation("default")
 
@@ -342,7 +363,7 @@ def choose_tool(question):
                 "installation_id": installation_id,
             },
         }
-
+        
     if active_state and active_state.workflow == "project_creation":
         return {
             "tool": "analyze_project_creation_request",
@@ -405,13 +426,32 @@ def choose_tool(question):
         },
         {
             "tool": "general_answer",
-            "description": "Bruges til faglige spørgsmål, forklaringer eller spørgsmål hvor der ikke findes et sikkert tool.",
+            "description": (
+                "Bruges til faglige spørgsmål, forklaringer eller "
+                "spørgsmål hvor der ikke findes et sikkert tool."
+            ),
             "args": {},
         },
     ]
 
     prompt = f"""
 Du skal vælge hvilket tool Roerbot skal bruge.
+
+Aktuel dato er:
+{date.today().isoformat()}
+
+Alle relative datoer skal fortolkes ud fra denne aktuelle dato.
+
+Eksempler:
+- "i år" betyder {date.today().year}
+- "næste år" betyder {date.today().year + 1}
+- "sidste år" betyder {date.today().year - 1}
+
+Når brugeren angiver en periode i stedet for en præcis dato:
+- vælg en konkret, rimelig startdato i perioden
+- brug altid det korrekte år ud fra den aktuelle dato
+- normalisér resultatet til YYYY-MM-DD
+- opfind aldrig et andet år end det, brugerens formulering tilsiger
 
 Returnér KUN gyldig JSON.
 Ingen forklaring.
@@ -428,6 +468,8 @@ Regler:
 - Vælg general_answer hvis intet tool passer sikkert.
 - Opfind aldrig projekt-id.
 - Opfind aldrig datoer.
+- Kontrollér altid, at relative årstal stemmer med den aktuelle dato ovenfor.
+- Hvis brugeren skriver "i år", må new_start_date kun ligge i {date.today().year}.
 
 Spørgsmål:
 {question}
@@ -441,6 +483,8 @@ Svarformat:
 
     raw_answer = ask_mistral_fast(prompt)
 
+    print("ROUTER RAW ANSWER:", raw_answer)
+
     try:
         return json.loads(raw_answer)
     except json.JSONDecodeError:
@@ -448,36 +492,15 @@ Svarformat:
             "tool": "general_answer",
             "args": {},
         }
-
-
-def build_general_prompt(question):
-    roerbot_begreber = load_roerbot_begreber()
-    projects = run_tool("get_all_projects")
-
-    return f"""
-Du er Roerbot, global projektassistent for strømpeforingsprojekter.
-
-Vigtige regler:
-- Du må ikke opfinde projektdata.
-- Hvis spørgsmålet kræver et bestemt projekt, og brugeren ikke har angivet projekt-id, skal du bede om projekt-id.
-- Ved konkrete tal skal du kun bruge projektdata.
-- Ved faglige begreber må du bruge virksomhedens begreber og generel faglig viden.
-- Svar kort og præcist.
-
-Virksomhedens begreber:
-{json.dumps(roerbot_begreber, indent=2, ensure_ascii=False)}
-
-Tilgængelige projekter:
-{json.dumps(projects, indent=2, ensure_ascii=False)}
-
-Spørgsmål:
-{question}
-"""
-
-
 def ask_roerbot(question):
-    question = question.strip()
+    """
+    Roerbots hovedindgang.
 
+    Afgør først om spørgsmålet skal håndteres af et internt tool.
+    Hvis ikke, sendes spørgsmålet videre til Mistral.
+    """
+
+    question = question.strip()
     if not question:
         return {
             "answer": "Du skal skrive et spørgsmål."
@@ -495,7 +518,41 @@ def ask_roerbot(question):
             "answer": result["answer"]
         }
 
+    # ------------------------------------------------------------
+    # Ny rapportkæde
+    # ------------------------------------------------------------
+    #
+    # AI fortolker brugerens hensigt og beskriver, hvilke data der
+    # er nødvendige. Python henter derefter de faktiske systemdata,
+    # hvorefter AI formulerer rapporten.
+    #
+    # Beslutninger og ændringer fortsætter foreløbig gennem den
+    # eksisterende, deterministiske routing nedenfor.
+    interpretation = interpret_question(question)
+
+    if interpretation.get("intent") == "report":
+        context = build_context(
+            interpretation
+        )
+
+        report = create_report(
+            question=question,
+            interpretation=interpretation,
+            context=context,
+        )
+
+        return {
+            "answer": report["answer"]
+        }
+
+    # ------------------------------------------------------------
+    # Eksisterende routing
+    # ------------------------------------------------------------
+    #
+    # Bruges fortsat til projektoprettelse, beslutninger,
+    # startdatosimulationer, statusændringer og generelle spørgsmål.
     tool_call = choose_tool(question)
+    print("ROUTER TOOL CALL:", tool_call)
     tool_name = tool_call.get("tool")
     args = tool_call.get("args", {})
 
@@ -594,18 +651,65 @@ def ask_roerbot(question):
                 "answer": "Jeg mangler ny startdato. Brug formatet YYYY-MM-DD."
             }
 
-        result = run_tool(
-            "simulate_project_start_change",
-            {
-                "project_id": project_id,
-                "new_start_date": new_start_date,
+        try:
+            normalized_start_date = date.fromisoformat(
+                str(new_start_date)
+            ).isoformat()
+        except (TypeError, ValueError):
+            return {
+                "answer": (
+                    "Jeg forstod ønsket om at ændre startdatoen, "
+                    "men kunne ikke normalisere datoen sikkert.\n\n"
+                    "Prøv igen med datoen skrevet som fx "
+                    "2026-09-21."
+                )
+            }
+
+        try:
+            result = run_tool(
+                "simulate_project_start_change",
+                {
+                    "project_id": project_id,
+                    "new_start_date": normalized_start_date,
+                },
+            )
+        except Exception as error:
+            return {
+                "answer": (
+                    "Jeg kunne ikke beregne startdatoscenariet. "
+                    "Ingen ændringer er gemt.\n\n"
+                    f"Teknisk fejl: {error}"
+                )
+            }
+
+        simulation = result.get("simulation")
+
+        if not simulation:
+            return {
+                "answer": (
+                    "Jeg kunne ikke oprette et gyldigt "
+                    "startdatoscenario."
+                )
+            }
+
+        save_active_conversation(
+            workflow="pending_decision_approval",
+            data={
+                "simulation": simulation,
+                "original_question": question,
             },
+            user_key="default",
         )
 
         return {
-            "answer": result["answer"]
+            "answer": (
+                result["answer"]
+                + "\n\n"
+                "Scenarioet er ikke gemt. "
+                "Skriv fx “Godkendt af Jacob” "
+                "for at gennemføre ændringen."
+            )
         }
-
     if tool_name == "update_project_status":
         project_id = (
             args.get("project_id")

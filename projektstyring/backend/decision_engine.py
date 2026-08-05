@@ -102,6 +102,7 @@ def simulate_project_start_change(project_id, new_start_date):
     simulation = {
         "project_id": project_id,
         "change": {
+            "type": "project_start_change",
             "field": "start_date",
             "from": original_project.get("start_date"),
             "to": new_start_date,

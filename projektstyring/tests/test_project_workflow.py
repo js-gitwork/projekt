@@ -37,13 +37,12 @@ def test_requires_installations():
     with pytest.raises(ValueError):
         complete_survey(project, 0)
 
-def test_start_project_creates_baseline():
+def test_start_project_sets_active_status():
     project = make_project()
     complete_survey(project, 3)
 
-    start_project(project)
+    result = start_project(project)
 
-    assert project["status"] == "active"
-    assert project["baseline"]["project_id"] == "VTEST"
-    assert len(project["baseline"]["installations"]) == 3
+    assert result["status"] == "active"
+    assert result["deviations"] == []
     assert project["deviations"] == []

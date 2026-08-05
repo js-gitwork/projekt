@@ -45,7 +45,10 @@ def build_installations_from_project(project: dict) -> list[Installation]:
 
     installations = []
 
-    for index, item in enumerate(project.get("installations", []), start=1):
+    for index, item in enumerate(
+        project.get("installations", []),
+        start=1,
+    ):
         if not item.get("active", True):
             continue
 

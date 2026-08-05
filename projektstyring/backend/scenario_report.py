@@ -30,6 +30,14 @@ def group_changes_by_team(changes):
 
 
 def summarize_team_changes(changes):
+    """
+    Opsummerer påvirkningen pr. hold.
+
+    days_moved angiver den største forskydning for én aktivitet.
+    Forskydninger må ikke lægges sammen på tværs af aktiviteter,
+    da det giver et misvisende samlet antal dage.
+    """
+
     summary = {}
 
     for change in changes:
@@ -48,12 +56,22 @@ def summarize_team_changes(changes):
 
         if before and after:
             try:
-                before_date = date.fromisoformat(before)
-                after_date = date.fromisoformat(after)
+                before_date = date.fromisoformat(
+                    before
+                )
+                after_date = date.fromisoformat(
+                    after
+                )
 
-                summary[team]["days_moved"] += abs(
+                activity_days_moved = abs(
                     (after_date - before_date).days
                 )
+
+                summary[team]["days_moved"] = max(
+                    summary[team]["days_moved"],
+                    activity_days_moved,
+                )
+
             except ValueError:
                 pass
 

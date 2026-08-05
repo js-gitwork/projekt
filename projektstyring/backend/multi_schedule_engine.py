@@ -56,7 +56,7 @@ class MultiScheduleEngine:
                     )
                     continue
 
-                # Hovedledning er låst til sin planlagte dato
+                # Hovedledning er låst til sin planlagte dato.
                 if aktivitet.type == "hovedledning":
                     if not aktivitet.start_dato:
                         result.add_rest_work(
@@ -68,7 +68,10 @@ class MultiScheduleEngine:
                         )
                         result.add_warning(
                             installation_id=aktivitet.installation_id,
-                            message=f"Hovedledning mangler låst dato på installation {aktivitet.installation_id}",
+                            message=(
+                                "Hovedledning mangler låst dato på "
+                                f"installation {aktivitet.installation_id}"
+                            ),
                             severity="error",
                         )
                         continue
@@ -77,6 +80,42 @@ class MultiScheduleEngine:
                     self.hold_available_from[aktivitet.hold] = (
                         aktivitet.slut_dato + timedelta(days=1)
                     )
+                    sidste_slut = aktivitet.slut_dato
+                    result.add_activity(aktivitet)
+                    continue
+                    hovedledning_start = (
+                        self._næste_arbejdsdag(
+                            hovedledning_start,
+                            hold,
+                        )
+                    )
+
+                    aktivitet.start_dato = hovedledning_start
+
+                    varighed = self.capacity.beregn_varighed(
+                        aktivitet
+                    )
+
+                    # En oprettet hovedledningsaktivitet skal
+                    # mindst optage én arbejdsdag, også når der
+                    # endnu ikke er registreret en stræklængde.
+                    varighed = max(1, varighed)
+
+                    aktivitet.slut_dato = (
+                        self._beregn_slutdato(
+                            start=aktivitet.start_dato,
+                            varighed=varighed,
+                            hold=hold,
+                        )
+                    )
+
+                    self.hold_available_from[
+                        aktivitet.hold
+                    ] = (
+                        aktivitet.slut_dato
+                        + timedelta(days=1)
+                    )
+
                     sidste_slut = aktivitet.slut_dato
                     result.add_activity(aktivitet)
                     continue

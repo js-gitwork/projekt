@@ -30,7 +30,10 @@ from projektstyring.backend.task_assignments import (
     empty_task_assignments,
     ensure_task_assignments,
 )
-from projektstyring.backend.snapshot_service import add_snapshot
+from projektstyring.backend.snapshot_service import (
+    create_snapshot,
+    get_latest_snapshot,
+)
 
 app = FastAPI()
 
@@ -305,10 +308,26 @@ def build_progress_report(project, activities):
                     progress,
                 )
 
+                if percent is None:
+                    complete = False
+
+                    if (
+                        activity.slut_dato
+                        and activity.slut_dato < today
+                    ):
+                        overdue = True
+                    else:
+                        in_progress = True
+
+                    continue
+
                 if percent < 100:
                     complete = False
 
-                    if activity.slut_dato and activity.slut_dato < today:
+                    if (
+                        activity.slut_dato
+                        and activity.slut_dato < today
+                    ):
                         overdue = True
                     else:
                         in_progress = True
@@ -424,6 +443,23 @@ def project_detail(request: Request, project_id: str):
 def start_project_route(project_id: str):
     project = repo.load_project(project_id)
 
+    baseline = get_latest_snapshot(
+        project_id,
+        snapshot_type="baseline",
+    )
+
+    if baseline is None:
+        create_snapshot(
+            project_id=project_id,
+            project_state=project,
+            reason="Projekt startet",
+            snapshot_type="baseline",
+            phase="baseline",
+            metadata={
+                "source": "start_project_route",
+            },
+        )
+
     project = start_project(project)
 
     repo.save_project(project)
@@ -439,9 +475,15 @@ async def save_project_detail(request: Request, project_id: str):
     form = await request.form()
 
     if project.get("status") == "active":
-        project = add_snapshot(
-            project,
-            reason="before_project_save",
+        create_snapshot(
+            project_id=project_id,
+            project_state=project,
+            reason="Før manuel ændring af aktivt projekt",
+            snapshot_type="manual_save",
+            phase="before",
+            metadata={
+                "source": "project_detail_form",
+            },
         )
 
     project["customer"] = form.get("customer", "").strip()
