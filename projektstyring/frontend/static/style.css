@@ -482,3 +482,249 @@ body {
     color: white;
     cursor: pointer;
 }
+
+/* ------------------------------------------------------------
+   Planlægningscenter
+------------------------------------------------------------ */
+
+.planning-page {
+    width: 100%;
+}
+
+.planning-toolbar {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 20px;
+    margin-bottom: 16px;
+}
+
+.planning-toolbar h2 {
+    margin-top: 0;
+    margin-bottom: 4px;
+}
+
+.planning-source {
+    margin: 0;
+    color: #555;
+}
+
+.planning-period-form {
+    display: flex;
+    align-items: flex-end;
+    gap: 10px;
+    flex-wrap: wrap;
+}
+
+.planning-period-form label {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    font-weight: bold;
+}
+
+.planning-period-form input {
+    width: 90px;
+}
+
+.planning-summary {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    margin-bottom: 12px;
+}
+
+.planning-summary span {
+    padding: 6px 10px;
+    background: #eef2f5;
+    border: 1px solid #d5dce2;
+    border-radius: 4px;
+}
+
+.planning-board-scroll {
+    width: 100%;
+    overflow: auto;
+    border: 2px solid #7f8992;
+    background: #fff;
+}
+
+.planning-board {
+    width: max-content;
+    min-width: 100%;
+    border-collapse: collapse;
+    table-layout: fixed;
+    font-size: 0.78rem;
+}
+
+.planning-board th,
+.planning-board td {
+    box-sizing: border-box;
+    border: 1px solid #7f8992;
+}
+
+.planning-board thead th {
+    position: sticky;
+    top: 0;
+    z-index: 4;
+    height: 70px;
+    padding: 4px;
+    background: #dfe5ea;
+    text-align: center;
+    vertical-align: top;
+}
+
+.planning-day-column,
+.planning-day-cell {
+    position: sticky;
+    left: 0;
+    z-index: 3;
+    width: 105px;
+    min-width: 105px;
+    max-width: 105px;
+    background: #edf1f4;
+}
+
+.planning-board thead .planning-day-column {
+    z-index: 5;
+}
+
+.planning-team-header {
+    width: 145px;
+    min-width: 145px;
+    max-width: 145px;
+    height: 70px;
+    padding: 4px;
+    overflow: hidden;
+}
+
+.planning-team-header strong,
+.planning-team-header small {
+    display: block;
+}
+
+.planning-team-header strong {
+    min-height: 32px;
+    line-height: 1.15;
+}
+
+.planning-team-header small {
+    margin-top: 3px;
+    font-size: 0.68rem;
+    font-weight: normal;
+    color: #59636d;
+}
+
+.planning-day-cell {
+    height: 112px;
+    padding: 5px;
+    text-align: left;
+    vertical-align: top;
+}
+
+.planning-day-cell strong,
+.planning-day-cell small {
+    display: block;
+}
+
+.planning-day-cell small {
+    margin-top: 3px;
+    font-size: 0.68rem;
+    font-weight: normal;
+}
+
+.planning-cell {
+    width: 145px;
+    min-width: 145px;
+    max-width: 145px;
+    height: 112px;
+    min-height: 112px;
+    max-height: 112px;
+    padding: 2px;
+    vertical-align: top;
+    overflow: hidden;
+    background:
+        linear-gradient(
+            to bottom,
+            transparent 27px,
+            #d4d9de 28px
+        );
+    background-size: 100% 28px;
+}
+
+.planning-cell {
+    width: 180px;
+    min-width: 180px;
+    height: 120px;
+    padding: 4px;
+    vertical-align: top;
+    background: #fff;
+}
+
+.planning-weekend-row .planning-cell,
+.planning-weekend-row .planning-day-cell {
+    background: #f7f7f7;
+}
+
+.planning-activity {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    margin-bottom: 5px;
+    padding: 6px;
+    border: 1px solid #8ba2b6;
+    border-radius: 4px;
+    background: #edf5fb;
+    font-size: 0.85rem;
+    line-height: 1.25;
+    overflow-wrap: anywhere;
+}
+
+.planning-activity strong {
+    font-size: 0.9rem;
+}
+
+.planning-activity span,
+.planning-activity small {
+    display: block;
+}
+
+.planning-change-reassigned,
+.planning-change-modified {
+    border-style: dashed;
+}
+
+.planning-activity-locked {
+    opacity: 0.7;
+    cursor: not-allowed;
+}
+
+.planning-lower-panels {
+    display: grid;
+    grid-template-columns: repeat(
+        3,
+        minmax(0, 1fr)
+    );
+    gap: 14px;
+    margin-top: 16px;
+}
+
+.planning-panel {
+    padding: 14px;
+    border: 1px solid #ccd3da;
+    border-radius: 5px;
+    background: #fff;
+}
+
+.planning-panel h3 {
+    margin-top: 0;
+}
+
+@media (max-width: 1000px) {
+    .planning-toolbar {
+        flex-direction: column;
+    }
+
+    .planning-lower-panels {
+        grid-template-columns: 1fr;
+    }
+}

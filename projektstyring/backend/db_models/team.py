@@ -97,6 +97,15 @@ class Team(Base):
         back_populates="team",
     )
 
+    manhole_work_entries = relationship(
+        "ManholeWork",
+        back_populates="team",
+    )
+
+    service_connection_work_entries = relationship(
+        "ServiceConnectionWork",
+        back_populates="team",
+    )
 
 class TeamTaskPermission(Base):
     __tablename__ = "team_task_permissions"

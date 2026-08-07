@@ -6,8 +6,8 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 
 from projektstyring.backend.c5_importer import (
-    apply_c5_updates_to_project,
     parse_c5_csv,
+    parse_c5_technical_asset_import,
 )
 from projektstyring.backend.project_operations import add_installations
 from projektstyring.backend.project_planner import (
@@ -25,6 +25,12 @@ from projektstyring.backend.project_workflow import (
     complete_survey,
     start_project,
 )
+from projektstyring.backend.importers.technical_asset_import_executor import (
+    TechnicalAssetImportExecutor,
+)
+from projektstyring.backend.importers.technical_asset_import_service import (
+    TechnicalAssetImportService,
+)
 from projektstyring.backend.task_assignments import (
     TASK_TYPES,
     empty_task_assignments,
@@ -33,6 +39,10 @@ from projektstyring.backend.task_assignments import (
 from projektstyring.backend.snapshot_service import (
     create_snapshot,
     get_latest_snapshot,
+)
+from fastapi.responses import JSONResponse
+from projektstyring.backend.planning_board_service import (
+    build_planning_board,
 )
 
 app = FastAPI()
@@ -49,6 +59,11 @@ templates = Jinja2Templates(
 
 repo = ProjectRepository()
 team_repo = TeamRepository()
+technical_asset_import_service = (
+    TechnicalAssetImportService(
+        TechnicalAssetImportExecutor()
+    )
+)
 
 
 def get_teams():
@@ -408,12 +423,69 @@ def create_project(
         notes="Oprettet via web.",
     )
 
+    if installation_count > 0:
+        project = add_installations(
+            project,
+            installation_count,
+        )
+
     repo.save_project(project)
 
     return RedirectResponse(
         url=f"/projects/{project_id.strip()}",
         status_code=303,
     )
+
+@app.get("/planning")
+def planning_board_page(
+    request: Request,
+    year: int | None = None,
+    week: int | None = None,
+    scenario_id: str | None = None,
+):
+    today = date.today()
+    current_iso = today.isocalendar()
+
+    selected_year = year or current_iso.year
+    selected_week = week or current_iso.week
+
+    board = build_planning_board(
+        year=selected_year,
+        week=selected_week,
+        scenario_id=scenario_id,
+    )
+
+    return templates.TemplateResponse(
+        request,
+        "planning.html",
+        {
+            "board": board,
+            "selected_year": selected_year,
+            "selected_week": selected_week,
+            "scenario_id": scenario_id or "",
+        },
+    )
+
+
+@app.get("/api/planning-board")
+def planning_board_data(
+    year: int | None = None,
+    week: int | None = None,
+    scenario_id: str | None = None,
+):
+    today = date.today()
+    current_iso = today.isocalendar()
+
+    board = build_planning_board(
+        year=year or current_iso.year,
+        week=week or current_iso.week,
+        scenario_id=scenario_id,
+    )
+
+    return JSONResponse(
+        content=board
+    )
+
 @app.get("/projects/{project_id}")
 def project_detail(request: Request, project_id: str):
     project = repo.load_project(project_id)
@@ -768,19 +840,26 @@ def c5_import_form(request: Request, project_id: str):
 
 
 @app.post("/projects/{project_id}/c5-import/apply")
-async def c5_import_apply(request: Request, project_id: str):
-    project = repo.load_project(project_id)
+async def c5_import_apply(
+    request: Request,
+    project_id: str,
+):
     form = await request.form()
 
-    csv_text = form.get("csv_text", "")
-    updates = parse_c5_csv(csv_text)
-
-    project = apply_c5_updates_to_project(
-        project,
-        updates,
+    csv_text = str(
+        form.get("csv_text", "")
     )
 
-    repo.save_project(project)
+    technical_import = (
+        parse_c5_technical_asset_import(
+            csv_text=csv_text,
+            project_id=project_id,
+        )
+    )
+
+    technical_asset_import_service.import_assets(
+        technical_import
+    )
 
     return RedirectResponse(
         url=f"/projects/{project_id}",

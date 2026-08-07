@@ -120,11 +120,31 @@ class Stretch(Base):
         index=True,
     )
 
+    bottom_manhole_id: Mapped[int | None] = mapped_column(
+        ForeignKey(
+            "manholes.id",
+            ondelete="RESTRICT",
+        ),
+        nullable=True,
+        index=True,
+    )
+
+    top_manhole_id: Mapped[int | None] = mapped_column(
+        ForeignKey(
+            "manholes.id",
+            ondelete="RESTRICT",
+        ),
+        nullable=True,
+        index=True,
+    )
+
     sequence: Mapped[int] = mapped_column(
         Integer,
         nullable=False,
     )
 
+    # Bevares under overgangen fra eksisterende C5-data.
+    # De normaliserede relationer er bottom_manhole og top_manhole.
     from_brond: Mapped[str] = mapped_column(
         String(100),
         nullable=False,
@@ -190,4 +210,23 @@ class Stretch(Base):
     installation = relationship(
         "Installation",
         back_populates="stretches",
+    )
+
+    bottom_manhole = relationship(
+        "Manhole",
+        foreign_keys=[bottom_manhole_id],
+        back_populates="bottom_stretches",
+    )
+
+    top_manhole = relationship(
+        "Manhole",
+        foreign_keys=[top_manhole_id],
+        back_populates="top_stretches",
+    )
+
+    service_connections = relationship(
+        "ServiceConnection",
+        back_populates="stretch",
+        cascade="all, delete-orphan",
+        order_by="ServiceConnection.sequence",
     )

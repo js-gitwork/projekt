@@ -1,5 +1,16 @@
+from __future__ import annotations
+
 import csv
 import io
+from decimal import Decimal
+from typing import Any
+
+from projektstyring.backend.importers.technical_asset_import import (
+    ImportedInstallationAssets,
+    ImportedManhole,
+    ImportedStretch,
+    TechnicalAssetImport,
+)
 
 
 PROGRESS_COLUMNS = {
@@ -20,7 +31,7 @@ C5_FRACTION_COLUMNS = {
 }
 
 
-def normalize_column_name(value):
+def normalize_column_name(value: Any) -> str:
     return (
         str(value or "")
         .replace("\ufeff", "")
@@ -28,11 +39,11 @@ def normalize_column_name(value):
     )
 
 
-def normalize_project_id(value):
+def normalize_project_id(value: Any) -> str:
     return str(value or "").strip().upper()
 
 
-def normalize_installation_id(value):
+def normalize_installation_id(value: Any) -> str:
     value = str(value or "").strip()
 
     if not value:
@@ -46,7 +57,10 @@ def normalize_installation_id(value):
     return value
 
 
-def to_int(value, default=0):
+def to_int(
+    value: Any,
+    default: int = 0,
+) -> int:
     try:
         value = str(value or "").strip()
 
@@ -62,7 +76,10 @@ def to_int(value, default=0):
         return default
 
 
-def to_float(value, default=0.0):
+def to_float(
+    value: Any,
+    default: float | None = 0.0,
+) -> float | None:
     try:
         value = str(value or "").strip()
 
@@ -78,14 +95,15 @@ def to_float(value, default=0.0):
         return default
 
 
-def parse_optional_percent(value):
+def parse_optional_percent(
+    value: Any,
+) -> float | None:
     """
     Returnerer et procenttal mellem 0 og 100.
 
     Tomme eller ugyldige felter returneres som None.
     Manglende data må ikke forveksles med 0 procent.
     """
-
     raw_value = str(value or "").strip()
 
     if not raw_value:
@@ -105,7 +123,7 @@ def parse_optional_percent(value):
     )
 
 
-def clean_c5_fraction(value):
+def clean_c5_fraction(value: Any) -> str:
     """
     Renser C5-værdier som:
 
@@ -113,7 +131,6 @@ def clean_c5_fraction(value):
         "2/0"
         1/1
     """
-
     value = str(value or "").strip()
     value = value.replace("=", "")
     value = value.replace('"', "")
@@ -121,7 +138,9 @@ def clean_c5_fraction(value):
     return value.strip()
 
 
-def get_length_m(row):
+def get_length_m(
+    row: dict[str, Any],
+) -> float:
     """
     Bruger den nye længde, når den findes.
 
@@ -130,7 +149,6 @@ def get_length_m(row):
     2. Ny længde
     3. Eks.lng
     """
-
     return (
         to_float(row.get("Ny lng.m"))
         or to_float(row.get("Ny længde"))
@@ -140,10 +158,10 @@ def get_length_m(row):
 
 
 def create_installation_item(
-    project_id,
-    installation_id,
-    address="",
-):
+    project_id: str,
+    installation_id: str,
+    address: str = "",
+) -> dict[str, Any]:
     return {
         "project_id": project_id,
         "id": installation_id,
@@ -174,18 +192,11 @@ def create_installation_item(
 
 
 def add_weighted_progress(
-    item,
-    progress_key,
-    value,
-    weight,
-):
-    """
-    Aggregerer procentfelter på tværs af en installations strækninger.
-
-    Stræklængden bruges som vægt, når den findes.
-    Hvis længden mangler, vægtes rækken som 1.
-    """
-
+    item: dict[str, Any],
+    progress_key: str,
+    value: Any,
+    weight: float,
+) -> None:
     percent = parse_optional_percent(value)
 
     if percent is None:
@@ -206,7 +217,9 @@ def add_weighted_progress(
     )
 
 
-def finalize_progress(item):
+def finalize_progress(
+    item: dict[str, Any],
+) -> None:
     progress = {}
 
     for progress_key in PROGRESS_COLUMNS:
@@ -223,7 +236,9 @@ def finalize_progress(item):
     item["progress"] = progress
 
 
-def finalize_bronds_and_lengths(item):
+def finalize_bronds_and_lengths(
+    item: dict[str, Any],
+) -> None:
     bronde = set()
 
     for stretch in item.get("stretches", []):
@@ -249,12 +264,22 @@ def finalize_bronds_and_lengths(item):
     )
 
 
-def remove_internal_fields(item):
+def remove_internal_fields(
+    item: dict[str, Any],
+) -> None:
     item.pop("_progress_totals", None)
     item.pop("_progress_weights", None)
 
 
-def parse_c5_csv(csv_text):
+def parse_c5_csv(
+    csv_text: str,
+) -> list[dict[str, Any]]:
+    """
+    Parser C5-CSV til preview-data.
+
+    Denne funktion skriver ikke til databasen.
+    Den eksisterende UI-preview kan fortsat bruge resultatet.
+    """
     reader = csv.DictReader(
         io.StringIO(csv_text),
         delimiter=";",
@@ -266,7 +291,10 @@ def parse_c5_csv(csv_text):
             for name in reader.fieldnames
         ]
 
-    installations = {}
+    installations: dict[
+        tuple[str, str],
+        dict[str, Any],
+    ] = {}
 
     for row in reader:
         row = {
@@ -347,9 +375,10 @@ def parse_c5_csv(csv_text):
                     "stik": expected_stik,
                     "expected_stik": expected_stik,
                     "progress": {
-                        progress_key: parse_optional_percent(
-                            row.get(column)
-                        )
+                        progress_key:
+                            parse_optional_percent(
+                                row.get(column)
+                            )
                         for progress_key, column
                         in PROGRESS_COLUMNS.items()
                     },
@@ -390,24 +419,179 @@ def parse_c5_csv(csv_text):
         finalize_progress(item)
         finalize_bronds_and_lengths(item)
         remove_internal_fields(item)
-
         result.append(item)
 
     return result
 
 
-def create_project_installation(installation_id):
+def parse_c5_technical_asset_import(
+    csv_text: str,
+    project_id: str,
+) -> TechnicalAssetImport:
+    """
+    Omsætter C5-opmålings-CSV til den nye normaliserede
+    TechnicalAssetImport-model.
+
+    Denne adapter kender C5-formatet.
+    Resten af importkæden er kildeuafhængig.
+    """
+    normalized_project_id = normalize_project_id(
+        project_id
+    )
+
+    parsed_installations = [
+        item
+        for item in parse_c5_csv(csv_text)
+        if normalize_project_id(
+            item.get("project_id")
+        ) == normalized_project_id
+    ]
+
+    if not parsed_installations:
+        raise ValueError(
+            "CSV-filen indeholder ingen data for projekt "
+            f"'{normalized_project_id}'."
+        )
+
+    manhole_numbers: set[str] = set()
+    imported_installations = []
+
+    for installation in parsed_installations:
+        imported_stretches = []
+
+        for sequence, stretch in enumerate(
+            installation.get("stretches", []),
+            start=1,
+        ):
+            bottom_manhole_no = str(
+                stretch.get("from_brond") or ""
+            ).strip()
+
+            top_manhole_no = str(
+                stretch.get("to_brond") or ""
+            ).strip()
+
+            if not bottom_manhole_no:
+                raise ValueError(
+                    "Et stræk mangler bundbrønd på "
+                    f"installation '{installation['id']}'."
+                )
+
+            if not top_manhole_no:
+                raise ValueError(
+                    "Et stræk mangler topbrønd på "
+                    f"installation '{installation['id']}'."
+                )
+
+            manhole_numbers.add(
+                bottom_manhole_no
+            )
+            manhole_numbers.add(
+                top_manhole_no
+            )
+
+            metadata = {
+                "expected_stik": stretch.get(
+                    "expected_stik",
+                    0,
+                ),
+                "progress": dict(
+                    stretch.get("progress") or {}
+                ),
+            }
+
+            imported_stretches.append(
+                ImportedStretch(
+                    sequence=sequence,
+                    bottom_manhole_no=(
+                        bottom_manhole_no
+                    ),
+                    top_manhole_no=(
+                        top_manhole_no
+                    ),
+                    length_m=Decimal(
+                        str(
+                            stretch.get(
+                                "length_m",
+                                0.0,
+                            )
+                        )
+                    ),
+                    dimension=str(
+                        stretch.get(
+                            "dimension",
+                            "",
+                        )
+                    ).strip(),
+                    material=str(
+                        stretch.get(
+                            "material",
+                            "",
+                        )
+                    ).strip(),
+                    notes=str(
+                        stretch.get(
+                            "notes",
+                            "",
+                        )
+                    ).strip(),
+                    metadata=metadata,
+                )
+            )
+
+        imported_installations.append(
+            ImportedInstallationAssets(
+                installation_no=str(
+                    installation["id"]
+                ),
+                stretches=imported_stretches,
+            )
+        )
+
+    manholes = [
+        ImportedManhole(
+            manhole_no=manhole_no,
+            metadata={
+                "source": "c5_csv",
+            },
+        )
+        for manhole_no in sorted(
+            manhole_numbers
+        )
+    ]
+
+    return TechnicalAssetImport(
+        project_id=normalized_project_id,
+        source="c5_csv",
+        installations=imported_installations,
+        manholes=manholes,
+        metadata={
+            "installation_count": len(
+                imported_installations
+            ),
+            "source_format": "c5_csv",
+        },
+    )
+
+
+# ---------------------------------------------------------------------------
+# LEGACY
+#
+# Funktionen nedenfor beholdes kun midlertidigt, fordi den nuværende api.py
+# stadig importerer den. Når C5-routen kobles over på
+# TechnicalAssetImportService, skal både importen og denne funktion fjernes.
+# ---------------------------------------------------------------------------
+
+def create_project_installation(
+    installation_id: str,
+) -> dict[str, Any]:
     return {
         "id": installation_id,
         "active": True,
         "hoveddato": None,
         "expected_stik": 0,
-
-        # Disse værdier kommer ikke fra C5-feltet Stikåbn.
-        # De må derfor ikke udledes eller overskrives af denne import.
         "active_stik": None,
         "opened_stik": None,
-
         "langhatte": 0,
         "korthatte_extra": 0,
         "broende": 0,
@@ -421,7 +605,9 @@ def create_project_installation(installation_id):
     }
 
 
-def build_installation_notes(update):
+def build_installation_notes(
+    update: dict[str, Any],
+) -> str:
     notes = []
 
     if update.get("address"):
@@ -431,7 +617,10 @@ def build_installation_notes(update):
 
     stretch_texts = []
 
-    for stretch in update.get("stretches", []):
+    for stretch in update.get(
+        "stretches",
+        [],
+    ):
         from_brond = stretch.get(
             "from_brond",
             "",
@@ -449,7 +638,8 @@ def build_installation_notes(update):
 
         if from_brond or to_brond:
             stretch_texts.append(
-                f"{from_brond}-{to_brond} ({length_m} m)"
+                f"{from_brond}-{to_brond} "
+                f"({length_m} m)"
             )
 
     if stretch_texts:
@@ -467,7 +657,16 @@ def build_installation_notes(update):
     return " | ".join(notes)
 
 
-def apply_c5_updates_to_project(project, updates):
+def apply_c5_updates_to_project(
+    project: dict[str, Any],
+    updates: list[dict[str, Any]],
+) -> dict[str, Any]:
+    """
+    Midlertidig kompatibilitetsfunktion.
+
+    Skal fjernes, når api.py er koblet helt over på den nye
+    TechnicalAssetImportService.
+    """
     project_id = normalize_project_id(
         project.get("id")
     )
@@ -487,7 +686,6 @@ def apply_c5_updates_to_project(project, updates):
             update.get("project_id")
         )
 
-        # Data fra andre projekter må aldrig overføres.
         if (
             project_id
             and update_project_id
@@ -507,25 +705,27 @@ def apply_c5_updates_to_project(project, updates):
         )
 
         if not installation:
-            installation = create_project_installation(
-                installation_id
+            installation = (
+                create_project_installation(
+                    installation_id
+                )
             )
 
             project.setdefault(
                 "installations",
                 [],
-            ).append(installation)
+            ).append(
+                installation
+            )
 
-            existing[installation_id] = installation
+            existing[
+                installation_id
+            ] = installation
 
         installation["expected_stik"] = update.get(
             "expected_stik",
             0,
         )
-
-        # active_stik og opened_stik overskrives ikke.
-        # C5-kolonnen Stikåbn. er en procentværdi og indeholder
-        # ikke de to underliggende stikantal.
 
         installation["main_length_m"] = update.get(
             "main_length_m",
@@ -557,8 +757,10 @@ def apply_c5_updates_to_project(project, updates):
             {},
         )
 
-        installation["notes"] = build_installation_notes(
-            update
+        installation["notes"] = (
+            build_installation_notes(
+                update
+            )
         )
 
     return project

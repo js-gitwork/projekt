@@ -96,3 +96,9 @@ class Project(Base):
         "ProjectTask",
         back_populates="project",
     )
+
+    manholes = relationship(
+        "Manhole",
+        back_populates="project",
+        order_by="Manhole.manhole_no",
+    )

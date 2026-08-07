@@ -1,0 +1,260 @@
+
+{% extends "base.html" %}
+
+{% block title %}Planlægningscenter{% endblock %}
+
+{% block content %}
+<div class="planning-page">
+
+    <div class="planning-toolbar">
+        <div>
+            <h2>Planlægningscenter</h2>
+
+            <p class="planning-source">
+                {% if board.source.type == "scenario" %}
+                    Scenarie:
+                    {{ board.source.scenario_id }}
+                    · revision
+                    {{ board.source.revision_number }}
+                {% else %}
+                    Gældende produktionsplan
+                {% endif %}
+            </p>
+        </div>
+
+        <form
+            method="get"
+            action="/planning"
+            class="planning-period-form"
+        >
+            <label>
+                År
+                <input
+                    type="number"
+                    name="year"
+                    value="{{ selected_year }}"
+                    min="2020"
+                    max="2100"
+                >
+            </label>
+
+            <label>
+                Uge
+                <input
+                    type="number"
+                    name="week"
+                    value="{{ selected_week }}"
+                    min="1"
+                    max="53"
+                >
+            </label>
+
+            {% if scenario_id %}
+                <input
+                    type="hidden"
+                    name="scenario_id"
+                    value="{{ scenario_id }}"
+                >
+            {% endif %}
+
+            <button type="submit" class="btn">
+                Vis uge
+            </button>
+        </form>
+    </div>
+
+    <div class="planning-summary">
+        <span>
+            Uge {{ board.period.week }}
+        </span>
+
+        <span>
+            {{ board.period.start_date }}
+            –
+            {{ board.period.end_date }}
+        </span>
+
+        <span>
+            {{ board.activities | length }}
+            aktiviteter
+        </span>
+
+        <span>
+            {{ board.teams | length }}
+            hold
+        </span>
+    </div>
+
+    <div class="planning-board-scroll">
+        <table class="planning-board">
+            <thead>
+                <tr>
+                    <th class="planning-day-column">
+                        Planlægningsuge
+                    </th>
+
+                    {% for team in board.teams %}
+                        <th
+                            class="planning-team-header"
+                            data-team-id="{{ team.id }}"
+                        >
+                            <strong>
+                                {{ team.name }}
+                            </strong>
+
+                            <small>
+                                {{ team.id }}
+                            </small>
+                        </th>
+                    {% endfor %}
+                </tr>
+            </thead>
+
+            <tbody>
+                {% for day in board.days %}
+                    <tr
+                        class="
+                            planning-day-row
+                            {% if day.is_weekend %}
+                                planning-weekend-row
+                            {% endif %}
+                        "
+                        data-date="{{ day.date }}"
+                    >
+                        <th class="planning-day-cell">
+                            <strong>{{ day.name }}</strong>
+                            <small>{{ day.date }}</small>
+                        </th>
+
+                        {% for team in board.teams %}
+                            <td
+                                class="planning-cell"
+                                data-team-id="{{ team.id }}"
+                                data-date="{{ day.date }}"
+                            >
+                                {% for activity in board.activities %}
+                                    {% if
+                                        activity.team_id == team.id
+                                        and
+                                        activity.start_date <= day.date
+                                        and
+                                        activity.end_date >= day.date
+                                    %}
+                                        <article
+                                            class="
+                                                planning-activity
+                                                planning-change-{{ activity.change_status }}
+                                                {% if activity.locked %}
+                                                    planning-activity-locked
+                                                {% endif %}
+                                            "
+                                            data-activity-id="{{ activity.activity_id }}"
+                                            data-project-id="{{ activity.project_id }}"
+                                            data-installation-id="{{ activity.installation_id }}"
+                                            data-task-type="{{ activity.task_type }}"
+                                            data-team-id="{{ activity.team_id }}"
+                                            data-start-date="{{ activity.start_date }}"
+                                            data-end-date="{{ activity.end_date }}"
+                                            draggable="false"
+                                        >
+                                            <strong>
+                                                {{ activity.project_id }}
+                                            </strong>
+
+                                            {% if activity.project_name %}
+                                                <span>
+                                                    {{ activity.project_name }}
+                                                </span>
+                                            {% endif %}
+
+                                            {% if activity.project_city %}
+                                                <span>
+                                                    {{ activity.project_city }}
+                                                </span>
+                                            {% endif %}
+
+                                            <span>
+                                                Inst.
+                                                {{ activity.installation_id }}
+                                            </span>
+
+                                            <span>
+                                                {{ activity.task_type }}
+                                            </span>
+
+                                            {% if activity.locked %}
+                                                <small>
+                                                    Låst:
+                                                    {{ activity.lock_reason }}
+                                                </small>
+                                            {% endif %}
+                                        </article>
+                                    {% endif %}
+                                {% endfor %}
+                            </td>
+                        {% endfor %}
+                    </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+    <div class="planning-lower-panels">
+        <section class="planning-panel">
+            <h3>Uplanlagt arbejde</h3>
+
+            {% if board.unplanned_work %}
+                <ul>
+                    {% for item in board.unplanned_work %}
+                        <li>
+                            {{ item }}
+                        </li>
+                    {% endfor %}
+                </ul>
+            {% else %}
+                <p>
+                    Der er ikke registreret uplanlagt arbejde
+                    i denne uge.
+                </p>
+            {% endif %}
+        </section>
+
+        <section class="planning-panel">
+            <h3>Advarsler</h3>
+
+            {% if board.warnings %}
+                <ul>
+                    {% for warning in board.warnings %}
+                        <li>
+                            {{ warning }}
+                        </li>
+                    {% endfor %}
+                </ul>
+            {% else %}
+                <p>
+                    Der er ingen registrerede advarsler.
+                </p>
+            {% endif %}
+        </section>
+
+        <section class="planning-panel">
+            <h3>Konflikter</h3>
+
+            {% if board.conflicts %}
+                <ul>
+                    {% for conflict in board.conflicts %}
+                        <li>
+                            {{ conflict }}
+                        </li>
+                    {% endfor %}
+                </ul>
+            {% else %}
+                <p>
+                    Der er ingen registrerede konflikter.
+                </p>
+            {% endif %}
+        </section>
+    </div>
+
+</div>
+{% endblock %}
