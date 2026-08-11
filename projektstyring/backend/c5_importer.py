@@ -358,6 +358,24 @@ def parse_c5_csv(
         item["main_length_m"] += length_m
         item["hovedledning_meter"] += length_m
 
+        row_c5_values = {
+            c5_key: []
+            for c5_key in C5_FRACTION_COLUMNS
+        }
+
+        for c5_key, column in C5_FRACTION_COLUMNS.items():
+            value = clean_c5_fraction(
+                row.get(column)
+            )
+
+            if value:
+                row_c5_values[c5_key].append(
+                    value
+                )
+                item["c5_values"][c5_key].append(
+                    value
+                )
+
         if from_brond or to_brond or length_m:
             item["stretches"].append(
                 {
@@ -382,6 +400,7 @@ def parse_c5_csv(
                         for progress_key, column
                         in PROGRESS_COLUMNS.items()
                     },
+                    "c5_values": row_c5_values,
                     "notes": str(
                         row.get("Bemærkninger") or ""
                     ).strip(),
@@ -395,16 +414,6 @@ def parse_c5_csv(
                 value=row.get(column),
                 weight=length_m,
             )
-
-        for c5_key, column in C5_FRACTION_COLUMNS.items():
-            value = clean_c5_fraction(
-                row.get(column)
-            )
-
-            if value:
-                item["c5_values"][c5_key].append(
-                    value
-                )
 
         note = str(
             row.get("Bemærkninger") or ""
@@ -498,6 +507,15 @@ def parse_c5_technical_asset_import(
                 "progress": dict(
                     stretch.get("progress") or {}
                 ),
+                "c5_values": {
+                    str(key): list(value)
+                    if isinstance(value, list)
+                    else value
+                    for key, value in (
+                        stretch.get("c5_values")
+                        or {}
+                    ).items()
+                },
             }
 
             imported_stretches.append(

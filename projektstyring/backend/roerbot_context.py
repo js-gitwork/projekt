@@ -32,9 +32,13 @@ from projektstyring.backend.repositories.team_repository import (
     TeamRepository,
 )
 import re
+from projektstyring.backend.production_status_service import (
+    ProductionStatusService,
+)
 
 project_repository = ProjectRepository()
 team_repository = TeamRepository()
+production_status_service = ProductionStatusService()
 
 
 ALLOWED_FILTER_OPERATORS = {
@@ -683,6 +687,34 @@ def load_project_rules_resource(
     return result
 
 
+def load_production_status_resource(
+    interpretation: dict[str, Any],
+) -> list[dict[str, Any]]:
+    """
+    Henter struktureret produktionsstatus for de projekter,
+    som AI-fortolkeren har angivet i scope.
+
+    Funktionen ændrer ingen data.
+    """
+    result = []
+
+    for project_id in requested_project_ids(
+        interpretation
+    ):
+        report = (
+            production_status_service
+            .build_project_report(
+                project_id
+            )
+        )
+
+        result.append(
+            serialize_value(report)
+        )
+
+    return result
+
+
 def build_resource(
     resource: str,
     interpretation: dict[str, Any],
@@ -733,6 +765,11 @@ def build_resource(
 
     if resource == "project_rules":
         return load_project_rules_resource(
+            interpretation
+        )
+
+    if resource == "production_status":
+        return load_production_status_resource(
             interpretation
         )
 

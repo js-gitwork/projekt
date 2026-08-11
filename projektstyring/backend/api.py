@@ -838,6 +838,37 @@ def c5_import_form(request: Request, project_id: str):
         },
     )
 
+@app.post("/projects/{project_id}/c5-import/preview")
+async def c5_import_preview(
+    request: Request,
+    project_id: str,
+):
+    project = repo.load_project(project_id)
+    form = await request.form()
+
+    csv_text = str(
+        form.get("csv_text", "")
+    )
+
+    updates = parse_c5_csv(
+        csv_text
+    )
+
+    updates = [
+        update
+        for update in updates
+        if update.get("project_id") == project_id.upper()
+    ]
+
+    return templates.TemplateResponse(
+        request,
+        "c5_import.html",
+        {
+            "project": project,
+            "csv_text": csv_text,
+            "updates": updates,
+        },
+    )
 
 @app.post("/projects/{project_id}/c5-import/apply")
 async def c5_import_apply(

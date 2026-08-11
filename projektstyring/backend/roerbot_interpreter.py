@@ -33,6 +33,7 @@ ALLOWED_INTENTS = {
     "project_creation",
     "general",
     "clarification",
+    "production_status",
 }
 
 ALLOWED_RESOURCES = {
@@ -47,10 +48,64 @@ ALLOWED_RESOURCES = {
     "plan",
     "conflicts",
     "rest_work",
+    "production_status",
     "decisions",
     "snapshots",
     "changes",
     "project_rules",
+}
+
+RESOURCE_DESCRIPTIONS = {
+    "projects": (
+        "Oversigt over projekter og deres centrale felter."
+    ),
+    "project": (
+        "Komplette data for et eller flere konkrete projekter."
+    ),
+    "installations": (
+        "Installationernes grunddata."
+    ),
+    "tasks": (
+        "Projektets opgaver og opgavetyper."
+    ),
+    "task_assignments": (
+        "Fordeling af opgaver på hold og installationer."
+    ),
+    "teams": (
+        "Hold, deres navne og kompetencer."
+    ),
+    "calendars": (
+        "Arbejds- og holdkalendere."
+    ),
+    "progress": (
+        "Registreret fremdrift pr. installation."
+    ),
+    "plan": (
+        "Den beregnede projektplan med aktiviteter og datoer."
+    ),
+    "conflicts": (
+        "Konflikter og advarsler fra planmotoren."
+    ),
+    "rest_work": (
+        "Restarbejde fra den beregnede plan."
+    ),
+    "production_status": (
+        "Produktionsstatus baseret på tekniske databaseobjekter. "
+        "Indeholder blandt andet udført, planlagt og manglende "
+        "langhatte og korthatte samt manglende hovedstræk."
+    ),
+    "decisions": (
+        "Gemte beslutninger."
+    ),
+    "snapshots": (
+        "Gemte snapshots."
+    ),
+    "changes": (
+        "Registrerede ændringer."
+    ),
+    "project_rules": (
+        "Godkendte projektspecifikke regler."
+    ),
 }
 
 ALLOWED_CHANGE_TYPES = {
@@ -571,12 +626,44 @@ Mulige hensigter:
 - general: fagligt eller almindeligt spørgsmål
 - clarification: nødvendige oplysninger mangler
 
-Mulige rapportressourcer:
+Mulige rapportressourcer og deres betydning:
 {json.dumps(
-    sorted(ALLOWED_RESOURCES),
+    RESOURCE_DESCRIPTIONS,
     indent=2,
     ensure_ascii=False,
 )}
+
+Format for hvert objekt i data_requests:
+
+{{
+    "resource": "navn på en tilladt resource",
+    "filters": [
+        {{
+            "field": "feltnavn",
+            "operator": "equals",
+            "value": "værdi"
+        }}
+    ],
+    "fields": [],
+    "sort": {{
+        "field": "feltnavn",
+        "direction": "ascending"
+    }},
+    "limit": null
+}}
+
+Vigtige regler:
+
+- Vælg resource ud fra dens beskrevne betydning og brugerens hensigt.
+- filters skal ALTID være en liste.
+- Hvert filter skal indeholde field, operator og value.
+- sort skal være ét objekt eller null.
+- Brug aldrig "sorting".
+- Brug aldrig et dictionary direkte som filters.
+- Hvis filtrering ikke er nødvendig, brug [].
+- Hvis sortering ikke er nødvendig, brug null.
+- Brug kun felter til filter og sortering, som findes direkte på den valgte resource.
+- data_requests må kun indeholde ressourcer fra listen ovenfor.
 
 Understøttede ændringstyper:
 {json.dumps(
@@ -591,6 +678,8 @@ Tilladte projektfelter:
     indent=2,
     ensure_ascii=False,
 )}
+    ensure_ascii=False,
+)
 
 Tilladte installationsfelter:
 {json.dumps(
