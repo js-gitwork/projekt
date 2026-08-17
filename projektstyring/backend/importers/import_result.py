@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
+from typing import Any
 
 
 @dataclass(slots=True)
@@ -8,6 +9,25 @@ class ImportAction:
     entity_type: str
     action: str
     key: str
+
+
+@dataclass(slots=True)
+class ImportConflict:
+    entity_type: str
+    key: str
+    field: str
+
+    existing_value: Any = None
+    incoming_value: Any = None
+
+    difference: float | None = None
+    tolerance: float | None = None
+
+    message: str = ""
+
+    metadata: dict[str, Any] = field(
+        default_factory=dict
+    )
 
 
 @dataclass(slots=True)
@@ -23,3 +43,11 @@ class ImportExecutionResult:
     actions: list[ImportAction] = field(
         default_factory=list
     )
+
+    conflicts: list[ImportConflict] = field(
+        default_factory=list
+    )
+
+    @property
+    def has_conflicts(self) -> bool:
+        return bool(self.conflicts)

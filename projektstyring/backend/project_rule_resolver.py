@@ -1,5 +1,12 @@
 from copy import deepcopy
+from projektstyring.backend.database.project_persistence import (
+    synchronize_project,
+)
 
+synchronize_project(
+    project,
+    session=session,
+)
 
 def get_workflow_exceptions(project: dict) -> list[dict]:
     return project.get("workflow_exceptions", [])
@@ -90,6 +97,3 @@ def is_task_allowed_before(
             return True
 
     return False
-
-# Midlertidigt alias mens resten af projektet migreres.
-resolve_workflow_exceptions = resolve_project_rules

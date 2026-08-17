@@ -10,7 +10,7 @@ class Aktivitetstype:
     STIK = "stik"
     KONTROL = "kontrol"
     KORTHAT = "korthat"
-    BRØND = "brønd"
+    BRØND = "broend"
     DTVK = "dtvk"
 
 

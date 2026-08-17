@@ -4,6 +4,9 @@ from copy import deepcopy
 from typing import Any
 
 from projektstyring.backend.project_repository import ProjectRepository
+from projektstyring.backend.repositories.technical_asset_repository import (
+    TechnicalAssetRepository,
+)
 from projektstyring.backend.repositories.team_repository import TeamRepository
 
 
@@ -36,6 +39,7 @@ class ScenarioChangeResolver:
     SUPPORTED_CHANGE_TYPES = {
         "project_field_change",
         "installation_field_change",
+        "manhole_field_change",
         "task_assignment_change",
     }
 
@@ -44,6 +48,7 @@ class ScenarioChangeResolver:
         *,
         project_repository: ProjectRepository | None = None,
         team_repository: TeamRepository | None = None,
+        technical_asset_repository: TechnicalAssetRepository | None = None,
     ):
         self.project_repository = (
             project_repository
@@ -55,6 +60,10 @@ class ScenarioChangeResolver:
             or TeamRepository()
         )
 
+        self.technical_asset_repository = (
+            technical_asset_repository
+            or TechnicalAssetRepository()
+        )
     # ------------------------------------------------------------
     # Offentlig indgang
     # ------------------------------------------------------------
@@ -147,6 +156,12 @@ class ScenarioChangeResolver:
                 project,
             )
 
+        if change_type == "manhole_field_change":
+            return self._resolve_manhole_field_change(
+                resolved,
+                project,
+            )
+
         if change_type == "task_assignment_change":
             return self._resolve_task_assignment_change(
                 resolved,
@@ -200,6 +215,61 @@ class ScenarioChangeResolver:
         )
 
         change["target_id"] = installation_id
+
+        return change
+
+    # ------------------------------------------------------------
+    # Brøndændringer
+    # ------------------------------------------------------------
+
+    def _resolve_manhole_field_change(
+        self,
+        change: dict[str, Any],
+        project: dict[str, Any],
+    ) -> dict[str, Any]:
+        after = change.get("after")
+
+        if not isinstance(after, dict):
+            raise ValueError(
+                "Brøndændringen mangler after-data."
+            )
+
+        manhole_no = str(
+            change.get("manhole_no")
+            or after.get("manhole_no")
+            or ""
+        ).strip()
+
+        if not manhole_no:
+            raise ValueError(
+                "Brøndændringen mangler brøndnummer."
+            )
+
+        manhole = (
+            self.technical_asset_repository
+            .get_manhole_by_number(
+                project["id"],
+                manhole_no,
+            )
+        )
+
+        change["manhole_no"] = (
+            manhole["manhole_no"]
+        )
+
+        change["target_id"] = (
+            manhole["manhole_no"]
+        )
+
+        change["metadata"] = {
+            **deepcopy(
+                change.get("metadata")
+                or {}
+            ),
+            "resolved_manhole_id": (
+                manhole["id"]
+            ),
+        }
 
         return change
 

@@ -53,7 +53,24 @@ class TechnicalAssetImportValidationError(ValueError):
             "; ".join(messages)
             or "Importdata er ugyldige."
         )
+class TechnicalAssetImportConflictError(
+    ValueError
+):
+    """
+    Rejses når preview/import finder forhold,
+    som kræver menneskelig stillingtagen.
+    """
 
+    def __init__(
+        self,
+        result: Any,
+    ) -> None:
+        self.result = result
+
+        super().__init__(
+            "Importen indeholder uafklarede "
+            "konflikter og er ikke gemt."
+        )
 
 class TechnicalAssetImportService:
     """
@@ -163,6 +180,13 @@ class TechnicalAssetImportService:
                     session,
                     plan,
                 )
+
+                if result.has_conflicts:
+                    session.rollback()
+
+                    raise TechnicalAssetImportConflictError(
+                        result
+                    )
 
                 session.commit()
 

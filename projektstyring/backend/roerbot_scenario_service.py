@@ -8,6 +8,9 @@ from projektstyring.backend.roerbot_interpreter import (
 from projektstyring.backend.scenario_change_resolver import (
     resolve_changes,
 )
+from projektstyring.backend.scenario_change_grounder import (
+    ground_changes,
+)
 from projektstyring.backend.scenario_change_applier import (
     apply_changes,
 )
@@ -15,19 +18,23 @@ from projektstyring.backend.roerbot_context import (
     build_interpreter_context,
 )
 
+
 class RoerbotScenarioService:
     """
     Samlet facade mellem Roerbot og scenariemotoren.
 
-    Roerbot skal ikke kende til:
+    Roerbot skal ikke kende de interne detaljer i:
         - Interpreter
+        - Grounder
         - Resolver
         - ScenarioChangeApplier
 
-    Den afleverer blot brugerens tekst.
+    Servicen kan enten:
+        1. modtage brugerens tekst og selv fortolke den
+        2. modtage en interpretation, som allerede er lavet
 
-    Denne service afgør derefter,
-    hvordan teksten skal behandles.
+    Den sidste variant bruges af Roerbots hovedindgang, så samme
+    brugerbesked ikke sendes til AI-interpreteren to gange.
     """
 
     def process(
@@ -37,6 +44,9 @@ class RoerbotScenarioService:
         question: str,
         conversation_context: dict[str, Any] | None = None,
     ) -> dict[str, Any]:
+        """
+        Fuld indgang, hvor servicen selv fortolker spørgsmålet.
+        """
 
         interpreter_context = build_interpreter_context(
             question=question,
@@ -53,7 +63,34 @@ class RoerbotScenarioService:
             conversation_context=interpreter_context,
         )
 
-        intent = interpretation["intent"]
+        return self.process_interpretation(
+            scenario_id=scenario_id,
+            question=question,
+            interpretation=interpretation,
+            conversation_context=interpreter_context,
+        )
+
+    def process_interpretation(
+        self,
+        *,
+        scenario_id: str,
+        question: str,
+        interpretation: dict[str, Any],
+        conversation_context: dict[str, Any] | None = None,
+    ) -> dict[str, Any]:
+        """
+        Behandler en allerede udført AI-fortolkning.
+
+        Denne indgang bruges af Roerbots hovedservice, hvor
+        interpret_question() allerede er blevet kaldt.
+
+        Dermed undgår vi et ekstra AI-kald.
+        """
+
+        intent = str(
+            interpretation.get("intent")
+            or ""
+        ).strip()
 
         #
         # Brugeren mangler oplysninger
@@ -63,7 +100,9 @@ class RoerbotScenarioService:
                 "status": "clarification",
                 "interpretation": interpretation,
                 "answer": (
-                    interpretation["clarification"]
+                    interpretation.get(
+                        "clarification"
+                    )
                     or {}
                 ).get(
                     "question",
@@ -99,18 +138,26 @@ class RoerbotScenarioService:
             }
 
         #
-        # Planændringer
+        # Scenarieændringer
         #
         if intent == "change":
-
             try:
+                grounded_changes = ground_changes(
+                    question=question,
+                    changes=interpretation.get(
+                        "changes",
+                        [],
+                    ),
+                    conversation_context=(
+                        conversation_context
+                    ),
+                )
 
                 resolved_changes = resolve_changes(
-                    interpretation["changes"]
+                    grounded_changes
                 )
 
             except Exception as error:
-
                 return {
                     "status": "validation_error",
                     "interpretation": interpretation,
@@ -118,16 +165,19 @@ class RoerbotScenarioService:
                 }
 
             try:
-
                 scenario = apply_changes(
                     scenario_id=scenario_id,
                     user_message=question,
-                    reason=interpretation["summary"],
+                    reason=str(
+                        interpretation.get(
+                            "summary"
+                        )
+                        or ""
+                    ),
                     changes=resolved_changes,
                 )
 
             except Exception as error:
-
                 return {
                     "status": "engine_error",
                     "interpretation": interpretation,

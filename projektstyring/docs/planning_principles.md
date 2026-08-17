@@ -1,148 +1,193 @@
 # Planning Principles
 
-Dette dokument beskriver de grundlæggende principper for projektstyringssystemet.
-Principperne beskriver virksomhedens arbejdsproces og danner grundlag for både
-planmotoren og Roerbot.
+## Status
+
+Dette dokument beskriver de aktuelle domæneprincipper for
+projektets livscyklus og produktionsplanlægning.
+
+De overordnede arkitektur- og udviklingsprincipper findes i
+`00_principles.md`.
+
+Hvis dette dokument og `00_principles.md` er i konflikt,
+har `00_principles.md` forrang.
 
 ---
 
-# Projektets livscyklus
+# 1. Projektets livscyklus
 
-Et projekt gennemløber følgende faser:
+Et projekt gennemløber overordnet følgende faser:
 
-1. Survey (opmåling)
-2. Upcoming (planlægning)
-3. Active (udførelse)
-4. Completed (afsluttet)
+1. Survey
+2. Upcoming
+3. Active
+4. Completed
 
-## Survey
+Status beskriver projektets aktuelle forretningsmæssige fase.
 
-Projektet er oprettet.
+Status må ikke bruges som erstatning for registrerede fakta om
+produktion, opmåling eller plan.
 
-Opmålingen gennemføres.
+---
 
-Der indsamles oplysninger om:
+# 2. Survey
+
+Survey er projektets opmålings- og afklaringsfase.
+
+Survey er ikke en produktionsaktivitet og reserverer derfor ikke
+produktionsressourcer i planmotoren.
+
+Et projekt kan allerede eksistere i systemet, før survey er afsluttet.
+
+I den normale arbejdsgang oprettes projektet i C5, hvorefter
+opmålingsdata fra C5 importeres til Projektstyring.
+
+Survey-data kan blandt andet beskrive:
 
 - installationer
-- stik
-- dimensioner
-- længder
-- særlige forhold
-- noter
+- brøndstræk
+- brønde
+- eksisterende dimensioner
+- nye dimensioner
+- eksisterende længder
+- nye længder
+- dybder
+- profiler
+- materialer
+- trafikforhold
+- bemærkninger
+- hvem der har udført opmålingen
 
-Survey er en projektfase.
+Survey beriger og korrigerer de tekniske data, som systemet allerede
+kender eller importerer.
 
-Survey er **ikke** en planlagt aktivitet.
+Import af survey-data skal kunne identificere afvigelser mellem
+eksisterende registrering og nye opmålingsdata.
 
-Der reserveres ingen ressourcer til survey.
+Afvigelser skal præsenteres og behandles gennem systemets normale
+ændrings- og godkendelsesarkitektur.
 
----
-
-## Survey-data
-
-Survey er projektets opmålings- og informationsfase.
-
-Survey gemmes som projektdata, ikke som en planaktivitet.
-
-Alle projekter skal have et `survey`-objekt.
-
-Hvis et gammelt projekt mangler `survey`, oprettes en standardstruktur automatisk, når projektet indlæses.
-
-Survey indeholder som minimum:
-
-- status
-- planlagt opmålingsdato
-- afsluttet opmålingsdato
-- ansvarlig
-- noter
-- opmålingsdata
-
-Survey må bruges af Roerbot til at vurdere, om projektet er klar til planlægning.
-
-Survey må ikke optage ressourcer i produktionsplanen.
-
-Survey fastlægger projektets grundlag før installationer oprettes.
-Survey indeholder ikke installationer.
-Installationer oprettes efter survey som en opdeling af projektet.
-Forarbejde er ikke survey.
-Forarbejde er en del af udførelsen og kan ændre registreringen af stik.
-
-## Upcoming
-
-Projektet er klar til planlægning.
-
-Planen må ændres frit.
-
-Roerbot må:
-
-- ændre startdatoer
-- flytte aktiviteter
-- skifte hold
-- simulere scenarier
-- optimere planen
-
-Der findes endnu ingen baseline.
+Survey-import må ikke lydløst overskrive gældende data, når der er en
+reel afvigelse.
 
 ---
 
-## Active
+# 3. Upcoming
 
-Projektet er sat i gang.
+Upcoming betyder, at projektet er klar til produktionsplanlægning.
 
-Når status ændres til Active:
+Planen kan fortsat udvikles og optimeres.
 
-- den aktuelle plan gemmes som baseline
-- planmotoren fortsætter med at optimere den aktuelle plan
-- faktisk udført arbejde registreres
-- afvigelser beregnes i forhold til baseline
+Ændringer behandles gennem den normale proces:
 
-Planen må stadig ændres.
+Forslag
+→ Scenario
+→ Konsekvensanalyse
+→ Godkendelse
+→ Gem
 
-Baseline ændres aldrig.
-
----
-
-## Completed
-
-Projektet er afsluttet.
-
-Baseline, faktisk udførelse og afvigelser bevares som historik.
+Upcoming betyder derfor ikke, at Rørbot eller andre klienter frit må
+ændre gældende data uden godkendelse.
 
 ---
 
-# Planlægningsprincipper
+# 4. Active
 
-Planmotoren planlægger ud fra virksomhedens flaskehalse.
+Active betyder, at projektets udførelse er i gang.
 
-Den primære flaskehals er hovedledningsholdene.
+Faktisk produktion registreres løbende.
 
-Andre aktiviteter planlægges omkring disse.
+Systemet skal kunne sammenholde:
 
----
+- planlagt arbejde
+- faktisk udført arbejde
+- tidligere beslutninger
+- ændringer
+- afvigelser
 
-## Forarbejde
+Planen må fortsat ændres under udførelsen, men ændringer følger samme
+scenario- og godkendelsesproces som øvrige ændringer.
 
-Forarbejde skal være afsluttet før hovedledning.
-
-Der er ingen maksimal afstand mellem forarbejde og hovedledning.
-
-Motoren må placere forarbejdet tidligere, hvis det giver en bedre samlet plan.
-
----
-
-## Hovedledning
-
-Hovedledningen er den styrende aktivitet.
-
-Resten af planen bygges op omkring hovedledningens dato.
+Historikken må ikke overskrives.
 
 ---
 
-## Afhængigheder
+# 5. Completed
 
-Afhængigheder beskriver logiske krav.
+Completed betyder, at projektet er afsluttet.
 
-Eksempel:
+Projektets:
+
+- tekniske data
+- produktionsregistreringer
+- snapshots
+- beslutninger
+- ændringer
+- afvigelser
+
+bevares som historik.
+
+---
+
+# 6. Produktion og løbende status
+
+C5 Online leverer løbende produktionsregistreringer.
+
+Produktionsoversigten beskriver den faktiske udførelse ude på
+projektet.
+
+Data kan blandt andet omfatte fremdrift for:
+
+- opmåling
+- forarbejde
+- stikopmåling
+- hovedledning
+- stikåbning
+- korthat
+- langhat
+- brøndarbejde
+- DTVK
+
+Brøndrapport/import kan levere yderligere oplysninger om arbejde på
+brønde.
+
+Produktionsdata beskriver faktisk udført arbejde.
+
+De må ikke forveksles med planlagte aktiviteter.
+
+---
+
+# 7. Planmotorens grundprincip
+
+Planmotoren modellerer virksomhedens faktiske produktionsproces.
+
+Planen er en beregnet forventning.
+
+Virkeligheden har altid forrang over planen.
+
+Hvis faktisk registreret produktion afviger fra planen, skal systemet
+registrere og forklare afvigelsen.
+
+Planen må ikke omskrive virkeligheden for at få resultatet til at se
+korrekt ud.
+
+---
+
+# 8. Hovedledning som styrende aktivitet
+
+Hovedledningsarbejdet er en central styrende aktivitet i
+produktionsplanlægningen.
+
+Mange efterfølgende aktiviteter afhænger af hovedledningen.
+
+Planmotoren skal samtidig kunne analysere virksomhedens samlede
+kapacitet og må ikke optimere ét projekt isoleret, hvis det skaber en
+dårligere samlet produktionsplan.
+
+---
+
+# 9. Normal aktivitetsrækkefølge
+
+Den normale produktionsrækkefølge er:
 
 Forarbejde
 → Hovedledning
@@ -151,31 +196,120 @@ Forarbejde
 → Kontrol
 → Korthat
 → Brønd
+→ DTVK
 
-Virkeligheden kan afvige fra planen.
+Rækkefølgen beskriver virksomhedens normale workflow.
 
-Planmotoren må ikke skjule afvigelser.
+Den er ikke en påstand om, at virkeligheden aldrig kan afvige.
 
-Roerbot skal kunne forklare dem.
+En afvigelse skal behandles som en eksplicit beslutning eller som
+registreret faktisk udførelse.
+
+Systemet må ikke skjule workflow-afvigelser.
 
 ---
 
-# Grundprincip
+# 10. Forarbejde
 
-Systemet modellerer virksomhedens arbejdsproces.
+Forarbejde er en produktionsaktivitet.
 
-Systemet modellerer ikke en teoretisk projektmodel.
+Forarbejde er ikke survey.
 
-Virkeligheden har altid forrang frem for planen.
+Forarbejde kan blandt andet ændre eller bekræfte viden om stik og
+andre faktiske forhold.
 
-Roerbot skal hjælpe projektlederen med at forstå konsekvenserne af ændringer – ikke blot registrere dem.
+Når ny viden fremkommer gennem forarbejde eller produktion, skal den
+registreres som faktisk projektinformation.
 
-## Datamodel-princip
+---
 
-Hver central datamodel skal have én kilde til standardstruktur.
+# 11. Afhængigheder og undtagelser
 
-Eksempel:
+Afhængigheder beskriver den normale arbejdsgang.
 
-`survey_model.py` definerer standardstrukturen for survey.
+Projektledelsen kan beslutte at fravige den normale rækkefølge.
 
-Andre dele af systemet må bruge modellen, men må ikke kopiere dens struktur manuelt.
+En sådan fravigelse skal:
+
+- være eksplicit
+- have en begrundelse
+- kunne analyseres
+- kunne simuleres
+- godkendes af et menneske
+- registreres i beslutningshistorikken
+
+Planner må anvende godkendte projektregler og undtagelser.
+
+Rørbot må foreslå dem, men ikke selv godkende dem.
+
+---
+
+# 12. Plan og virkelighed er forskellige begreber
+
+Systemet skal altid kunne skelne mellem:
+
+- planlagt
+- foreslået
+- godkendt
+- faktisk udført
+
+Disse tilstande må ikke blandes sammen.
+
+Et scenario er ikke en gældende plan.
+
+En planlagt aktivitet er ikke udført arbejde.
+
+En produktionsregistrering er ikke et forslag.
+
+---
+
+# 13. Datakilder
+
+Gældende data gemmes i databasen.
+
+Eksterne systemer som C5 er kilder til import og opdateringer.
+
+CSV er et transportformat.
+
+CSV er ikke Projektstyrings database.
+
+Importer skal omsætte eksterne data til Projektstyrings generiske
+domænemodel.
+
+Efter import arbejder resten af systemet mod databasen og repositories,
+ikke mod det specifikke C5-format.
+
+---
+
+# 14. Import og afvigelser
+
+En import skal skelne mellem:
+
+- nye oplysninger
+- identiske oplysninger
+- ændrede oplysninger
+- manglende oplysninger
+- ugyldige oplysninger
+
+Nye og ændrede oplysninger skal behandles efter deres betydning.
+
+Hvis en import ændrer allerede gældende tekniske data, skal ændringen
+kunne vises som før/efter og følge den relevante
+godkendelsesmekanisme.
+
+Import må ikke skjule en ændring ved blot at overskrive den gamle
+værdi.
+
+---
+
+# 15. Domænemodellen er autoritativ
+
+Standardstruktur og feltdefinitioner skal have én autoritativ
+implementering i den aktuelle database-/domænemodel.
+
+Andre dele af systemet må ikke kopiere gamle dictionary- eller
+JSON-strukturer som parallel model.
+
+Når den autoritative model ændres, skal afhængige komponenter migreres.
+
+Legacy-strukturer skal ikke holdes kunstigt i live.

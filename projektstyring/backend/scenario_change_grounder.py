@@ -173,6 +173,9 @@ class ScenarioChangeGrounder:
                 item.get("target") or ""
             ).strip()
 
+            if target == "after.field":
+                target = "field"
+
             quote = str(
                 item.get("quote") or ""
             ).strip()
@@ -235,6 +238,11 @@ class ScenarioChangeGrounder:
 
         elif change_type == "installation_field_change":
             required.add("installation_id")
+            required.add("field")
+            required.add("after.value")
+
+        elif change_type == "manhole_field_change":
+            required.add("manhole_no")
             required.add("field")
             required.add("after.value")
 

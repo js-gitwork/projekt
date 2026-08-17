@@ -69,24 +69,6 @@ technical_asset_import_service = (
 def get_teams():
     return team_repo.load_team_map()
 
-
-def empty_task_assignments():
-    return {
-        task_type: []
-        for task_type in TASK_TYPES
-    }
-
-
-def ensure_task_assignments(project):
-    if "task_assignments" not in project:
-        project["task_assignments"] = empty_task_assignments()
-
-    for task_type in TASK_TYPES:
-        project["task_assignments"].setdefault(task_type, [])
-
-    return project
-
-
 def to_int(value, default=0):
     try:
         if value in (None, ""):
@@ -94,30 +76,6 @@ def to_int(value, default=0):
         return int(value)
     except (TypeError, ValueError):
         return default
-
-def calculate_project_status(project):
-    status = project.get("status")
-
-    if status in [
-        "survey",
-        "upcoming",
-        "active",
-        "completed",
-    ]:
-        return status
-
-    start_date = project.get("start_date")
-
-    if not start_date:
-        return "upcoming"
-
-    try:
-        if date.fromisoformat(start_date) <= date.today():
-            return "active"
-    except ValueError:
-        return "upcoming"
-
-    return "upcoming"
 
 def installation_sort_key(installation):
     return (
@@ -490,15 +448,12 @@ def planning_board_data(
 def project_detail(request: Request, project_id: str):
     project = repo.load_project(project_id)
 
-    project["status"] = calculate_project_status(project)
     project = ensure_task_assignments(project)
 
     project["installations"] = sorted(
         project.get("installations", []),
         key=installation_sort_key,
     )
-
-    repo.save_project(project)
 
     return templates.TemplateResponse(
         request,
@@ -637,7 +592,6 @@ async def save_project_detail(request: Request, project_id: str):
 
     project["installations"] = installations
     project["task_assignments"] = assignments
-    project["status"] = calculate_project_status(project)
 
     errors = validate_task_assignments(assignments)
 
@@ -699,8 +653,6 @@ def add_project_installations(
         project.get("installations", []),
         key=installation_sort_key,
     )
-
-    project["status"] = calculate_project_status(project)
 
     repo.save_project(project)
 
@@ -850,6 +802,7 @@ async def c5_import_preview(
         form.get("csv_text", "")
     )
 
+    # Data til den eksisterende detaljerede preview-visning.
     updates = parse_c5_csv(
         csv_text
     )
@@ -860,6 +813,23 @@ async def c5_import_preview(
         if update.get("project_id") == project_id.upper()
     ]
 
+    # Byg præcis den samme tekniske import,
+    # som "Godkend import" senere vil gennemføre.
+    technical_import = (
+        parse_c5_technical_asset_import(
+            csv_text=csv_text,
+            project_id=project_id,
+        )
+    )
+
+    # Kør hele importkæden mod databasen,
+    # men rollback altid bagefter.
+    preview_result = (
+        technical_asset_import_service.preview(
+            technical_import
+        )
+    )
+
     return templates.TemplateResponse(
         request,
         "c5_import.html",
@@ -867,6 +837,7 @@ async def c5_import_preview(
             "project": project,
             "csv_text": csv_text,
             "updates": updates,
+            "preview_result": preview_result,
         },
     )
 

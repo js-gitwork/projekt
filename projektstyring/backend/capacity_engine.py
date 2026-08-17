@@ -1,86 +1,181 @@
+from __future__ import annotations
+
 from math import ceil
 
 
 class CapacityEngine:
-    def __init__(self, hold_map: dict):
+    def __init__(
+        self,
+        hold_map: dict,
+    ):
         self.hold_map = hold_map
 
-        # baseline produktion
-        self.stik_pr_dag = 25
-
-        # DTVK / slutkontrol
-        self.dtvk_meter_pr_dag = 700
-        self.dtvk_stik_pr_dag = 20
-
-    def beregn_varighed(self, aktivitet):
+    def beregn_varighed(
+        self,
+        aktivitet,
+    ) -> int:
         """
-        Returnerer antal dage en aktivitet forventes at tage
-        baseret på type, antal og hold-kapacitet.
+        Beregner aktivitetens varighed ud fra
+        holdets registrerede kapacitet.
+
+        Kapacitet kommer fra databasen via TeamRepository.
+        Der findes ingen hardcodede holdkapaciteter her.
         """
 
-        hold = self.hold_map.get(aktivitet.hold)
+        hold = self.hold_map.get(
+            aktivitet.hold
+        )
 
         if not hold:
-            raise Exception(f"Ukendt hold: {aktivitet.hold}")
+            raise ValueError(
+                f"Ukendt hold: "
+                f"{aktivitet.hold}"
+            )
 
-        rolle = getattr(hold, "rolle", "")
-        kapacitet = getattr(hold, "kapacitet", 0)
+        task_type = str(
+            aktivitet.type
+        )
 
-        # -------------------------------------------------
-        # 1. DTVK / SLUTKONTROL
-        # -------------------------------------------------
-        if aktivitet.type == "dtvk":
-            meter = float(getattr(aktivitet, "hovedledning_meter", 0) or 0)
-            stik = int(getattr(aktivitet, "antal_stik", 0) or 0)
+        if task_type == "dtvk":
+            return self._beregn_dtvk(
+                aktivitet,
+                hold,
+            )
 
-            meter_dage = meter / self.dtvk_meter_pr_dag if meter > 0 else 0
-            stik_dage = stik / self.dtvk_stik_pr_dag if stik > 0 else 0
+        if task_type in {
+            "stik",
+            "stikforberedelse",
+            "kontrol",
+        }:
+            return self._beregn_quantity(
+                quantity=getattr(
+                    aktivitet,
+                    "antal_stik",
+                    0,
+                ),
+                capacity=hold.capacity_for(
+                    task_type,
+                    "stik",
+                ),
+            )
 
-            return max(1, ceil(max(meter_dage, stik_dage)))
+        if task_type == "broend":
+            return self._beregn_quantity(
+                quantity=getattr(
+                    aktivitet,
+                    "antal_brønde",
+                    0,
+                ),
+                capacity=hold.capacity_for(
+                    task_type,
+                    "broende",
+                ),
+            )
 
-        # -------------------------------------------------
-        # 2. STIK (standard produktion)
-        # -------------------------------------------------
-        if aktivitet.type == "stik":
-            if aktivitet.antal_stik and aktivitet.antal_stik > 0:
-                return max(1, ceil(aktivitet.antal_stik / self.stik_pr_dag))
-            return 1
-
-        # -------------------------------------------------
-        # 3. BRØND (kapacitetsbaseret)
-        # -------------------------------------------------
-        if aktivitet.type == "brønd":
-            if aktivitet.antal_brønde and aktivitet.antal_brønde > 0:
-                if kapacitet > 0:
-                    return max(1, ceil(aktivitet.antal_brønde / kapacitet))
-            return 1
-
-        # -------------------------------------------------
-        # 4. HOVEDLEDNING (Filt - manuel styring)
-        # -------------------------------------------------
-        if rolle == "hovedledning":
-            return 1
-
-        # -------------------------------------------------
-        # 5. FORARBEJDE (TV6 model - grov estimation)
-        # -------------------------------------------------
-        if rolle == "forarbejde":
-            per_installation = 2.5 / 18
-            return max(1, ceil(per_installation))
-
-        # -------------------------------------------------
-        # 6. STIKFORBEREDELSE / KONTROL (TV22 type)
-        # -------------------------------------------------
-        if rolle == "stikforberedelse_kontrol":
-            return 1
-
-        # -------------------------------------------------
-        # 7. LANGHAT / KORTHAT
-        # -------------------------------------------------
-        if rolle in ["langhat", "korthat"]:
-            return 1
-
-        # -------------------------------------------------
-        # 8. FALLBACK (sikkerhed)
-        # -------------------------------------------------
+        # Aktiviteter uden registreret
+        # mængdebaseret kapacitet er foreløbig
+        # én planlagt arbejdsdag.
         return 1
+
+    def _beregn_dtvk(
+        self,
+        aktivitet,
+        hold,
+    ) -> int:
+        meter = float(
+            getattr(
+                aktivitet,
+                "hovedledning_meter",
+                0,
+            )
+            or 0
+        )
+
+        stik = int(
+            getattr(
+                aktivitet,
+                "antal_stik",
+                0,
+            )
+            or 0
+        )
+
+        meter_capacity = (
+            hold.capacity_for(
+                "dtvk",
+                "hovedledning_meter",
+            )
+        )
+
+        stik_capacity = (
+            hold.capacity_for(
+                "dtvk",
+                "stik",
+            )
+        )
+
+        days = []
+
+        if meter > 0:
+            if meter_capacity <= 0:
+                raise ValueError(
+                    f"Holdet '{hold.id}' mangler "
+                    "DTVK-kapacitet for "
+                    "hovedledning_meter."
+                )
+
+            days.append(
+                meter
+                / meter_capacity
+            )
+
+        if stik > 0:
+            if stik_capacity <= 0:
+                raise ValueError(
+                    f"Holdet '{hold.id}' mangler "
+                    "DTVK-kapacitet for stik."
+                )
+
+            days.append(
+                stik
+                / stik_capacity
+            )
+
+        if not days:
+            return 1
+
+        return max(
+            1,
+            ceil(
+                max(days)
+            ),
+        )
+
+    @staticmethod
+    def _beregn_quantity(
+        *,
+        quantity,
+        capacity: float,
+    ) -> int:
+        amount = float(
+            quantity
+            or 0
+        )
+
+        if amount <= 0:
+            return 1
+
+        if capacity <= 0:
+            raise ValueError(
+                "Aktiviteten har en mængde, "
+                "men holdet mangler registreret "
+                "kapacitet for denne opgavetype."
+            )
+
+        return max(
+            1,
+            ceil(
+                amount
+                / capacity
+            ),
+        )

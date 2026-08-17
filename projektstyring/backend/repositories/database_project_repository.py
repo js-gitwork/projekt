@@ -8,7 +8,9 @@ from sqlalchemy import delete, select
 from sqlalchemy.orm import selectinload
 
 from projektstyring.backend.database.connection import SessionLocal
-from projektstyring.backend.database.import_project import import_project
+from projektstyring.backend.database.project_persistence import (
+    synchronize_project,
+)
 from projektstyring.backend.db_models import (
     Decision,
     Installation,
@@ -54,9 +56,6 @@ class DatabaseProjectRepository:
                         project.start_date
                     ),
                     "status": project.status,
-                    # Bevares midlertidigt for kompatibilitet
-                    # med kode, der tidligere modtog filnavnet.
-                    "file": None,
                 }
                 for project in projects
             ]
@@ -135,7 +134,7 @@ class DatabaseProjectRepository:
 
         with SessionLocal() as session:
             try:
-                import_project(
+                syncronize_project(
                     project,
                     session=session,
                 )

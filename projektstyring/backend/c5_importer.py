@@ -157,6 +157,160 @@ def get_length_m(
     )
 
 
+
+def to_decimal_or_none(value: Any) -> Decimal | None:
+    """Parser en valgfri decimalværdi fra C5."""
+    raw_value = str(value or "").strip()
+    if not raw_value:
+        return None
+    raw_value = raw_value.replace(",", ".")
+    try:
+        return Decimal(raw_value)
+    except (TypeError, ValueError, ArithmeticError):
+        return None
+
+
+def _find_column_indexes(
+    header: list[str],
+    column_name: str,
+) -> list[int]:
+    """
+    Finder alle forekomster af et kolonnenavn.
+
+    C5-opmålingsskemaet har dublerede kolonnenavne, bl.a.
+    'Brønd 1 dybde' og 'Brønd 2 dybde'. Derfor må disse
+    surveyfelter læses positionelt og ikke via DictReader.
+    """
+    normalized_name = normalize_column_name(column_name)
+    return [
+        index
+        for index, value in enumerate(header)
+        if normalize_column_name(value) == normalized_name
+    ]
+
+
+def parse_c5_survey_manhole_depths(
+    csv_text: str,
+    project_id: str,
+) -> dict[str, Decimal]:
+    """
+    Læser survey-dybder positionelt fra C5-opmålingsskemaet.
+
+    Alle observationer for samme brønd skal være ens. Hvis C5
+    indeholder flere forskellige dybder for samme brønd, stoppes
+    importen før databaseskrivning.
+    """
+    reader = csv.reader(
+        io.StringIO(csv_text),
+        delimiter=";",
+    )
+
+    try:
+        raw_header = next(reader)
+    except StopIteration:
+        return {}
+
+    header = [
+        normalize_column_name(value)
+        for value in raw_header
+    ]
+
+    project_indexes = _find_column_indexes(header, "Projekt")
+    manhole_1_indexes = _find_column_indexes(header, "Brønd 1")
+    manhole_2_indexes = _find_column_indexes(header, "Brønd 2")
+    depth_1_indexes = _find_column_indexes(header, "Brønd 1 dybde")
+    depth_2_indexes = _find_column_indexes(header, "Brønd 2 dybde")
+
+    # Produktionsoversigten har ikke nødvendigvis disse surveykolonner.
+    # I så fald ændres den eksisterende importadfærd ikke.
+    if (
+        not project_indexes
+        or not manhole_1_indexes
+        or not manhole_2_indexes
+        or not depth_1_indexes
+        or not depth_2_indexes
+    ):
+        return {}
+
+    project_index = project_indexes[0]
+    manhole_1_index = manhole_1_indexes[0]
+    manhole_2_index = manhole_2_indexes[0]
+    normalized_project_id = normalize_project_id(project_id)
+
+    observations: dict[str, set[Decimal]] = {}
+
+    def value_at(row: list[str], index: int) -> str:
+        if index >= len(row):
+            return ""
+        return str(row[index] or "").strip()
+
+    def add_observations(
+        manhole_no: str,
+        row: list[str],
+        depth_indexes: list[int],
+    ) -> None:
+        if not manhole_no:
+            return
+
+        for depth_index in depth_indexes:
+            depth_m = to_decimal_or_none(
+                value_at(row, depth_index)
+            )
+            if depth_m is None:
+                continue
+
+            observations.setdefault(
+                manhole_no,
+                set(),
+            ).add(depth_m)
+
+    for row in reader:
+        row_project_id = normalize_project_id(
+            value_at(row, project_index)
+        )
+        if row_project_id != normalized_project_id:
+            continue
+
+        manhole_1_no = value_at(row, manhole_1_index)
+        manhole_2_no = value_at(row, manhole_2_index)
+
+        add_observations(
+            manhole_1_no,
+            row,
+            depth_1_indexes,
+        )
+        add_observations(
+            manhole_2_no,
+            row,
+            depth_2_indexes,
+        )
+
+    conflicts = {
+        manhole_no: sorted(values)
+        for manhole_no, values in observations.items()
+        if len(values) > 1
+    }
+
+    if conflicts:
+        conflict_text = "; ".join(
+            f"{manhole_no}: "
+            + ", ".join(f"{value} m" for value in values)
+            for manhole_no, values in sorted(conflicts.items())
+        )
+        raise ValueError(
+            "C5-opmålingsdata indeholder modstridende "
+            "brønddybder for samme brønd. "
+            "Importen er stoppet før databaseskrivning. "
+            f"Konflikter: {conflict_text}"
+        )
+
+    return {
+        manhole_no: next(iter(values))
+        for manhole_no, values in observations.items()
+        if values
+    }
+
+
 def create_installation_item(
     project_id: str,
     installation_id: str,
@@ -462,6 +616,11 @@ def parse_c5_technical_asset_import(
             f"'{normalized_project_id}'."
         )
 
+    survey_manhole_depths = parse_c5_survey_manhole_depths(
+        csv_text=csv_text,
+        project_id=normalized_project_id,
+    )
+
     manhole_numbers: set[str] = set()
     imported_installations = []
 
@@ -569,8 +728,16 @@ def parse_c5_technical_asset_import(
     manholes = [
         ImportedManhole(
             manhole_no=manhole_no,
+            depth_m=survey_manhole_depths.get(
+                manhole_no
+            ),
             metadata={
                 "source": "c5_csv",
+                "depth_source": (
+                    "c5_survey"
+                    if manhole_no in survey_manhole_depths
+                    else None
+                ),
             },
         )
         for manhole_no in sorted(
@@ -588,197 +755,8 @@ def parse_c5_technical_asset_import(
                 imported_installations
             ),
             "source_format": "c5_csv",
+            "survey_manhole_depth_count": len(
+                survey_manhole_depths
+            ),
         },
     )
-
-
-# ---------------------------------------------------------------------------
-# LEGACY
-#
-# Funktionen nedenfor beholdes kun midlertidigt, fordi den nuværende api.py
-# stadig importerer den. Når C5-routen kobles over på
-# TechnicalAssetImportService, skal både importen og denne funktion fjernes.
-# ---------------------------------------------------------------------------
-
-def create_project_installation(
-    installation_id: str,
-) -> dict[str, Any]:
-    return {
-        "id": installation_id,
-        "active": True,
-        "hoveddato": None,
-        "expected_stik": 0,
-        "active_stik": None,
-        "opened_stik": None,
-        "langhatte": 0,
-        "korthatte_extra": 0,
-        "broende": 0,
-        "main_length_m": 0.0,
-        "hovedledning_meter": 0.0,
-        "bronde_total": 0,
-        "stretches": [],
-        "progress": {},
-        "c5_values": {},
-        "notes": "",
-    }
-
-
-def build_installation_notes(
-    update: dict[str, Any],
-) -> str:
-    notes = []
-
-    if update.get("address"):
-        notes.append(
-            update["address"]
-        )
-
-    stretch_texts = []
-
-    for stretch in update.get(
-        "stretches",
-        [],
-    ):
-        from_brond = stretch.get(
-            "from_brond",
-            "",
-        )
-
-        to_brond = stretch.get(
-            "to_brond",
-            "",
-        )
-
-        length_m = stretch.get(
-            "length_m",
-            0,
-        )
-
-        if from_brond or to_brond:
-            stretch_texts.append(
-                f"{from_brond}-{to_brond} "
-                f"({length_m} m)"
-            )
-
-    if stretch_texts:
-        notes.append(
-            "Strækninger: "
-            + ", ".join(stretch_texts)
-        )
-
-    if update.get("notes"):
-        notes.append(
-            "Bemærkninger: "
-            + " | ".join(update["notes"])
-        )
-
-    return " | ".join(notes)
-
-
-def apply_c5_updates_to_project(
-    project: dict[str, Any],
-    updates: list[dict[str, Any]],
-) -> dict[str, Any]:
-    """
-    Midlertidig kompatibilitetsfunktion.
-
-    Skal fjernes, når api.py er koblet helt over på den nye
-    TechnicalAssetImportService.
-    """
-    project_id = normalize_project_id(
-        project.get("id")
-    )
-
-    existing = {
-        normalize_installation_id(
-            item.get("id")
-        ): item
-        for item in project.get(
-            "installations",
-            [],
-        )
-    }
-
-    for update in updates:
-        update_project_id = normalize_project_id(
-            update.get("project_id")
-        )
-
-        if (
-            project_id
-            and update_project_id
-            and project_id != update_project_id
-        ):
-            continue
-
-        installation_id = normalize_installation_id(
-            update.get("id")
-        )
-
-        if not installation_id:
-            continue
-
-        installation = existing.get(
-            installation_id
-        )
-
-        if not installation:
-            installation = (
-                create_project_installation(
-                    installation_id
-                )
-            )
-
-            project.setdefault(
-                "installations",
-                [],
-            ).append(
-                installation
-            )
-
-            existing[
-                installation_id
-            ] = installation
-
-        installation["expected_stik"] = update.get(
-            "expected_stik",
-            0,
-        )
-
-        installation["main_length_m"] = update.get(
-            "main_length_m",
-            0.0,
-        )
-
-        installation["hovedledning_meter"] = update.get(
-            "hovedledning_meter",
-            0.0,
-        )
-
-        installation["bronde_total"] = update.get(
-            "bronde_total",
-            0,
-        )
-
-        installation["stretches"] = update.get(
-            "stretches",
-            [],
-        )
-
-        installation["progress"] = update.get(
-            "progress",
-            {},
-        )
-
-        installation["c5_values"] = update.get(
-            "c5_values",
-            {},
-        )
-
-        installation["notes"] = (
-            build_installation_notes(
-                update
-            )
-        )
-
-    return project

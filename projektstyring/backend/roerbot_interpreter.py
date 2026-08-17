@@ -111,6 +111,7 @@ RESOURCE_DESCRIPTIONS = {
 ALLOWED_CHANGE_TYPES = {
     "project_field_change",
     "installation_field_change",
+    "manhole_field_change",
     "task_assignment_change",
 }
 
@@ -136,6 +137,13 @@ ALLOWED_INSTALLATION_FIELDS = {
     "notes",
 }
 
+ALLOWED_MANHOLE_FIELDS = {
+    "depth_m",
+    "diameter_m",
+    "profile",
+    "material",
+    "notes",
+}
 
 def default_interpretation(
     question: str,
@@ -385,6 +393,15 @@ def normalize_change(
             installation_id
         ).strip()
 
+    manhole_no = value.get(
+        "manhole_no"
+    )
+
+    if manhole_no is not None:
+        normalized["manhole_no"] = str(
+            manhole_no
+        ).strip()
+
     target_id = value.get("target_id")
 
     if target_id is not None:
@@ -429,6 +446,27 @@ def normalize_change(
             "installation_id"
         ) and not after.get(
             "installation_id"
+        ):
+            return None
+
+    if change_type == "manhole_field_change":
+        field = str(
+            after.get("field") or ""
+        ).strip()
+
+        if field not in ALLOWED_MANHOLE_FIELDS:
+            return None
+
+        if (
+            "value" not in after
+            and field not in after
+        ):
+            return None
+
+        if not normalized.get(
+            "manhole_no"
+        ) and not after.get(
+            "manhole_no"
         ):
             return None
 
@@ -688,6 +726,13 @@ Tilladte installationsfelter:
     ensure_ascii=False,
 )}
 
+Tilladte brøndfelter:
+{json.dumps(
+    sorted(ALLOWED_MANHOLE_FIELDS),
+    indent=2,
+    ensure_ascii=False,
+)}
+
 Ændringskontrakter:
 
 1. Ændring af projektfelt:
@@ -729,6 +774,42 @@ Tilladte installationsfelter:
     "value": "2026-10-07"
   }}
 }}
+
+3. Ændring af brøndfelt:
+
+{{
+"change_type": "manhole_field_change",
+"project_id": "V165460",
+"manhole_no": "4612031",
+"after": {{
+"field": "depth_m",
+"value": 2.22
+}},
+"grounding": [
+{{
+"target": "project_id",
+"quote": "V165460",
+"source": "question"
+}},
+{{
+"target": "manhole_no",
+"quote": "4612031",
+"source": "question"
+}},
+{{
+"target": "after.field",
+"quote": "dybden",
+"source": "question"
+}},
+{{
+"target": "after.value",
+"quote": "2,22",
+"source": "question"
+}}
+]
+}}
+
+4. Flytning af en installationsopgave til et andet hold:
 
 3. Flytning af en installationsopgave til et andet hold:
 

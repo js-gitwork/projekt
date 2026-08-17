@@ -7,10 +7,13 @@ from typing import Any
 from projektstyring.backend.conflict_analyzer import (
     find_team_conflicts,
 )
-from projektstyring.backend.decision_engine import (
+from projektstyring.backend.scenario_planning import (
     build_portfolio_plan,
     shift_installation_dates,
     summarize_plan,
+)
+from projektstyring.backend.repositories.technical_asset_repository import (
+    TechnicalAssetRepository,
 )
 from projektstyring.backend.planning_scenario_service import (
     PlanningScenarioService,
@@ -61,9 +64,18 @@ class ScenarioChangeApplier:
         "notes",
     }
 
+    MANHOLE_FIELDS = {
+        "depth_m",
+        "diameter_m",
+        "profile",
+        "material",
+        "notes",
+    }
+
     SUPPORTED_CHANGE_TYPES = {
         "project_field_change",
         "installation_field_change",
+        "manhole_field_change",
         "task_assignment_change",
     }
 
@@ -71,10 +83,16 @@ class ScenarioChangeApplier:
         self,
         *,
         scenario_service: PlanningScenarioService | None = None,
+        technical_asset_repository: TechnicalAssetRepository | None = None,
     ):
         self.scenario_service = (
             scenario_service
             or PlanningScenarioService()
+        )
+
+        self.technical_asset_repository = (
+            technical_asset_repository
+            or TechnicalAssetRepository()
         )
 
     # ------------------------------------------------------------
@@ -126,6 +144,13 @@ class ScenarioChangeApplier:
 
         after_projects = deepcopy(before_projects)
 
+        before_manholes = self._load_revision_manholes(
+            scenario,
+            active_revision,
+        )
+
+        after_manholes = deepcopy(before_manholes)
+
         normalized_changes = []
 
         for sequence, change in enumerate(
@@ -134,10 +159,10 @@ class ScenarioChangeApplier:
         ):
             normalized_change = self._apply_change(
                 projects=after_projects,
+                manholes=after_manholes,
                 change=change,
                 sequence=sequence,
             )
-
             normalized_changes.append(
                 normalized_change
             )
@@ -179,6 +204,9 @@ class ScenarioChangeApplier:
                     deepcopy(project)
                     for project in after_projects.values()
                 ],
+                 "manholes": deepcopy(
+                    after_manholes
+                ),
                 "plans": deepcopy(after_plans),
                 "activities": deepcopy(
                     scenario_activities
@@ -224,6 +252,10 @@ class ScenarioChangeApplier:
         self,
         *,
         projects: dict[str, dict[str, Any]],
+        manholes: dict[
+            str,
+            dict[str, dict[str, Any]],
+        ],
         change: dict[str, Any],
         sequence: int,
     ) -> dict[str, Any]:
@@ -266,6 +298,14 @@ class ScenarioChangeApplier:
         if change_type == "project_field_change":
             return self._apply_project_field_change(
                 project=project,
+                change=change,
+                sequence=sequence,
+            )
+
+        if change_type == "manhole_field_change":
+            return self._apply_manhole_field_change(
+                project=project,
+                manholes=manholes,
                 change=change,
                 sequence=sequence,
             )
@@ -482,6 +522,104 @@ class ScenarioChangeApplier:
             "field": field,
             "value": deepcopy(
                 installation.get(field)
+            ),
+        }
+
+        normalized["metadata"] = {
+            **normalized["metadata"],
+            "field": field,
+        }
+
+        return normalized
+
+    # ------------------------------------------------------------
+    # Brøndfelter
+    # ------------------------------------------------------------
+
+    def _apply_manhole_field_change(
+        self,
+        *,
+        project: dict[str, Any],
+        manholes: dict[
+            str,
+            dict[str, dict[str, Any]],
+        ],
+        change: dict[str, Any],
+        sequence: int,
+    ) -> dict[str, Any]:
+        """
+        Ændrer ét tilladt felt på én brønd i scenariet.
+
+        Den virkelige brønd i databasen ændres ikke.
+        """
+
+        project_id = str(
+            project.get("id") or ""
+        ).strip()
+
+        manhole_no = str(
+            change.get("manhole_no")
+            or ""
+        ).strip()
+
+        if not manhole_no:
+            raise ValueError(
+                "Brøndændringen mangler brøndnummer."
+            )
+
+        project_manholes = manholes.get(
+            project_id,
+            {},
+        )
+
+        manhole = project_manholes.get(
+            manhole_no
+        )
+
+        if manhole is None:
+            raise FileNotFoundError(
+                f"Brønd '{manhole_no}' findes ikke "
+                f"på projekt '{project_id}'."
+            )
+
+        field, new_value = self._extract_field_change(
+            change
+        )
+
+        if field not in self.MANHOLE_FIELDS:
+            raise ValueError(
+                f"Brøndfeltet '{field}' må ikke ændres "
+                "gennem et planlægningsscenarie."
+            )
+
+        before_value = deepcopy(
+            manhole.get(field)
+        )
+
+        manhole[field] = deepcopy(
+            new_value
+        )
+
+        normalized = self._base_change(
+            sequence=sequence,
+            change=change,
+            project_id=project_id,
+            change_type="manhole_field_change",
+            target_type="manhole",
+            target_id=manhole_no,
+        )
+
+        normalized["before"] = {
+            "manhole_no": manhole_no,
+            "field": field,
+            "value": before_value,
+        }
+
+        normalized["after"] = {
+            "manhole_no": manhole_no,
+            "field": field,
+            "value": deepcopy(
+                manhole.get(field)
             ),
         }
 
@@ -917,6 +1055,72 @@ class ScenarioChangeApplier:
                 [],
             )
         }
+
+    def _load_revision_manholes(
+        self,
+        scenario: dict[str, Any],
+        active_revision: dict[str, Any],
+    ) -> dict[str, dict[str, dict[str, Any]]]:
+        """
+        Henter den kumulative brøndtilstand fra den aktive revision.
+
+        Hvis revisionen allerede indeholder foreslåede brønddata,
+        bruges disse. Ellers hentes de gældende brønddata fra
+        TechnicalAssetRepository.
+
+        Resultatet indekseres som:
+            project_id -> manhole_no -> manhole
+        """
+
+        calculated_result = (
+            active_revision.get(
+                "calculated_result"
+            )
+            or {}
+        )
+
+        revision_manholes = (
+            calculated_result.get("manholes")
+        )
+
+        if isinstance(revision_manholes, dict):
+            manholes = deepcopy(
+                revision_manholes
+            )
+
+            if manholes:
+                return manholes
+
+        result = {}
+
+        for item in scenario.get(
+            "projects",
+            [],
+        ):
+            project_id = str(
+                item.get("project_id") or ""
+            ).strip()
+
+            if not project_id:
+                continue
+
+            project_manholes = (
+                self.technical_asset_repository.list_manholes(
+                    project_id
+                )
+            )
+
+            result[project_id] = {
+                str(
+                    manhole.get("manhole_no") or ""
+                ).strip(): deepcopy(manhole)
+                for manhole in project_manholes
+                if str(
+                    manhole.get("manhole_no") or ""
+                ).strip()
+            }
+
+        return result
 
     def _require_editable_scenario(
         self,
