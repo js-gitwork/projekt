@@ -2,6 +2,10 @@ from __future__ import annotations
 
 from sqlalchemy.orm import Session
 
+from projektstyring.backend.importers.installation_importer import (
+    InstallationImporter,
+)
+
 from projektstyring.backend.importers.import_result import (
     ImportExecutionResult,
 )
@@ -41,6 +45,8 @@ class TechnicalAssetImportExecutor:
         service_connection_importer:
             ServiceConnectionImporter | None = None,
         work_importer: WorkImporter | None = None,
+        installation_importer:
+            InstallationImporter | None = None,
     ) -> None:
         self.manhole_importer = (
             manhole_importer
@@ -66,6 +72,12 @@ class TechnicalAssetImportExecutor:
             else WorkImporter()
         )
 
+        self.installation_importer = (
+            installation_importer
+            if installation_importer is not None
+            else InstallationImporter()
+        )
+
     def execute(
         self,
         session: Session,
@@ -78,6 +90,12 @@ class TechnicalAssetImportExecutor:
         result = ImportExecutionResult(
             project_id=plan.project_id,
             source=plan.source,
+        )
+
+        self.installation_importer.execute(
+            repo=repo,
+            plan=plan,
+            result=result,
         )
 
         self.manhole_importer.execute(

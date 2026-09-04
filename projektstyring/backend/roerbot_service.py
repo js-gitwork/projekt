@@ -5,7 +5,10 @@ from typing import Any
 
 from core.ai_assistent import ask_mistral
 from projektstyring.backend.project_creation_service import (
+    PROJECT_CREATION_WORKFLOW,
+    analyze_project_creation,
     handle_project_creation_message,
+    is_confirmation,
 )
 from projektstyring.backend.repositories.conversation_state_repository import (
     clear_active_conversation,
@@ -590,6 +593,31 @@ def ask_roerbot(
     active_state = get_active_conversation(
         "default"
     )
+
+    if (
+        active_state is not None
+        and active_state.workflow
+        == PROJECT_CREATION_WORKFLOW
+    ):
+        creation_data = dict(
+            active_state.data or {}
+        )
+
+        creation_analysis = (
+            analyze_project_creation(
+                creation_data
+            )
+        )
+
+        if (
+            creation_analysis.get("complete")
+            and is_confirmation(
+                normalized_question
+            )
+        ):
+            return handle_project_creation(
+                normalized_question
+            )
 
     approval_result = handle_scenario_approval(
         question=normalized_question,

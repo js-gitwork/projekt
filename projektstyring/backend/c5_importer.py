@@ -1,5 +1,5 @@
 from __future__ import annotations
-
+from datetime import date, datetime
 import csv
 import io
 from decimal import Decimal
@@ -8,10 +8,10 @@ from typing import Any
 from projektstyring.backend.importers.technical_asset_import import (
     ImportedInstallationAssets,
     ImportedManhole,
+    ImportedManholeWork,
     ImportedStretch,
     TechnicalAssetImport,
 )
-
 
 PROGRESS_COLUMNS = {
     "opmaaling": "Opmål.%",
@@ -42,6 +42,97 @@ def normalize_column_name(value: Any) -> str:
 def normalize_project_id(value: Any) -> str:
     return str(value or "").strip().upper()
 
+def detect_c5_csv_type(
+    csv_text: str,
+) -> str:
+    """
+    Genkender hvilken C5-oversigt CSV-teksten stammer fra.
+
+    project_overview:
+        Den almindelige projektoversigt med installationer,
+        stræk, survey og produktionsstatus.
+
+    manhole_overview:
+        Brøndoversigten med brøndrenovering, udført-data
+        og DTVK-oplysninger.
+    """
+    reader = csv.reader(
+        io.StringIO(csv_text),
+        delimiter=";",
+    )
+
+    try:
+        raw_header = next(reader)
+    except StopIteration:
+        raise ValueError(
+            "CSV-dataene er tomme."
+        )
+
+    header = {
+        normalize_column_name(value)
+        for value in raw_header
+    }
+
+    manhole_signature = {
+        "Brønd 1 renov.",
+        "Brønd 1 udført",
+        "Brønd 1 init",
+        "Brønd 2 udført",
+        "Brønd 2 init",
+        "DTVK dato",
+        "DTVK init",
+    }
+
+    project_signature = {
+        "Opmål.%",
+        "Forarb.%",
+        "Stikopm.%",
+        "Inst.%",
+        "Stikåbn.",
+        "Korthat",
+        "Langhat",
+        "Brøndskud",
+        "Pkt.rep",
+    }
+
+    if manhole_signature.issubset(
+        header
+    ):
+        return "manhole_overview"
+
+    if project_signature.issubset(
+        header
+    ):
+        return "project_overview"
+
+    raise ValueError(
+        "C5 CSV-formatet kunne ikke genkendes. "
+        "Filen matcher hverken projektoversigten "
+        "eller brøndoversigten."
+    )
+
+def parse_c5_date(
+    value: Any,
+) -> date | None:
+    raw = str(value or "").strip()
+
+    if not raw:
+        return None
+
+    for fmt in (
+        "%d-%m-%Y",
+        "%d/%m/%Y",
+        "%Y-%m-%d",
+    ):
+        try:
+            return datetime.strptime(
+                raw,
+                fmt,
+            ).date()
+        except ValueError:
+            continue
+
+    return None
 
 def normalize_installation_id(value: Any) -> str:
     value = str(value or "").strip()
@@ -177,28 +268,66 @@ def _find_column_indexes(
     """
     Finder alle forekomster af et kolonnenavn.
 
-    C5-opmålingsskemaet har dublerede kolonnenavne, bl.a.
-    'Brønd 1 dybde' og 'Brønd 2 dybde'. Derfor må disse
-    surveyfelter læses positionelt og ikke via DictReader.
+    C5-opmålingsskemaet kan have dublerede kolonnenavne,
+    derfor læses surveyfelter positionelt.
     """
-    normalized_name = normalize_column_name(column_name)
+    normalized_name = normalize_column_name(
+        column_name
+    )
+
     return [
         index
         for index, value in enumerate(header)
-        if normalize_column_name(value) == normalized_name
+        if normalize_column_name(value)
+        == normalized_name
     ]
 
 
-def parse_c5_survey_manhole_depths(
+def normalize_c5_manhole_no(
+    value: Any,
+) -> str:
+    """
+    Normaliserer et brøndnummer fra C5.
+
+    C5-felter kan i enkelte tilfælde indeholde en kommentar
+    efter selve brøndnummeret, fx:
+
+        F57020S (2 stik
+
+    Selve brøndnummeret er da F57020S.
+
+    Andre tegn i brøndnummeret ændres ikke.
+    """
+    normalized = str(
+        value or ""
+    ).strip()
+
+    if not normalized:
+        return ""
+
+    if " (" in normalized:
+        normalized = normalized.split(
+            " (",
+            1,
+        )[0].strip()
+
+    return normalized
+
+
+def parse_c5_survey_manhole_depth_observations(
     csv_text: str,
     project_id: str,
-) -> dict[str, Decimal]:
+) -> dict[str, list[Decimal]]:
     """
-    Læser survey-dybder positionelt fra C5-opmålingsskemaet.
+    Læser alle positive brønddybder fra
+    C5-projektoversigten.
 
-    Alle observationer for samme brønd skal være ens. Hvis C5
-    indeholder flere forskellige dybder for samme brønd, stoppes
-    importen før databaseskrivning.
+    Regler:
+    - tomt felt ignoreres
+    - 0 eller negativ værdi betyder ingen registreret dybde
+    - samme positive værdi flere gange tæller én gang
+    - forskellige positive værdier bevares separat,
+      så en tastefejl kan rapporteres senere
     """
     reader = csv.reader(
         io.StringIO(csv_text),
@@ -215,14 +344,43 @@ def parse_c5_survey_manhole_depths(
         for value in raw_header
     ]
 
-    project_indexes = _find_column_indexes(header, "Projekt")
-    manhole_1_indexes = _find_column_indexes(header, "Brønd 1")
-    manhole_2_indexes = _find_column_indexes(header, "Brønd 2")
-    depth_1_indexes = _find_column_indexes(header, "Brønd 1 dybde")
-    depth_2_indexes = _find_column_indexes(header, "Brønd 2 dybde")
+    project_indexes = _find_column_indexes(
+        header,
+        "Projekt",
+    )
 
-    # Produktionsoversigten har ikke nødvendigvis disse surveykolonner.
-    # I så fald ændres den eksisterende importadfærd ikke.
+    manhole_1_indexes = _find_column_indexes(
+        header,
+        "Brønd 1",
+    )
+
+    manhole_2_indexes = _find_column_indexes(
+        header,
+        "Brønd 2",
+    )
+
+    depth_1_indexes = (
+        _find_column_indexes(
+            header,
+            "Brønd 1 dybde",
+        )
+        + _find_column_indexes(
+            header,
+            "Dybde brønd 1",
+        )
+    )
+
+    depth_2_indexes = (
+        _find_column_indexes(
+            header,
+            "Brønd 2 dybde",
+        )
+        + _find_column_indexes(
+            header,
+            "Dybde brønd 2",
+        )
+    )
+
     if (
         not project_indexes
         or not manhole_1_indexes
@@ -235,14 +393,26 @@ def parse_c5_survey_manhole_depths(
     project_index = project_indexes[0]
     manhole_1_index = manhole_1_indexes[0]
     manhole_2_index = manhole_2_indexes[0]
-    normalized_project_id = normalize_project_id(project_id)
 
-    observations: dict[str, set[Decimal]] = {}
+    normalized_project_id = normalize_project_id(
+        project_id
+    )
 
-    def value_at(row: list[str], index: int) -> str:
+    observations: dict[
+        str,
+        list[Decimal],
+    ] = {}
+
+    def value_at(
+        row: list[str],
+        index: int,
+    ) -> str:
         if index >= len(row):
             return ""
-        return str(row[index] or "").strip()
+
+        return str(
+            row[index] or ""
+        ).strip()
 
     def add_observations(
         manhole_no: str,
@@ -254,63 +424,97 @@ def parse_c5_survey_manhole_depths(
 
         for depth_index in depth_indexes:
             depth_m = to_decimal_or_none(
-                value_at(row, depth_index)
+                value_at(
+                    row,
+                    depth_index,
+                )
             )
-            if depth_m is None:
+
+            if (
+                depth_m is None
+                or depth_m <= 0
+            ):
                 continue
 
-            observations.setdefault(
+            values = observations.setdefault(
                 manhole_no,
-                set(),
-            ).add(depth_m)
+                [],
+            )
+
+            if depth_m not in values:
+                values.append(
+                    depth_m
+                )
 
     for row in reader:
         row_project_id = normalize_project_id(
-            value_at(row, project_index)
+            value_at(
+                row,
+                project_index,
+            )
         )
-        if row_project_id != normalized_project_id:
+
+        if (
+            row_project_id
+            != normalized_project_id
+        ):
             continue
 
-        manhole_1_no = value_at(row, manhole_1_index)
-        manhole_2_no = value_at(row, manhole_2_index)
+        manhole_1_no = normalize_c5_manhole_no(
+            value_at(
+                row,
+                manhole_1_index,
+            )
+        )
+
+        manhole_2_no = normalize_c5_manhole_no(
+            value_at(
+                row,
+                manhole_2_index,
+            )
+        )
 
         add_observations(
             manhole_1_no,
             row,
             depth_1_indexes,
         )
+
         add_observations(
             manhole_2_no,
             row,
             depth_2_indexes,
         )
 
-    conflicts = {
-        manhole_no: sorted(values)
-        for manhole_no, values in observations.items()
-        if len(values) > 1
-    }
+    return observations
 
-    if conflicts:
-        conflict_text = "; ".join(
-            f"{manhole_no}: "
-            + ", ".join(f"{value} m" for value in values)
-            for manhole_no, values in sorted(conflicts.items())
+
+def parse_c5_survey_manhole_depths(
+    csv_text: str,
+    project_id: str,
+) -> dict[str, Decimal]:
+    """
+    Returnerer kun entydige positive brønddybder.
+
+    Hvis samme brønd har flere forskellige positive
+    dybdemål i C5, returneres ingen dybde for brønden.
+
+    Konflikten håndteres senere i importkæden ud fra
+    depth_observations_m.
+    """
+    observations = (
+        parse_c5_survey_manhole_depth_observations(
+            csv_text=csv_text,
+            project_id=project_id,
         )
-        raise ValueError(
-            "C5-opmålingsdata indeholder modstridende "
-            "brønddybder for samme brønd. "
-            "Importen er stoppet før databaseskrivning. "
-            f"Konflikter: {conflict_text}"
-        )
+    )
 
     return {
-        manhole_no: next(iter(values))
-        for manhole_no, values in observations.items()
-        if values
+        manhole_no: values[0]
+        for manhole_no, values
+        in observations.items()
+        if len(values) == 1
     }
-
-
 def create_installation_item(
     project_id: str,
     installation_id: str,
@@ -494,13 +698,13 @@ def parse_c5_csv(
         if not item["address"] and address:
             item["address"] = address
 
-        from_brond = str(
-            row.get("Brønd 1") or ""
-        ).strip()
+        from_brond = normalize_c5_manhole_no(
+            row.get("Brønd 1")
+        )
 
-        to_brond = str(
-            row.get("Brønd 2") or ""
-        ).strip()
+        to_brond = normalize_c5_manhole_no(
+            row.get("Brønd 2")
+        )
 
         expected_stik = to_int(
             row.get("Stik antal")
@@ -586,8 +790,150 @@ def parse_c5_csv(
 
     return result
 
+def parse_c5_manhole_work(
+    csv_text: str,
+    project_id: str,
+) -> list[ImportedManholeWork]:
+    """
+    Læser brøndrenoveringsstatus fra C5-CSV.
 
-def parse_c5_technical_asset_import(
+    En brønd registreres som planlagt arbejde, når
+    renoveringsfeltet er "Ja".
+
+    Hvis der samtidig findes udført-dato og initialer,
+    registreres arbejdet som completed.
+    """
+
+    normalized_project_id = normalize_project_id(
+        project_id
+    )
+
+    reader = csv.DictReader(
+        io.StringIO(csv_text),
+        delimiter=";",
+    )
+
+    if reader.fieldnames:
+        reader.fieldnames = [
+            normalize_column_name(name)
+            for name in reader.fieldnames
+        ]
+
+    result: list[ImportedManholeWork] = []
+    seen: set[tuple[str, str]] = set()
+
+    for row in reader:
+        row = {
+            normalize_column_name(key): value
+            for key, value in row.items()
+        }
+
+        row_project_id = normalize_project_id(
+            row.get("Projekt")
+        )
+
+        if (
+            row_project_id
+            != normalized_project_id
+        ):
+            continue
+
+        for side in (
+            "1",
+            "2",
+        ):
+            manhole_no = normalize_c5_manhole_no(
+                row.get(
+                    f"Brønd {side}"
+                )
+            )
+
+            if not manhole_no:
+                continue
+
+            renovation_value = str(
+                row.get(
+                    f"Brønd {side} renov."
+                )
+                or row.get(
+                    f"Brønd {side} renov"
+                )
+                or ""
+            ).strip().casefold()
+
+            if renovation_value not in {
+                "ja",
+                "yes",
+                "1",
+                "true",
+            }:
+                continue
+
+            performed_date = parse_c5_date(
+                row.get(
+                    f"Brønd {side} udført"
+                )
+            )
+
+            performed_by = str(
+                row.get(
+                    f"Brønd {side} init"
+                )
+                or ""
+            ).strip()
+
+            status = (
+                "completed"
+                if (
+                    performed_date is not None
+                    and performed_by
+                )
+                else "planned"
+            )
+
+            source_reference = (
+                f"{normalized_project_id}:"
+                f"{manhole_no}:"
+                "broendrenovering"
+            )
+
+            key = (
+                manhole_no,
+                source_reference,
+            )
+
+            if key in seen:
+                continue
+
+            seen.add(key)
+
+            result.append(
+                ImportedManholeWork(
+                    manhole_no=manhole_no,
+                    work_type="broendrenovering",
+                    status=status,
+                    quantity=Decimal("1"),
+                    unit="stk",
+                    performed_date=performed_date,
+                    performed_by=(
+                        performed_by
+                        or None
+                    ),
+                    source_reference=(
+                        source_reference
+                    ),
+                    metadata={
+                        "source": "c5_csv",
+                        "renovation_flag": (
+                            renovation_value
+                        ),
+                    },
+                )
+            )
+
+    return result
+
+def parse_c5_project_overview_import(
     csv_text: str,
     project_id: str,
 ) -> TechnicalAssetImport:
@@ -617,6 +963,18 @@ def parse_c5_technical_asset_import(
         )
 
     survey_manhole_depths = parse_c5_survey_manhole_depths(
+        csv_text=csv_text,
+        project_id=normalized_project_id,
+    )
+
+    survey_manhole_depth_observations = (
+        parse_c5_survey_manhole_depth_observations(
+            csv_text=csv_text,
+            project_id=normalized_project_id,
+        )
+    )
+
+    manhole_work = parse_c5_manhole_work(
         csv_text=csv_text,
         project_id=normalized_project_id,
     )
@@ -733,9 +1091,21 @@ def parse_c5_technical_asset_import(
             ),
             metadata={
                 "source": "c5_csv",
+                "import_type": "project_overview",
+                "depth_authoritative": True,
+                "depth_observations_m": [
+                    str(value)
+                    for value in (
+                        survey_manhole_depth_observations.get(
+                            manhole_no,
+                            []
+                        )
+                    )
+                ],
                 "depth_source": (
-                    "c5_survey"
-                    if manhole_no in survey_manhole_depths
+                    "c5_project_overview"
+                    if manhole_no
+                    in survey_manhole_depths
                     else None
                 ),
             },
@@ -748,8 +1118,10 @@ def parse_c5_technical_asset_import(
     return TechnicalAssetImport(
         project_id=normalized_project_id,
         source="c5_csv",
+        import_type="project_overview",
         installations=imported_installations,
         manholes=manholes,
+        manhole_work=manhole_work,
         metadata={
             "installation_count": len(
                 imported_installations
@@ -759,4 +1131,169 @@ def parse_c5_technical_asset_import(
                 survey_manhole_depths
             ),
         },
+    )
+
+def parse_c5_manhole_overview_import(
+    csv_text: str,
+    project_id: str,
+) -> TechnicalAssetImport:
+    """
+    Omsætter C5's brøndoversigt til TechnicalAssetImport.
+
+    Denne importtype opretter eller beriger brønde og
+    importerer brøndspecifikt arbejde.
+
+    Den opretter eller ændrer ikke installationer og stræk.
+    """
+    normalized_project_id = normalize_project_id(
+        project_id
+    )
+
+    reader = csv.DictReader(
+        io.StringIO(csv_text),
+        delimiter=";",
+    )
+
+    if reader.fieldnames:
+        reader.fieldnames = [
+            normalize_column_name(name)
+            for name in reader.fieldnames
+        ]
+
+    manhole_numbers: set[str] = set()
+
+    for row in reader:
+        row = {
+            normalize_column_name(key): value
+            for key, value in row.items()
+        }
+
+        if normalize_project_id(
+            row.get("Projekt")
+        ) != normalized_project_id:
+            continue
+
+        for column in (
+            "Brønd 1",
+            "Brønd 2",
+        ):
+            manhole_no = normalize_c5_manhole_no(
+                row.get(column)
+            )
+
+            if manhole_no:
+                manhole_numbers.add(
+                    manhole_no
+                )
+
+    if not manhole_numbers:
+        raise ValueError(
+            "Brøndoversigten indeholder ingen "
+            f"brønde for projekt "
+            f"'{normalized_project_id}'."
+        )
+
+    survey_manhole_depths = (
+        parse_c5_survey_manhole_depths(
+            csv_text=csv_text,
+            project_id=normalized_project_id,
+        )
+    )
+
+    survey_manhole_depth_observations = (
+        parse_c5_survey_manhole_depth_observations(
+            csv_text=csv_text,
+            project_id=normalized_project_id,
+        )
+    )
+
+    manhole_work = parse_c5_manhole_work(
+        csv_text=csv_text,
+        project_id=normalized_project_id,
+    )
+
+    manholes = [
+        ImportedManhole(
+            manhole_no=manhole_no,
+            depth_m=survey_manhole_depths.get(
+                manhole_no
+            ),
+            metadata={
+                "source": "c5_csv",
+                "import_type": (
+                    "manhole_overview"
+                ),
+                "depth_authoritative": False,
+                "depth_observations_m": [
+                    str(value)
+                    for value in (
+                        survey_manhole_depth_observations.get(
+                            manhole_no,
+                            []
+                        )
+                    )
+                ],
+                "depth_source": (
+                    "c5_manhole_overview"
+                    if manhole_no
+                    in survey_manhole_depths
+                    else None
+                ),
+            },
+        )
+        for manhole_no in sorted(
+            manhole_numbers
+        )
+    ]
+
+    return TechnicalAssetImport(
+        project_id=normalized_project_id,
+        source="c5_csv",
+        import_type="manhole_overview",
+        installations=[],
+        manholes=manholes,
+        manhole_work=manhole_work,
+        metadata={
+            "source_format": "c5_csv",
+            "import_type": (
+                "manhole_overview"
+            ),
+            "manhole_count": len(
+                manholes
+            ),
+            "survey_manhole_depth_count": len(
+                survey_manhole_depths
+            ),
+        },
+    )
+
+def parse_c5_technical_asset_import(
+    csv_text: str,
+    project_id: str,
+) -> TechnicalAssetImport:
+    """
+    Fælles C5-indgang.
+
+    CSV-typen genkendes automatisk ud fra headeren,
+    hvorefter den korrekte adapter anvendes.
+    """
+    import_type = detect_c5_csv_type(
+        csv_text
+    )
+
+    if import_type == "project_overview":
+        return parse_c5_project_overview_import(
+            csv_text=csv_text,
+            project_id=project_id,
+        )
+
+    if import_type == "manhole_overview":
+        return parse_c5_manhole_overview_import(
+            csv_text=csv_text,
+            project_id=project_id,
+        )
+
+    raise ValueError(
+        "Ukendt C5-importtype: "
+        f"{import_type}"
     )

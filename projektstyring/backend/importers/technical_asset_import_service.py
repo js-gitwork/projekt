@@ -181,7 +181,7 @@ class TechnicalAssetImportService:
                     plan,
                 )
 
-                if result.has_conflicts:
+                if result.has_blocking_conflicts:
                     session.rollback()
 
                     raise TechnicalAssetImportConflictError(

@@ -49,6 +49,8 @@ ALLOWED_RESOURCES = {
     "conflicts",
     "rest_work",
     "production_status",
+    "remaining_work",
+    "remaining_work_summary",
     "decisions",
     "snapshots",
     "changes",
@@ -93,6 +95,20 @@ RESOURCE_DESCRIPTIONS = {
         "Produktionsstatus baseret på tekniske databaseobjekter. "
         "Indeholder blandt andet udført, planlagt og manglende "
         "langhatte og korthatte samt manglende hovedstræk."
+    ),
+    "remaining_work": (
+        "Normaliseret restarbejde pr. installation. "
+        "Holder stik, langhat, korthat, brøndskud og "
+        "punktreparationer adskilt og angiver deres "
+        "produktionsgrupper. Ukendt status markeres "
+        "eksplicit og gættes ikke."
+    ),
+    "remaining_work_summary": (
+        "Kompakt status over restarbejde pr. opgavetype og "
+        "installation. Skelner mellem dokumenteret restarbejde, "
+        "ukendt status og dokumenteret færdigt arbejde. "
+        "Brug denne til almindelige spørgsmål om hvad der mangler, "
+        "hvad der er færdigt, og om et projekt er klar til næste trin."
     ),
     "decisions": (
         "Gemte beslutninger."
@@ -702,6 +718,20 @@ Vigtige regler:
 - Hvis sortering ikke er nødvendig, brug null.
 - Brug kun felter til filter og sortering, som findes direkte på den valgte resource.
 - data_requests må kun indeholde ressourcer fra listen ovenfor.
+- Du ved ikke på forhånd, om de ønskede systemdata findes.
+- Du må derfor aldrig vælge intent="clarification" alene fordi du
+  antager, at en databaseværdi eller produktionsstatus mangler.
+- Hvis brugerens spørgsmål kan besvares ved at hente en kendt
+  rapportresource, skal du bruge intent="report" og bede om ressourcen.
+- Det er Context Builder og Reporter, ikke Interpreteren, der afgør,
+  om de hentede data faktisk er mangelfulde.
+- Spørgsmål om manglende arbejde, resterende arbejde, færdigt eller
+  ufærdigt produktionsarbejde skal normalt bruge
+  resource="remaining_work_summary".
+- Brug kun resource="remaining_work", når der er behov for den fulde
+  interne restarbejdsstruktur til en særlig detaljeret analyse.
+- Spørgsmål om rå udført/planlagt produktionsstatus kan bruge
+  resource="production_status".
 
 Understøttede ændringstyper:
 {json.dumps(
@@ -828,8 +858,12 @@ Vigtige regler:
 - En besked kan indeholde flere ændringer.
 - Hver ændring skal placeres som ét objekt i changes.
 - Opfind aldrig projekt-id, installationsnummer eller hold.
-- Hvis et nødvendigt projekt-id, installationsnummer, hold eller
-  opgavetype mangler, brug intent="clarification".
+- Ved intent="change": Hvis et nødvendigt projekt-id,
+  installationsnummer, hold eller opgavetype ikke kan udledes
+  sikkert fra spørgsmålet eller samtalekonteksten, brug
+  intent="clarification".
+- Ved intent="report": Manglende databaseværdier må ikke antages.
+  Vælg den relevante dataresource og lad systemet hente dataene.
 - Brug intent="change" ved både nye forslag og revisioner af et
   eksisterende scenarie.
 - Beskriv kun den ønskede nye tilstand.
@@ -842,7 +876,10 @@ Vigtige regler:
 - Brug source="question" for brugerens aktuelle besked.
 - Brug source="context" kun når værdien faktisk står i konteksten.
 - Du må ikke opfinde et grounding-citat.
-- Hvis en nødvendig værdi ikke kan groundes, brug intent="clarification".
+- Ved ændringer: Hvis en nødvendig ændringsværdi ikke kan groundes,
+  brug intent="clarification".
+- Groundingkravet gælder changes[] og må ikke bruges som grund til
+  clarification ved almindelige rapportspørgsmål.
 - Du må ikke producere godkendelse eller databasekommandoer.
 - Rapporter skal bruge data_requests og normalt have changes=[].
 - Ændringer skal bruge changes og have requires_engine=true.

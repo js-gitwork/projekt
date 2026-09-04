@@ -35,10 +35,14 @@ import re
 from projektstyring.backend.production_status_service import (
     ProductionStatusService,
 )
+from projektstyring.backend.remaining_work_service import (
+    RemainingWorkService,
+)
 
 project_repository = ProjectRepository()
 team_repository = TeamRepository()
 production_status_service = ProductionStatusService()
+remaining_work_service = RemainingWorkService()
 
 
 ALLOWED_FILTER_OPERATORS = {
@@ -714,6 +718,278 @@ def load_production_status_resource(
 
     return result
 
+def load_remaining_work_resource(
+    interpretation: dict[str, Any],
+) -> list[dict[str, Any]]:
+    """
+    Henter normaliseret restarbejde for de projekter,
+    som AI-fortolkeren har angivet i scope.
+
+    Funktionen ændrer ingen data.
+    """
+
+    result = []
+
+    for project_id in requested_project_ids(
+        interpretation
+    ):
+        report = (
+            remaining_work_service
+            .build_project_remaining_work(
+                project_id
+            )
+        )
+
+        result.append(
+            serialize_value(report)
+        )
+
+    return result
+
+def summarize_remaining_work(
+    report: dict[str, Any],
+) -> dict[str, Any]:
+    """
+    Bygger et kompakt rapportgrundlag ud fra den fulde
+    RemainingWorkService-rapport.
+
+    Formålet er at give Roerbot de oplysninger, der normalt
+    er relevante i en samtale, uden at sende hele den interne
+    planlægningsstruktur til AI-reporteren.
+
+    Der skelnes altid mellem:
+    - dokumenteret restarbejde
+    - ukendt status
+    - dokumenteret færdigt arbejde
+    """
+
+    task_status: dict[str, Any] = {}
+
+    for installation in report.get(
+        "installations",
+        [],
+    ):
+        installation_id = str(
+            installation.get(
+                "installation_id",
+                "",
+            )
+        )
+
+        tasks = installation.get(
+            "tasks",
+            {},
+        )
+
+        if not isinstance(tasks, dict):
+            continue
+
+        for task_name, task in tasks.items():
+            if not isinstance(task, dict):
+                continue
+
+            status = task_status.setdefault(
+                task_name,
+                {
+                    "kind": (
+                        task.get("kind")
+                        or "task"
+                    ),
+                    "quantity_type": (
+                        task.get(
+                            "quantity_type"
+                        )
+                    ),
+                    "unfinished": [],
+                    "unknown": [],
+                    "completed_installations": [],
+                    "known_remaining_total": 0,
+                },
+            )
+
+            known = bool(
+                task.get(
+                    "known",
+                    False,
+                )
+            )
+
+            complete = task.get(
+                "complete"
+            )
+
+            planned = task.get(
+                "planned"
+            )
+
+            remaining = task.get(
+                "remaining"
+            )
+
+            if known:
+                if complete is True:
+                    status[
+                        "completed_installations"
+                    ].append(
+                        installation_id
+                    )
+
+                    continue
+
+                if (
+                    remaining is not None
+                    and float(remaining) > 0
+                ):
+                    status[
+                        "unfinished"
+                    ].append(
+                        {
+                            "installation_id": (
+                                installation_id
+                            ),
+                            "remaining": (
+                                remaining
+                            ),
+                        }
+                    )
+
+                    status[
+                        "known_remaining_total"
+                    ] += remaining
+
+                continue
+
+            has_planned_work = False
+
+            if planned is not None:
+                try:
+                    has_planned_work = (
+                        float(planned) > 0
+                    )
+                except (
+                    TypeError,
+                    ValueError,
+                ):
+                    has_planned_work = True
+
+            if has_planned_work:
+                status[
+                    "unknown"
+                ].append(
+                    {
+                        "installation_id": (
+                            installation_id
+                        ),
+                        "planned": planned,
+                    }
+                )
+
+    compact_status = {}
+
+    for task_name, status in task_status.items():
+        unfinished = status[
+            "unfinished"
+        ]
+        unknown = status[
+            "unknown"
+        ]
+        completed = status[
+            "completed_installations"
+        ]
+
+        if (
+            not unfinished
+            and not unknown
+            and not completed
+        ):
+            continue
+
+        compact_status[
+            task_name
+        ] = {
+            "kind": status["kind"],
+            "quantity_type": (
+                status["quantity_type"]
+            ),
+            "known_remaining_total": (
+                status[
+                    "known_remaining_total"
+                ]
+            ),
+            "unfinished": unfinished,
+            "unknown": unknown,
+            "completed_installations": (
+                completed
+            ),
+        }
+
+    production_groups = []
+
+    for group in report.get(
+        "production_groups",
+        [],
+    ):
+        production_groups.append(
+            {
+                "id": group.get("id"),
+                "name": group.get("name"),
+                "task_types": list(
+                    group.get(
+                        "task_types",
+                        [],
+                    )
+                ),
+                "work_types": list(
+                    group.get(
+                        "work_types",
+                        [],
+                    )
+                ),
+            }
+        )
+
+    return {
+        "project_id": report.get(
+            "project_id"
+        ),
+        "task_status": compact_status,
+        "production_groups": (
+            production_groups
+        ),
+    }
+
+
+def load_remaining_work_summary_resource(
+    interpretation: dict[str, Any],
+) -> list[dict[str, Any]]:
+    """
+    Henter et kompakt restarbejdsoverblik beregnet til
+    Roerbots almindelige rapportering.
+    """
+
+    result = []
+
+    for project_id in requested_project_ids(
+        interpretation
+    ):
+        full_report = (
+            remaining_work_service
+            .build_project_remaining_work(
+                project_id
+            )
+        )
+
+        summary = summarize_remaining_work(
+            full_report
+        )
+
+        result.append(
+            serialize_value(
+                summary
+            )
+        )
+
+    return result
 
 def build_resource(
     resource: str,
@@ -773,6 +1049,15 @@ def build_resource(
             interpretation
         )
 
+    if resource == "remaining_work":
+        return load_remaining_work_resource(
+            interpretation
+        )
+
+    if resource == "remaining_work_summary":
+        return load_remaining_work_summary_resource(
+            interpretation
+        )
     # Disse ressourcer kobles på deres database-repositories i næste trin.
     if resource in {
         "calendars",

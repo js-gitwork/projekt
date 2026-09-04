@@ -69,6 +69,7 @@ class MappedServiceConnectionWork:
 class TechnicalAssetImportPlan:
     project_id: str
     source: str
+    import_type: str = "generic"
 
     manholes: list[MappedManhole] = field(
         default_factory=list
@@ -126,6 +127,10 @@ class TechnicalAssetMapper:
         plan = TechnicalAssetImportPlan(
             project_id=project_id,
             source=source,
+            import_type=str(
+                import_data.import_type
+                or "generic"
+            ).strip(),
             metadata=dict(import_data.metadata),
         )
 

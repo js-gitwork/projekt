@@ -25,6 +25,8 @@ class ImportConflict:
 
     message: str = ""
 
+    blocks_import: bool = True
+
     metadata: dict[str, Any] = field(
         default_factory=dict
     )
@@ -51,3 +53,10 @@ class ImportExecutionResult:
     @property
     def has_conflicts(self) -> bool:
         return bool(self.conflicts)
+
+    @property
+    def has_blocking_conflicts(self) -> bool:
+        return any(
+            conflict.blocks_import
+            for conflict in self.conflicts
+        )

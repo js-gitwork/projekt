@@ -852,6 +852,13 @@ async def c5_import_apply(
         form.get("csv_text", "")
     )
 
+    print(
+       "C5 APPLY HEADER:",
+        csv_text.splitlines()[0]
+        if csv_text.splitlines()
+        else "",
+    )
+
     technical_import = (
         parse_c5_technical_asset_import(
             csv_text=csv_text,
@@ -859,15 +866,49 @@ async def c5_import_apply(
         )
     )
 
-    technical_asset_import_service.import_assets(
-        technical_import
+    for installation in technical_import.installations:
+        if installation.installation_no == "1":
+            for stretch in installation.stretches:
+                if (
+                    stretch.bottom_manhole_no == "4612007"
+                    and stretch.top_manhole_no == "4612008"
+                ):
+                    print(
+                        "C5 PARSED METADATA:",
+                    stretch.metadata,
+                )
+
+    print(
+        "C5 APPLY PARSED:",
+        "project=",
+        technical_import.project_id,
+        "installations=",
+        len(technical_import.installations),
+        "stretches=",
+        sum(
+            len(installation.stretches)
+            for installation
+            in technical_import.installations
+        ),
+        "manholes=",
+        len(technical_import.manholes),
+    )
+
+    import_result = (
+        technical_asset_import_service.import_assets(
+            technical_import
+        )
+    )
+
+    print(
+        "C5 APPLY RESULT:",
+        import_result,
     )
 
     return RedirectResponse(
         url=f"/projects/{project_id}",
         status_code=303,
     )
-
 @app.post("/assistant/ask")
 def roerbot_global_ask(
     question: str = Form(...),

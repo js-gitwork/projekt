@@ -55,7 +55,9 @@ def _summarize_fraction_values(
     total = 0
 
     for value in values:
-        parsed = _parse_fraction(value)
+        parsed = _parse_fraction(
+            value
+        )
 
         if parsed is None:
             continue
@@ -75,12 +77,30 @@ def _summarize_fraction_values(
     }
 
 
+def _empty_fraction_summary() -> dict[str, int]:
+    return {
+        "completed": 0,
+        "total": 0,
+        "missing": 0,
+    }
+
+
 class ProductionStatusService:
     """
     Bygger en produktionsrestliste direkte fra de tekniske
     objekter i PostgreSQL.
 
     Servicen ændrer ingen data.
+
+    Følgende C5-arbejdsarter behandles selvstændigt:
+
+    - langhat
+    - korthat
+    - brøndskud
+    - punktreparation
+
+    Arbejdsarterne lægges ikke sammen. Produktionsmæssige
+    sammenhænge håndteres separat gennem produktionsgrupper.
     """
 
     def __init__(
@@ -103,17 +123,21 @@ class ProductionStatusService:
 
         installations = []
 
-        project_langhat = {
-            "completed": 0,
-            "total": 0,
-            "missing": 0,
-        }
+        project_langhat = (
+            _empty_fraction_summary()
+        )
 
-        project_korthat = {
-            "completed": 0,
-            "total": 0,
-            "missing": 0,
-        }
+        project_korthat = (
+            _empty_fraction_summary()
+        )
+
+        project_broendskud = (
+            _empty_fraction_summary()
+        )
+
+        project_pkt_rep = (
+            _empty_fraction_summary()
+        )
 
         missing_main_stretches = []
 
@@ -131,26 +155,39 @@ class ProductionStatusService:
                 installation_report
             )
 
-            langhat = installation_report[
-                "langhat"
-            ]
-
-            korthat = installation_report[
-                "korthat"
-            ]
-
-            for key in (
-                "completed",
-                "total",
-                "missing",
+            for (
+                report_key,
+                project_summary,
+            ) in (
+                (
+                    "langhat",
+                    project_langhat,
+                ),
+                (
+                    "korthat",
+                    project_korthat,
+                ),
+                (
+                    "broendskud",
+                    project_broendskud,
+                ),
+                (
+                    "pkt_rep",
+                    project_pkt_rep,
+                ),
             ):
-                project_langhat[key] += (
-                    langhat[key]
-                )
+                status = installation_report[
+                    report_key
+                ]
 
-                project_korthat[key] += (
-                    korthat[key]
-                )
+                for key in (
+                    "completed",
+                    "total",
+                    "missing",
+                ):
+                    project_summary[key] += (
+                        status[key]
+                    )
 
             missing_main_stretches.extend(
                 installation_report[
@@ -162,6 +199,8 @@ class ProductionStatusService:
             "project_id": project_id,
             "langhat": project_langhat,
             "korthat": project_korthat,
+            "broendskud": project_broendskud,
+            "pkt_rep": project_pkt_rep,
             "missing_main_stretches": (
                 missing_main_stretches
             ),
@@ -181,6 +220,8 @@ class ProductionStatusService:
 
         langhat_values: list[str] = []
         korthat_values: list[str] = []
+        broendskud_values: list[str] = []
+        pkt_rep_values: list[str] = []
 
         missing_main_stretches = []
 
@@ -212,13 +253,29 @@ class ProductionStatusService:
                 )
             )
 
+            broendskud_values.extend(
+                c5_values.get(
+                    "broendskud",
+                    [],
+                )
+            )
+
+            pkt_rep_values.extend(
+                c5_values.get(
+                    "pkt_rep",
+                    [],
+                )
+            )
+
             progress = (
                 metadata.get("progress")
                 or {}
             )
 
             hovedledning_progress = (
-                progress.get("hovedledning")
+                progress.get(
+                    "hovedledning"
+                )
             )
 
             if (
@@ -240,14 +297,20 @@ class ProductionStatusService:
                                 "top_manhole_no"
                             )
                         ),
-                        "length_m": stretch.get(
-                            "length_m"
+                        "length_m": (
+                            stretch.get(
+                                "length_m"
+                            )
                         ),
-                        "dimension": stretch.get(
-                            "dimension"
+                        "dimension": (
+                            stretch.get(
+                                "dimension"
+                            )
                         ),
-                        "material": stretch.get(
-                            "material"
+                        "material": (
+                            stretch.get(
+                                "material"
+                            )
                         ),
                         "progress": (
                             hovedledning_progress
@@ -256,7 +319,9 @@ class ProductionStatusService:
                 )
 
         return {
-            "installation_no": installation_no,
+            "installation_no": (
+                installation_no
+            ),
             "langhat": (
                 _summarize_fraction_values(
                     langhat_values
@@ -265,6 +330,16 @@ class ProductionStatusService:
             "korthat": (
                 _summarize_fraction_values(
                     korthat_values
+                )
+            ),
+            "broendskud": (
+                _summarize_fraction_values(
+                    broendskud_values
+                )
+            ),
+            "pkt_rep": (
+                _summarize_fraction_values(
+                    pkt_rep_values
                 )
             ),
             "missing_main_stretches": (

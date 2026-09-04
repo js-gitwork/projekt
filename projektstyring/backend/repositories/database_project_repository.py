@@ -134,7 +134,7 @@ class DatabaseProjectRepository:
 
         with SessionLocal() as session:
             try:
-                syncronize_project(
+                synchronize_project(
                     project,
                     session=session,
                 )
@@ -404,6 +404,8 @@ class DatabaseProjectRepository:
             "id": project.id,
             "name": project.name,
             "customer": project.customer,
+            "project_manager": project.project_manager,
+            "site_manager": project.site_manager,
             "city": project.city,
             "start_date": date_to_string(
                 project.start_date
@@ -414,7 +416,6 @@ class DatabaseProjectRepository:
             "task_assignments": formatted_assignments,
             "project_rules": project_rules,
         }
-
     @staticmethod
     def _progress_to_dict(
         installation: Installation,

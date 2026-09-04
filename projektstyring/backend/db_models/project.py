@@ -29,6 +29,18 @@ class Project(Base):
         default="",
     )
 
+    project_manager: Mapped[str] = mapped_column(
+        String(200),
+        nullable=False,
+        default="",
+    )
+
+    site_manager: Mapped[str] = mapped_column(
+        String(200),
+        nullable=False,
+        default="",
+    )
+
     city: Mapped[str] = mapped_column(
         String(200),
         nullable=False,

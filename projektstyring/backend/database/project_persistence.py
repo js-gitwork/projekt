@@ -136,6 +136,16 @@ def get_or_create_project(
         or ""
     )
 
+    project.project_manager = str(
+        project_data.get("project_manager")
+        or ""
+    )
+
+    project.site_manager = str(
+        project_data.get("site_manager")
+        or ""
+    )
+
     project.city = str(
         project_data.get("city")
         or ""
@@ -424,17 +434,20 @@ def synchronize_stretches(
     installation: Installation,
     installation_data: dict,
 ) -> None:
-    stretch_data = (
-        installation_data.get(
-            "stretches"
-        )
+    if "stretches" not in installation_data:
+        return
+
+    stretch_data = installation_data.get(
+        "stretches"
     )
 
     if not isinstance(
         stretch_data,
         list,
     ):
-        stretch_data = []
+        raise ValueError(
+            "Installationens 'stretches' skal være en liste."
+        )
 
     existing_stretches = {
         stretch.sequence: stretch
@@ -1266,6 +1279,68 @@ def synchronize_project(
 
         database_session.flush()
 
+        existing_installations_for_resequence = list(
+            database_session.scalars(
+                select(
+                    Installation
+                )
+                .where(
+                    Installation.project_id
+                    == str(
+                        project_data["id"]
+                    )
+                )
+                .order_by(
+                    Installation.sequence,
+                    Installation.id,
+                )
+            )
+        )
+
+        incoming_installations = list(
+            project_data.get(
+                "installations",
+                [],
+            )
+        )
+
+        existing_max_sequence = max(
+            (
+                installation.sequence
+                for installation
+                in existing_installations_for_resequence
+            ),
+            default=0,
+        )
+
+        temporary_sequence_base = (
+            max(
+                existing_max_sequence,
+                len(
+                    existing_installations_for_resequence
+                ),
+                len(
+                    incoming_installations
+                ),
+            )
+            + 1000
+        )
+
+        for offset, installation in enumerate(
+            existing_installations_for_resequence,
+            start=1,
+        ):
+            installation.sequence = (
+                temporary_sequence_base
+                + offset
+            )
+
+        database_session.flush()
+
+        synchronized_installation_numbers = (
+            set()
+        )
+
         synchronized_installation_numbers = (
             set()
         )
@@ -1392,6 +1467,13 @@ def synchronize_project(
         # Installationer, som ikke længere findes i den
         # indkommende projekttilstand, deaktiveres i
         # stedet for at blive slettet.
+        next_inactive_sequence = (
+            len(
+                synchronized_installation_numbers
+            )
+            + 1
+        )
+
         for installation in (
             existing_installations
         ):
@@ -1404,11 +1486,16 @@ def synchronize_project(
                     False
                 )
 
+                installation.sequence = (
+                    next_inactive_sequence
+                )
+
+                next_inactive_sequence += 1
+
                 for task in (
                     installation.tasks
                 ):
                     task.active = False
-
         if owns_session:
             database_session.commit()
         else:

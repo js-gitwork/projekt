@@ -43,21 +43,6 @@ PROJECT_CREATION_FIELDS = (
         name="customer",
         prompt="Hvem er kunden?",
     ),
-    ProjectCreationField(
-        name="city",
-        prompt=(
-            "Hvilken by eller hvilket område "
-            "ligger projektet i?"
-        ),
-    ),
-    ProjectCreationField(
-        name="start_date",
-        prompt="Hvornår starter projektet?",
-    ),
-    ProjectCreationField(
-        name="installation_count",
-        prompt="Hvor mange installationer er der?",
-    ),
 )
 
 
@@ -67,9 +52,9 @@ FIELD_LABELS = {
     "customer": "Kunde",
     "city": "By/område",
     "start_date": "Startdato",
-    "installation_count": "Antal installationer",
+    "project_manager": "Projektleder",
+    "site_manager": "Entrepriseleder",
 }
-
 
 project_repository = ProjectRepository()
 

@@ -1,8 +1,3 @@
-from __future__ import annotations
-
-from copy import deepcopy
-from datetime import date, datetime, timedelta, timezone
-
 from projektstyring.backend.database.connection import SessionLocal
 from projektstyring.backend.database.project_persistence import (
     synchronize_project,
@@ -20,14 +15,6 @@ from projektstyring.backend.repositories.planning_scenario_repository import (
 )
 from projektstyring.backend.repositories.technical_asset_repository import (
     TechnicalAssetRepository,
-)
-from projektstyring.backend.database.project_persistence import (
-    synchronize_project,
-)
-
-synchronize_project(
-    updated_project,
-    session=session,
 )
 
 project_repo = ProjectRepository()

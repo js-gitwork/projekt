@@ -38,7 +38,11 @@ from projektstyring.backend.db_models.work_calendar import (
     WorkCalendar,
     WorkCalendarRule,
 )
-
+from projektstyring.backend.db_models.production_group import (
+    ProductionGroup,
+    ProductionGroupTaskType,
+    ProductionGroupWorkType,
+)
 
 __all__ = [
     "CalendarException",
@@ -65,6 +69,9 @@ __all__ = [
     "TaskQuantity",
     "TaskType",
     "Team",
+    "ProductionGroup",
+    "ProductionGroupTaskType",
+    "ProductionGroupWorkType",
     "TeamCapacityRate",
     "TeamTaskPermission",
     "WorkCalendar",

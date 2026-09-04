@@ -15,10 +15,6 @@ from projektstyring.backend.repositories.technical_asset_repository import (
     TechnicalAssetRepository,
 )
 
-
-DEPTH_TOLERANCE_M = Decimal("0.05")
-
-
 class ManholeImporter:
     """
     Opretter eller beriger brønde.
@@ -65,6 +61,7 @@ class ManholeImporter:
             self._handle_existing_depth(
                 existing=existing,
                 item=item,
+                import_type=plan.import_type,
                 result=result,
                 updates=updates,
             )
@@ -184,28 +181,23 @@ class ManholeImporter:
 
         depth_m = None
 
-        if observations:
-            first = observations[0]
+        if len(observations) > 1:
+            self._add_depth_conflict(
+                result=result,
+                manhole_no=(
+                    item.key.manhole_no
+                ),
+                existing_value=(
+                    observations[0]
+                ),
+                incoming_value=(
+                    observations[1]
+                ),
+                source="c5_internal",
+            )
 
-            conflicts = [
-                value
-                for value in observations[1:]
-                if abs(value - first)
-                > DEPTH_TOLERANCE_M
-            ]
-
-            if conflicts:
-                self._add_depth_conflict(
-                    result=result,
-                    manhole_no=(
-                        item.key.manhole_no
-                    ),
-                    existing_value=first,
-                    incoming_value=conflicts[0],
-                    source="c5_internal",
-                )
-            else:
-                depth_m = first
+        elif len(observations) == 1:
+            depth_m = observations[0]
 
         repo.create_manhole(
             item.key.project_id,
@@ -234,6 +226,7 @@ class ManholeImporter:
         *,
         existing: dict[str, Any],
         item: Any,
+        import_type: str,
         result: ImportExecutionResult,
         updates: dict[str, Any],
     ) -> None:
@@ -241,70 +234,111 @@ class ManholeImporter:
             item
         )
 
-        if not observations:
-            return
-
         existing_raw = existing.get(
             "depth_m"
         )
 
-        if existing_raw is None:
-            first = observations[0]
+        #
+        # PROJECT OVERVIEW
+        #
+        # Projektoversigten er autoritativ for brønddybde.
+        #
+        # Ingen positiv observation:
+        #     C5 angiver ingen dybde -> depth_m = None.
+        #
+        # Én entydig observation:
+        #     C5-værdien overskriver databasen.
+        #
+        # Flere forskellige observationer:
+        #     C5 er selvmodsigende.
+        #     Ingen dybde gemmes, men resten af importen
+        #     må fortsætte.
+        #
+        if import_type == "project_overview":
+            if len(observations) > 1:
+                if existing_raw is not None:
+                    updates["depth_m"] = None
 
-            conflicting = [
-                value
-                for value in observations[1:]
-                if abs(value - first)
-                > DEPTH_TOLERANCE_M
-            ]
-
-            if conflicting:
                 self._add_depth_conflict(
                     result=result,
                     manhole_no=(
                         item.key.manhole_no
                     ),
-                    existing_value=first,
+                    existing_value=(
+                        observations[0]
+                    ),
                     incoming_value=(
-                        conflicting[0]
+                        observations[1]
                     ),
                     source="c5_internal",
                 )
+
                 return
 
-            updates["depth_m"] = first
+            if len(observations) == 1:
+                incoming_depth = (
+                    observations[0]
+                )
+
+                if (
+                    existing_raw is None
+                    or Decimal(
+                        str(existing_raw)
+                    )
+                    != incoming_depth
+                ):
+                    updates["depth_m"] = (
+                        incoming_depth
+                    )
+
+                return
+
+            if existing_raw is not None:
+                updates["depth_m"] = None
+
             return
 
-        existing_depth = Decimal(
-            str(existing_raw)
-        )
-
-        for observation in observations:
-            difference = abs(
-                observation
-                - existing_depth
-            )
-
-            if (
-                difference
-                <= DEPTH_TOLERANCE_M
-            ):
-                continue
-
+        #
+        # MANHOLE OVERVIEW
+        #
+        # Brøndoversigten må berige/opdatere en entydig
+        # positiv dybde, men manglende/0-værdier må ikke
+        # nulstille eksisterende surveydata.
+        #
+        if len(observations) > 1:
             self._add_depth_conflict(
                 result=result,
                 manhole_no=(
                     item.key.manhole_no
                 ),
                 existing_value=(
-                    existing_depth
+                    observations[0]
                 ),
-                incoming_value=observation,
-                source="existing_vs_c5",
+                incoming_value=(
+                    observations[1]
+                ),
+                source="c5_internal",
             )
 
-        # Der sættes bevidst IKKE depth_m i updates.
-        # Den eksisterende survey-værdi beholdes.
+            return
+
+        if len(observations) == 1:
+            incoming_depth = (
+                observations[0]
+            )
+
+            if (
+                existing_raw is None
+                or Decimal(
+                    str(existing_raw)
+                )
+                != incoming_depth
+            ):
+                updates["depth_m"] = (
+                    incoming_depth
+                )
+
+        return
 
     @staticmethod
     def _depth_observations(
@@ -323,7 +357,10 @@ class ManholeImporter:
             Decimal
         ] = []
 
-        if isinstance(raw_values, list):
+        if isinstance(
+            raw_values,
+            list,
+        ):
             for raw_value in raw_values:
                 try:
                     value = Decimal(
@@ -380,18 +417,16 @@ class ManholeImporter:
                 difference=float(
                     difference
                 ),
-                tolerance=float(
-                    DEPTH_TOLERANCE_M
-                ),
+                tolerance=0.0,
                 message=(
                     f"Brønd {manhole_no} har "
-                    f"dybde {existing_value} m, "
-                    "mens importen indeholder "
+                    "modstridende dybdemål i C5: "
+                    f"{existing_value} m og "
                     f"{incoming_value} m. "
-                    "Afvigelsen er "
-                    f"{difference} m og overstiger "
-                    "tolerancen på 0.05 m."
+                    "Dybden er derfor ikke importeret. "
+                    "Ret værdien i C5 og importer igen."
                 ),
+                blocks_import=False,
                 metadata={
                     "source": source,
                     "requires_review": True,

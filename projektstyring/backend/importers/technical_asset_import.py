@@ -21,7 +21,6 @@ class ImportedManhole:
         default_factory=dict
     )
 
-
 @dataclass(slots=True)
 class ImportedManholeWork:
     manhole_no: str
@@ -128,6 +127,7 @@ class ImportedInstallationAssets:
 class TechnicalAssetImport:
     project_id: str
     source: str
+    import_type: str = "generic"
 
     installations: list[
         ImportedInstallationAssets

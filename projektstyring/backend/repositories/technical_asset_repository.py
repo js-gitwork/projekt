@@ -364,6 +364,152 @@ class TechnicalAssetRepository:
 
             return self._manhole_to_dict(manhole)
 
+    def get_installation(
+        self,
+        project_id: str,
+        installation_no: str,
+    ) -> dict[str, Any]:
+        normalized_installation_no = str(
+            installation_no
+        ).strip()
+
+        with self._session_scope() as session:
+            installation = session.scalar(
+                select(Installation).where(
+                    Installation.project_id
+                    == project_id,
+                    Installation.installation_no
+                    == normalized_installation_no,
+                )
+            )
+
+            if installation is None:
+                raise FileNotFoundError(
+                    "Installation "
+                    f"'{normalized_installation_no}' findes ikke "
+                    f"på projekt '{project_id}'."
+                )
+
+            return {
+                "id": installation.id,
+                "project_id": installation.project_id,
+                "installation_no": (
+                    installation.installation_no
+                ),
+                "sequence": installation.sequence,
+                "active": installation.active,
+            }
+
+    def create_installation(
+        self,
+        project_id: str,
+        installation_no: str,
+    ) -> dict[str, Any]:
+        normalized_installation_no = str(
+            installation_no
+        ).strip()
+
+        if not normalized_installation_no:
+            raise ValueError(
+                "Installationsnummer skal angives."
+            )
+
+        with self._session_scope() as session:
+            project = session.get(
+                Project,
+                project_id,
+            )
+
+            if project is None:
+                raise FileNotFoundError(
+                    f"Projekt '{project_id}' findes ikke."
+                )
+
+            existing = session.scalar(
+                select(Installation).where(
+                    Installation.project_id
+                    == project_id,
+                    Installation.installation_no
+                    == normalized_installation_no,
+                )
+            )
+
+            if existing is not None:
+                return {
+                    "id": existing.id,
+                    "project_id": existing.project_id,
+                    "installation_no": (
+                        existing.installation_no
+                    ),
+                    "sequence": existing.sequence,
+                    "active": existing.active,
+                }
+
+            existing_sequences = list(
+                session.scalars(
+                    select(
+                        Installation.sequence
+                    ).where(
+                        Installation.project_id
+                        == project_id
+                    )
+                )
+            )
+
+            next_sequence = (
+                max(existing_sequences) + 1
+                if existing_sequences
+                else 1
+            )
+
+            installation = Installation(
+                project_id=project_id,
+                installation_no=(
+                    normalized_installation_no
+                ),
+                sequence=next_sequence,
+                active=True,
+                expected_stik=0,
+                active_stik=0,
+                opened_stik=0,
+                langhatte=0,
+                korthatte_extra=0,
+                broende=0,
+                bronde_total=0,
+                hovedledning_meter=0.0,
+                notes="",
+            )
+
+            session.add(
+                installation
+            )
+
+            try:
+                self._save_changes(
+                    session
+                )
+
+            except IntegrityError as exc:
+                self._rollback(
+                    session
+                )
+
+                raise ValueError(
+                    "Installationen kunne ikke oprettes: "
+                    f"{project_id}/"
+                    f"{normalized_installation_no}."
+                ) from exc
+
+            return {
+                "id": installation.id,
+                "project_id": installation.project_id,
+                "installation_no": (
+                    installation.installation_no
+                ),
+                "sequence": installation.sequence,
+                "active": installation.active,
+            }
+
     def get_stretch_by_manholes(
         self,
         project_id: str,
