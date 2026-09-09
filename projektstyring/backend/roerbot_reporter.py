@@ -30,10 +30,12 @@ def build_report_prompt(
     question: str,
     interpretation: dict[str, Any],
     context: dict[str, Any],
+    previous_answer: str | None = None,
 ) -> str:
     """
     Bygger en rapportprompt med tydelig adskillelse mellem
-    brugerens spørgsmål, AI-fortolkningen og systemets data.
+    brugerens spørgsmål, AI-fortolkningen, tidligere svar
+    og systemets data.
     """
 
     return f"""
@@ -102,9 +104,26 @@ Vigtige regler:
 
 - Svar som en hjælpsom projektassistent og kollega, ikke som en
   database- eller JSON-inspektør.
-- Svar på dansk, medmindre fortolkningen udtrykkeligt kræver andet.cl
+- Svar på dansk, medmindre fortolkningen udtrykkeligt kræver andet.
 
-Brugerens oprindelige spørgsmål:
+Samtalekontekst:
+
+Det tidligere svar bruges kun til at forstå, hvad brugeren henviser til.
+
+Hvis brugerens aktuelle spørgsmål eksempelvis omtaler "de",
+"dem", "disse", "det ovenstående", "de manglende installationer"
+eller på anden måde henviser til noget, som blev nævnt i det
+tidligere svar, skal den reference forstås ud fra samtalen.
+
+Det tidligere svar er ikke en ny datakilde.
+Konkrete projektfakta skal fortsat være understøttet af systemdata.
+Hvis det tidligere svar og systemdata ikke stemmer overens, har
+systemdata forrang.
+
+Tidligere svar:
+{previous_answer or "(intet tidligere svar)"}
+
+Brugerens aktuelle spørgsmål:
 {question}
 
 Fortolket hensigt:
@@ -132,6 +151,7 @@ def create_report(
     question: str,
     interpretation: dict[str, Any],
     context: dict[str, Any],
+    previous_answer: str | None = None,
 ) -> dict[str, Any]:
     """
     Genererer en fri, databaseret rapport.
@@ -144,6 +164,7 @@ def create_report(
         question=question,
         interpretation=interpretation,
         context=context,
+        previous_answer=previous_answer,
     )
 
     answer = ask_mistral(prompt)

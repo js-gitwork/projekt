@@ -760,6 +760,7 @@ def summarize_remaining_work(
     Der skelnes altid mellem:
     - dokumenteret restarbejde
     - ukendt status
+    - operationelt ikke-relevant restarbejde
     - dokumenteret færdigt arbejde
     """
 
@@ -802,10 +803,52 @@ def summarize_remaining_work(
                     ),
                     "unfinished": [],
                     "unknown": [],
+                    "not_relevant_as_remaining_work": [],
                     "completed_installations": [],
                     "known_remaining_total": 0,
                 },
             )
+
+            relevant_as_remaining_work = (
+                task.get(
+                    "relevant_as_remaining_work",
+                    True,
+                )
+            )
+
+            if relevant_as_remaining_work is False:
+                status[
+                    "not_relevant_as_remaining_work"
+                ].append(
+                    {
+                        "installation_id": (
+                            installation_id
+                        ),
+                        "known": bool(
+                            task.get(
+                                "known",
+                                False,
+                            )
+                        ),
+                        "complete": (
+                            task.get(
+                                "complete"
+                            )
+                        ),
+                        "planned": (
+                            task.get(
+                                "planned"
+                            )
+                        ),
+                        "reason": (
+                            task.get(
+                                "irrelevance_reason"
+                            )
+                        ),
+                    }
+                )
+
+                continue
 
             known = bool(
                 task.get(
@@ -890,9 +933,15 @@ def summarize_remaining_work(
         unfinished = status[
             "unfinished"
         ]
+
         unknown = status[
             "unknown"
         ]
+
+        not_relevant = status[
+            "not_relevant_as_remaining_work"
+        ]
+
         completed = status[
             "completed_installations"
         ]
@@ -900,6 +949,7 @@ def summarize_remaining_work(
         if (
             not unfinished
             and not unknown
+            and not not_relevant
             and not completed
         ):
             continue
@@ -918,6 +968,9 @@ def summarize_remaining_work(
             ),
             "unfinished": unfinished,
             "unknown": unknown,
+            "not_relevant_as_remaining_work": (
+                not_relevant
+            ),
             "completed_installations": (
                 completed
             ),
@@ -957,7 +1010,6 @@ def summarize_remaining_work(
             production_groups
         ),
     }
-
 
 def load_remaining_work_summary_resource(
     interpretation: dict[str, Any],

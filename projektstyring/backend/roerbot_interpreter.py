@@ -177,6 +177,7 @@ def default_interpretation(
             "installation_ids": [],
             "team_ids": [],
         },
+        "data_strategy": "none",
         "data_requests": [],
         "changes": [],
         "analysis": {
@@ -577,6 +578,26 @@ def normalize_interpretation(
         value.get("changes")
     )
 
+    data_requests = normalize_data_requests(
+        value.get("data_requests")
+    )
+
+    data_strategy = str(
+        value.get("data_strategy")
+        or ""
+    ).strip()
+
+    if data_strategy not in {
+        "fetch",
+        "reuse_context",
+        "none",
+    }:
+        data_strategy = (
+            "fetch"
+            if data_requests
+            else "none"
+        )
+
     if intent == "change" and not changes:
         intent = "clarification"
 
@@ -597,9 +618,8 @@ def normalize_interpretation(
         "scope": normalize_scope(
             value.get("scope")
         ),
-        "data_requests": normalize_data_requests(
-            value.get("data_requests")
-        ),
+        "data_strategy": data_strategy,
+        "data_requests": data_requests,
         "changes": changes,
         "analysis": {
             "type": str(
@@ -746,8 +766,6 @@ Tilladte projektfelter:
     indent=2,
     ensure_ascii=False,
 )}
-    ensure_ascii=False,
-)
 
 Tilladte installationsfelter:
 {json.dumps(
@@ -841,8 +859,6 @@ Tilladte brøndfelter:
 
 4. Flytning af en installationsopgave til et andet hold:
 
-3. Flytning af en installationsopgave til et andet hold:
-
 {{
   "change_type": "task_assignment_change",
   "project_id": "V165460",
@@ -881,7 +897,74 @@ Vigtige regler:
 - Groundingkravet gælder changes[] og må ikke bruges som grund til
   clarification ved almindelige rapportspørgsmål.
 - Du må ikke producere godkendelse eller databasekommandoer.
-- Rapporter skal bruge data_requests og normalt have changes=[].
+- Rapporter skal normalt have changes=[].
+
+- data_strategy beskriver, hvordan de nødvendige rapportdata
+  skal skaffes.
+
+- Brug data_strategy="fetch", når brugerens spørgsmål handler om
+  den aktuelle tilstand i systemet, eller når svaret kræver
+  aktuelle projektdata fra databasen.
+
+- Et nyt faktuelt spørgsmål om et projekt, en installation, et hold,
+  en plan, fremdrift, restarbejde eller anden systemstatus skal
+  normalt bruge:
+  data_strategy="fetch"
+  sammen med de nødvendige data_requests.
+
+- At det samme projekt eller de samme datatyper findes i den aktive
+  samtalekontekst er ikke i sig selv grund nok til at bruge
+  data_strategy="reuse_context".
+
+- Brug data_strategy="reuse_context" kun når brugerens spørgsmål
+  tydeligt arbejder videre med det allerede viste datasæt, og der
+  ikke er behov for at kontrollere den aktuelle systemtilstand igen.
+
+- Typiske tilfælde for data_strategy="reuse_context" er:
+  sortering, filtrering, gruppering, opsummering, sammenligning,
+  omformatering eller udvælgelse af oplysninger fra det resultat,
+  som brugeren lige har fået vist.
+
+- Brug også data_strategy="reuse_context", når brugerens spørgsmål
+  indeholder en samtalemæssig reference til det tidligere resultat,
+  og referenceobjektet kun kan forstås ud fra previous_answer eller
+  det gemte rapportdatasæt.
+
+- Forstå sådanne referencer semantisk.
+  Formuleringer som "de", "dem", "disse", "det ovenstående",
+  "dem du lige nævnte" eller tilsvarende kan henvise til oplysninger
+  i previous_answer. Dette er eksempler på samtalereferencer og ikke
+  faste nøgleord eller forretningsregler.
+
+- Hvis brugerens spørgsmål kan forstås fuldt ud uden previous_answer
+  og spørger efter den nuværende faktiske tilstand i systemet, skal
+  du normalt bruge data_strategy="fetch", også selv om et tidligere
+  rapportdatasæt kan indeholde oplysninger om samme emne.
+
+- previous_answer viser, hvad brugeren tidligere har fået
+  præsenteret, og må bruges til at forstå samtalemæssige referencer.
+
+- previous_answer og available_data må ikke bruges til at opfinde
+  projektfakta eller erstatte en nødvendig ny dataforespørgsel.
+
+- available_data beskriver kun, hvilke typer data der allerede er
+  hentet. Det betyder ikke, at dataene nødvendigvis stadig
+  repræsenterer den aktuelle systemtilstand.
+
+- Hvis spørgsmålet kræver andre projekter, andre resources,
+  andre oplysninger eller en ny kontrol af den aktuelle
+  systemtilstand, skal du bruge:
+  data_strategy="fetch"
+  og de nødvendige data_requests.
+
+- Brug data_strategy="none", når spørgsmålet hverken kræver
+  projektdata eller et eksisterende rapportdatasæt.
+
+- Hvis data_strategy="reuse_context", skal data_requests=[].
+
+- Hvis data_strategy="fetch", skal data_requests indeholde de
+  resources, Context Builder skal hente.
+
 - Ændringer skal bruge changes og have requires_engine=true.
 
 Aktiv samtale- og scenariekontekst:
@@ -901,6 +984,7 @@ Svarformat:
     "installation_ids": [],
     "team_ids": []
   }},
+  "data_strategy": "fetch | reuse_context | none",
   "data_requests": [],
   "changes": [],
   "analysis": {{

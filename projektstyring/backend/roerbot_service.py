@@ -34,6 +34,71 @@ from projektstyring.backend.decision_service import (
 
 ACTIVE_CONTEXT_WORKFLOW = "active_context"
 
+def build_report_context_summary(
+    interpretation: dict[str, Any],
+) -> dict[str, Any]:
+    """
+    Bygger en lille beskrivelse af et gemt rapportdatasæt.
+
+    Interpreteren får kun denne beskrivelse.
+    Det fulde context_data forbliver i conversation state
+    og gives kun til Reporter, når data skal genbruges.
+    """
+    scope = interpretation.get("scope")
+
+    if not isinstance(scope, dict):
+        scope = {}
+
+    data_requests = interpretation.get(
+        "data_requests"
+    )
+
+    if not isinstance(data_requests, list):
+        data_requests = []
+
+    resources: list[str] = []
+
+    for request in data_requests:
+        if not isinstance(request, dict):
+            continue
+
+        resource = str(
+            request.get("resource") or ""
+        ).strip()
+
+        if (
+            resource
+            and resource not in resources
+        ):
+            resources.append(resource)
+
+    return {
+        "project_ids": list(
+            scope.get("project_ids") or []
+        ),
+        "installation_ids": list(
+            scope.get("installation_ids") or []
+        ),
+        "team_ids": list(
+            scope.get("team_ids") or []
+        ),
+        "resources": resources,
+        "analysis_type": str(
+            (
+                interpretation.get("analysis")
+                or {}
+            ).get("type")
+            or ""
+        ),
+        "response_format": str(
+            (
+                interpretation.get("response")
+                or {}
+            ).get("format")
+            or ""
+        ),
+    }
+
 planning_scenario_service = (
     PlanningScenarioService()
 )
@@ -56,6 +121,7 @@ def save_active_context(
     original_question: str,
     context_data: Any,
     answer: str,
+    context_summary: dict[str, Any] | None = None,
 ) -> None:
     save_active_conversation(
         workflow=ACTIVE_CONTEXT_WORKFLOW,
@@ -64,6 +130,9 @@ def save_active_context(
             "original_question": original_question,
             "context_data": make_json_safe(
                 context_data
+            ),
+            "context_summary": make_json_safe(
+                context_summary or {}
             ),
             "answer": answer,
         },
@@ -75,15 +144,12 @@ def get_active_ai_context(
     active_state: Any,
 ) -> dict[str, Any] | None:
     """
-    Giver AI-interpreteren den aktuelle samtaletilstand.
+    Giver Interpreteren en kompakt beskrivelse af den
+    aktuelle samtaletilstand.
 
-    AI'en skal kunne se både:
-    - et aktivt rapportdatasæt
-    - et eventuelt igangværende workflow
-
-    Workflowet får ikke automatisk kontrol over den næste besked.
-    AI'en afgør først, om brugerens nye besked faktisk fortsætter
-    workflowet eller handler om noget andet.
+    Det fulde rapportdatasæt sendes bevidst IKKE til
+    Interpreteren. Det gemmes i conversation state og
+    kan senere genbruges direkte af Reporter.
     """
     if not active_state:
         return None
@@ -105,8 +171,13 @@ def get_active_ai_context(
             "previous_answer": data.get(
                 "answer"
             ),
-            "active_data": data.get(
-                "context_data"
+            "available_data": data.get(
+                "context_summary"
+            )
+            or {},
+            "has_reusable_context": (
+                data.get("context_data")
+                is not None
             ),
         }
 
@@ -177,6 +248,14 @@ def answer_from_existing_context(
     active_state: Any,
     interpretation: dict[str, Any],
 ) -> dict[str, str] | None:
+    """
+    Besvarer et opfølgende rapportspørgsmål ud fra det
+    allerede gemte rapportdatasæt.
+
+    Interpreteren har på forhånd vurderet, at spørgsmålet
+    kan besvares uden at hente nye systemdata.
+    """
+
     if not active_state:
         return None
 
@@ -187,6 +266,7 @@ def answer_from_existing_context(
         return None
 
     data = active_state.data or {}
+
     context_data = data.get(
         "context_data"
     )
@@ -198,6 +278,10 @@ def answer_from_existing_context(
         question=question,
         interpretation=interpretation,
         context=context_data,
+        previous_answer=str(
+            data.get("answer")
+            or ""
+        ),
     )
 
     answer = report["answer"]
@@ -213,6 +297,10 @@ def answer_from_existing_context(
         ),
         context_data=context_data,
         answer=answer,
+        context_summary=(
+            data.get("context_summary")
+            or {}
+        ),
     )
 
     return {
@@ -226,6 +314,27 @@ def handle_report(
     interpretation: dict[str, Any],
     active_state: Any,
 ) -> dict[str, str]:
+    """
+    Behandler rapportspørgsmål ud fra Interpreterens
+    eksplicitte datastrategi.
+
+    fetch:
+        Hent nye data gennem Context Builder.
+
+    reuse_context:
+        Genbrug det fulde datasæt fra den aktive samtale.
+
+    none:
+        Rapporten kræver ingen nye data. Hvis der findes et
+        genbrugeligt rapportdatasæt, kan det bruges som
+        samtalekontekst.
+    """
+
+    data_strategy = str(
+        interpretation.get("data_strategy")
+        or ""
+    ).strip()
+
     data_requests = interpretation.get(
         "data_requests"
     )
@@ -236,7 +345,26 @@ def handle_report(
     ):
         data_requests = []
 
-    if not data_requests:
+    if data_strategy == "reuse_context":
+        continued = answer_from_existing_context(
+            question=question,
+            active_state=active_state,
+            interpretation=interpretation,
+        )
+
+        if continued is not None:
+            return continued
+
+        return {
+            "answer": (
+                "Jeg kan se, at spørgsmålet henviser til "
+                "et tidligere rapportresultat, men det "
+                "tilhørende datasæt er ikke længere "
+                "tilgængeligt."
+            )
+        }
+
+    if data_strategy == "none":
         continued = answer_from_existing_context(
             question=question,
             active_state=active_state,
@@ -263,12 +391,16 @@ def handle_report(
         original_question=question,
         context_data=context,
         answer=answer,
+        context_summary=(
+            build_report_context_summary(
+                interpretation
+            )
+        ),
     )
 
     return {
         "answer": answer
     }
-
 
 def handle_project_creation(
     question: str,

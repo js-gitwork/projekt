@@ -240,20 +240,9 @@ class RemainingWorkService:
                     task_type="broend",
                 )
             ),
-            "dtvk": (
-                self._unknown_task(
-                    planned=(
-                        1
-                        if planned_stik > 0
-                        else 0
-                    ),
-                    quantity_type="activity",
-                    task_type="dtvk",
-                )
-            ),
         }
 
-        self._apply_derived_completion_rules(
+        self._apply_remaining_work_relevance_rules(
             tasks
         )
 
@@ -261,26 +250,36 @@ class RemainingWorkService:
             "installation_id": installation_id,
             "tasks": tasks,
         }
+
     @staticmethod
-    def _apply_derived_completion_rules(
+    def _apply_remaining_work_relevance_rules(
         tasks: dict[str, dict[str, Any]],
     ) -> None:
         """
-        Anvender domæneregler, hvor en senere dokumenteret
-        aktivitet beviser, at nødvendige foregående aktiviteter
-        allerede må være udført.
+        Anvender domæneregler for, om en aktivitet stadig er
+        relevant som restarbejde.
 
-        Korthat kan kun være udført efter det nødvendige
-        stikarbejde. Derfor betragtes følgende planlægningsopgaver
-        som færdige, når korthat er kendt færdig:
+        En senere dokumenteret aktivitet kan gøre en tidligere
+        aktivitet operationelt irrelevant uden at bevise, at den
+        tidligere aktivitet faktisk blev udført.
 
-        - stikforberedelse
-        - stik
-        - kontrol
+        Eksempel:
 
-        Reglen ændrer ikke den registrerede produktionsstatus.
-        Den markerer alene planlægningsopgavernes status som
-        afledt af en efterfølgende dokumenteret aktivitet.
+        Hvis korthat er dokumenteret færdig, er ukendt status for
+        stikforberedelse, stik og kontrol ikke længere relevant som
+        restarbejde.
+
+        Den rå status ændres ikke:
+        - known forbliver False
+        - complete forbliver None
+        - completed forbliver None
+        - remaining forbliver None
+
+        Dermed kan systemet fortsat svare korrekt på spørgsmål om
+        dokumentation og historik.
+
+        En kendt, men ikke færdig aktivitet tilsidesættes ikke.
+        Det kan være en reel datakonflikt og skal fortsat være synlig.
         """
 
         korthat = tasks.get(
@@ -314,16 +313,21 @@ class RemainingWorkService:
             ):
                 continue
 
-            planned = task.get(
-                "planned"
-            )
+            # Kendt status må aldrig skjules af en afledt regel.
+            if task.get("known") is True:
+                continue
 
-            task["known"] = True
-            task["completed"] = planned
-            task["remaining"] = 0
-            task["complete"] = True
-            task["status_source"] = "derived"
-            task["derived_from"] = "korthat"
+            task[
+                "relevant_as_remaining_work"
+            ] = False
+
+            task[
+                "irrelevance_reason"
+            ] = "korthat_completed"
+
+            task[
+                "relevance_source"
+            ] = "derived"
 
     def _build_project_production_group_status(
         self,
