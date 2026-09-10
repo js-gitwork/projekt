@@ -12,6 +12,10 @@ from projektstyring.backend.importers.technical_asset_import import (
     ImportedStretch,
     TechnicalAssetImport,
 )
+from projektstyring.backend.importers.deviation_import import (
+    DeviationImport,
+    ImportedDeviation,
+)
 
 PROGRESS_COLUMNS = {
     "opmaaling": "Opmål.%",
@@ -83,6 +87,16 @@ def detect_c5_csv_type(
         "DTVK init",
     }
 
+    deviation_signature = {
+        "Afvigenr.",
+        "Oprettet",
+        "Udført dato",
+        "Udført init.",
+        "Godkendt",
+        "Afvigelse",
+        "Type",
+    }
+
     project_signature = {
         "Opmål.%",
         "Forarb.%",
@@ -94,6 +108,11 @@ def detect_c5_csv_type(
         "Brøndskud",
         "Pkt.rep",
     }
+
+    if deviation_signature.issubset(
+        header
+    ):
+        return "deviation_overview"
 
     if manhole_signature.issubset(
         header
@@ -1267,16 +1286,217 @@ def parse_c5_manhole_overview_import(
         },
     )
 
-def parse_c5_technical_asset_import(
+def parse_c5_deviation_import(
     csv_text: str,
     project_id: str,
-) -> TechnicalAssetImport:
+) -> DeviationImport:
+    """
+    Omsætter C5's afvigelsesoversigt til DeviationImport.
+
+    C5-filen indeholder afvigelsens livscyklus:
+    oprettet, udført og godkendt.
+
+    Afvigelser er ikke en del af den normale planlægningsmotor.
+    """
+
+    normalized_project_id = normalize_project_id(
+        project_id
+    )
+
+    reader = csv.DictReader(
+        io.StringIO(csv_text),
+        delimiter=";",
+    )
+
+    if reader.fieldnames:
+        reader.fieldnames = [
+            normalize_column_name(name)
+            for name in reader.fieldnames
+        ]
+
+    deviations: list[ImportedDeviation] = []
+
+    for row in reader:
+        row = {
+            normalize_column_name(key): value
+            for key, value in row.items()
+        }
+
+        row_project_id = normalize_project_id(
+            row.get("Projekt")
+        )
+
+        if row_project_id != normalized_project_id:
+            continue
+
+        deviation_number = str(
+            row.get("Afvigenr.") or ""
+        ).strip()
+
+        if not deviation_number:
+            continue
+
+        installation_no = normalize_installation_id(
+            row.get("Inst.nr")
+        )
+
+        bottom_manhole_no = normalize_c5_manhole_no(
+            row.get("Brønd 1")
+        )
+
+        top_manhole_no = normalize_c5_manhole_no(
+            row.get("Brønd 2")
+        )
+
+        dimension_raw = str(
+            row.get("Dim") or ""
+        ).strip()
+
+        dimension_mm = None
+
+        if dimension_raw:
+            try:
+                dimension_mm = int(
+                    float(
+                        dimension_raw.replace(
+                            ",",
+                            ".",
+                        )
+                    )
+                )
+            except ValueError:
+                dimension_mm = None
+
+        deviation_type = str(
+            row.get("Type") or ""
+        ).strip()
+
+        description = str(
+            row.get("Afvigelse") or ""
+        ).strip()
+
+        completed_by = str(
+            row.get("Udført init.") or ""
+        ).strip() or None
+
+        reported_date_raw = str(
+            row.get("Oprettet") or ""
+        ).strip()
+
+        completed_date_raw = str(
+            row.get("Udført dato") or ""
+        ).strip()
+
+        approved_date_raw = str(
+            row.get("Godkendt") or ""
+        ).strip()
+
+        deviations.append(
+            ImportedDeviation(
+                deviation_number=deviation_number,
+                installation_no=(
+                    installation_no or None
+                ),
+                bottom_manhole_no=(
+                    bottom_manhole_no or None
+                ),
+                top_manhole_no=(
+                    top_manhole_no or None
+                ),
+                dimension_mm=dimension_mm,
+                deviation_type=deviation_type,
+                description=description,
+                reported_date=parse_c5_date(
+                    reported_date_raw
+                ),
+                completed_date=parse_c5_date(
+                    completed_date_raw
+                ),
+                completed_by=completed_by,
+                approved_date=parse_c5_date(
+                    approved_date_raw
+                ),
+                source_reference=(
+                    deviation_number
+                ),
+                metadata={
+                    "source": "c5_csv",
+                    "import_type": (
+                        "deviation_overview"
+                    ),
+                    "project_manager": str(
+                        row.get("Projektleder")
+                        or ""
+                    ).strip(),
+                    "tender_post_no": str(
+                        row.get("Udbud postnr.")
+                        or ""
+                    ).strip(),
+                    "drawing": str(
+                        row.get("Udbud tegning")
+                        or ""
+                    ).strip(),
+                    "address": str(
+                        row.get("Inst.adresse")
+                        or ""
+                    ).strip(),
+                    "installation_no_raw": str(
+                        row.get("Inst.nr")
+                        or ""
+                    ).strip(),
+                    "bottom_manhole_no_raw": str(
+                        row.get("Brønd 1")
+                        or ""
+                    ).strip(),
+                    "top_manhole_no_raw": str(
+                        row.get("Brønd 2")
+                        or ""
+                    ).strip(),
+                    "reported_date_raw": (
+                        reported_date_raw
+                    ),
+                    "completed_date_raw": (
+                        completed_date_raw
+                    ),
+                    "approved_date_raw": (
+                        approved_date_raw
+                    ),
+                },
+            )
+        )
+
+    if not deviations:
+        raise ValueError(
+            "Afvigelsesoversigten indeholder ingen "
+            f"afvigelser for projekt "
+            f"'{normalized_project_id}'."
+        )
+
+    return DeviationImport(
+        project_id=normalized_project_id,
+        source="c5_csv",
+        import_type="deviation_overview",
+        deviations=deviations,
+        metadata={
+            "source_format": "c5_csv",
+            "import_type": "deviation_overview",
+            "deviation_count": len(
+                deviations
+            ),
+        },
+    )
+
+def parse_c5_import(
+    csv_text: str,
+    project_id: str,
+) -> TechnicalAssetImport | DeviationImport:
     """
     Fælles C5-indgang.
 
     CSV-typen genkendes automatisk ud fra headeren,
-    hvorefter den korrekte adapter anvendes.
+    hvorefter den korrekte importmodel oprettes.
     """
+
     import_type = detect_c5_csv_type(
         csv_text
     )
@@ -1293,7 +1513,39 @@ def parse_c5_technical_asset_import(
             project_id=project_id,
         )
 
+    if import_type == "deviation_overview":
+        return parse_c5_deviation_import(
+            csv_text=csv_text,
+            project_id=project_id,
+        )
+
     raise ValueError(
         "Ukendt C5-importtype: "
         f"{import_type}"
     )
+
+def parse_c5_technical_asset_import(
+    csv_text: str,
+    project_id: str,
+) -> TechnicalAssetImport:
+    """
+    Bagudkompatibel indgang til de tekniske C5-importer.
+
+    Afvigelsesoversigter skal bruge parse_c5_import().
+    """
+
+    result = parse_c5_import(
+        csv_text=csv_text,
+        project_id=project_id,
+    )
+
+    if isinstance(
+        result,
+        DeviationImport,
+    ):
+        raise ValueError(
+            "Afvigelsesoversigten er ikke en "
+            "TechnicalAssetImport."
+        )
+
+    return result
