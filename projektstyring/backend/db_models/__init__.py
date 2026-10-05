@@ -47,6 +47,7 @@ from projektstyring.backend.db_models.production_group import (
     ProductionGroupTaskType,
     ProductionGroupWorkType,
 )
+from projektstyring.backend.db_models.user import User
 
 __all__ = [
     "CalendarException",
@@ -74,6 +75,7 @@ __all__ = [
     "TaskQuantity",
     "TaskType",
     "Team",
+    "User",
     "ProductionGroup",
     "ProductionGroupTaskType",
     "ProductionGroupWorkType",

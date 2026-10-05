@@ -1,0 +1,137 @@
+<!doctype html>
+<html lang="da">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Log ind · Projektstyring</title>
+    <link rel="icon" type="image/png" href="/static/images/roerbot.png">
+    <link rel="stylesheet" href="/static/style.css">
+
+    <style>
+        .login-page {
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 24px;
+            box-sizing: border-box;
+        }
+
+        .login-card {
+            width: 100%;
+            max-width: 380px;
+            padding: 32px;
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 4px 18px rgba(0, 0, 0, 0.12);
+        }
+
+        .login-logo {
+            text-align: center;
+            margin-bottom: 24px;
+        }
+
+        .login-logo img {
+            width: 90px;
+            height: 90px;
+            object-fit: contain;
+        }
+
+        .login-card h1 {
+            margin: 0 0 24px;
+            text-align: center;
+        }
+
+        .login-field {
+            margin-bottom: 18px;
+        }
+
+        .login-field label {
+            display: block;
+            margin-bottom: 6px;
+            font-weight: 600;
+        }
+
+        .login-field input {
+            width: 100%;
+            box-sizing: border-box;
+            padding: 12px;
+            font-size: 16px;
+        }
+
+        .login-button {
+            width: 100%;
+            padding: 12px;
+            font-size: 16px;
+            cursor: pointer;
+        }
+
+        .login-error {
+            margin-bottom: 18px;
+            padding: 10px 12px;
+            border-radius: 6px;
+            background: #f8d7da;
+            color: #842029;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="login-page">
+        <div class="login-card">
+            <div class="login-logo">
+                <img
+                    src="/static/images/roerbot.png"
+                    alt="Rørbot"
+                >
+            </div>
+
+            <h1>Projektstyring</h1>
+
+            {% if error %}
+            <div class="login-error">
+                {{ error }}
+            </div>
+            {% endif %}
+
+            <form method="post" action="/login">
+                <div class="login-field">
+                    <label for="username">
+                        Brugernavn
+                    </label>
+
+                    <input
+                        id="username"
+                        name="username"
+                        type="text"
+                        autocomplete="username"
+                        required
+                        autofocus
+                    >
+                </div>
+
+                <div class="login-field">
+                    <label for="password">
+                        Adgangskode
+                    </label>
+
+                    <input
+                        id="password"
+                        name="password"
+                        type="password"
+                        autocomplete="current-password"
+                        required
+                    >
+                </div>
+
+                <button
+                    class="login-button"
+                    type="submit"
+                >
+                    Log ind
+                </button>
+            </form>
+        </div>
+    </div>
+</body>
+</html>

@@ -4,6 +4,17 @@ from fastapi import FastAPI, Form, Request
 from fastapi.responses import RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
+from starlette.middleware.sessions import SessionMiddleware
+
+from projektstyring.backend.config import require_env
+from projektstyring.backend.auth import (
+    authenticate_user,
+    hash_password,
+    password_is_valid,
+    verify_password,
+)
+from projektstyring.backend.database.connection import SessionLocal
+from projektstyring.backend.db_models.user import User
 from projektstyring.backend.c5_importer import (
     detect_c5_csv_type,
     parse_c5_csv,
@@ -54,6 +65,119 @@ from projektstyring.vpmanhole.router import router as vpmanhole_router
 
 app = FastAPI()
 
+
+@app.middleware("http")
+async def require_login(request: Request, call_next):
+    path = request.url.path
+
+    # Login-siden og statiske filer skal kunne bruges uden login.
+    public_path = (
+        path == "/login"
+        or path.startswith("/static/")
+    )
+
+    if public_path:
+        return await call_next(request)
+
+    user_id = request.session.get("user_id")
+
+    if user_id is None:
+        if request.method == "GET":
+            return RedirectResponse(
+                url="/login",
+                status_code=303,
+            )
+
+        return JSONResponse(
+            status_code=401,
+            content={
+                "detail": "Login kræves.",
+            },
+        )
+
+    with SessionLocal() as session:
+        user = session.get(User, user_id)
+
+        if user is None or not user.is_active:
+            request.session.clear()
+
+            if request.method == "GET":
+                return RedirectResponse(
+                    url="/login",
+                    status_code=303,
+                )
+
+            return JSONResponse(
+                status_code=401,
+                content={
+                    "detail": "Login kræves.",
+                },
+            )
+
+        role = user.role
+
+        if (
+            user.must_change_password
+            and path != "/change-password"
+        ):
+            if request.method == "GET":
+                return RedirectResponse(
+                    url="/change-password",
+                    status_code=303,
+                )
+
+            return JSONResponse(
+                status_code=403,
+                content={
+                    "detail": (
+                        "Adgangskoden skal ændres, "
+                        "før systemet kan bruges."
+                    ),
+                },
+            )
+
+        role = user.role
+
+        if path.startswith("/vpmanhole"):
+            allowed = role in {
+                "felt",
+                "kontor",
+                "admin",
+            }
+        else:
+            allowed = role in {
+                "kontor",
+                "admin",
+            }
+
+        if not allowed:
+            return JSONResponse(
+                status_code=403,
+                content={
+                    "detail": (
+                        "Du har ikke adgang til "
+                        "denne del af systemet."
+                    ),
+                },
+            )
+
+        request.state.user = user
+
+        response = await call_next(request)
+
+    return response
+
+
+app.add_middleware(
+    SessionMiddleware,
+    secret_key=require_env("SESSION_SECRET"),
+    session_cookie="projektstyring_session",
+    max_age=60 * 60 * 12,
+    same_site="lax",
+    https_only=True,
+)
+
+
 app.include_router(vpmanhole_router)
 
 app.mount(
@@ -77,6 +201,176 @@ technical_asset_import_service = (
 deviation_import_service = (
     DeviationImportService()
 )
+
+@app.get("/login")
+def login_page(request: Request):
+    if request.session.get("user_id"):
+        return RedirectResponse(
+            url="/",
+            status_code=303,
+        )
+
+    return templates.TemplateResponse(
+        request=request,
+        name="login.html",
+        context={
+            "error": None,
+        },
+    )
+
+
+@app.post("/login")
+def login(
+    request: Request,
+    username: str = Form(...),
+    password: str = Form(...),
+):
+    with SessionLocal() as session:
+        user = authenticate_user(
+            session,
+            username,
+            password,
+        )
+
+        if user is None:
+            return templates.TemplateResponse(
+                request=request,
+                name="login.html",
+                context={
+                    "error": "Forkert brugernavn eller adgangskode.",
+                },
+                status_code=401,
+            )
+
+        request.session.clear()
+
+        request.session["user_id"] = user.id
+        request.session["username"] = user.username
+        request.session["display_name"] = user.display_name
+        request.session["role"] = user.role
+        request.session["must_change_password"] = (
+            user.must_change_password
+        )
+
+    return RedirectResponse(
+        url="/",
+        status_code=303,
+    )
+
+
+@app.post("/logout")
+def logout(request: Request):
+    request.session.clear()
+
+    return RedirectResponse(
+        url="/login",
+        status_code=303,
+    )
+
+@app.get("/change-password")
+def change_password_page(request: Request):
+    user_id = request.session.get("user_id")
+
+    if user_id is None:
+        return RedirectResponse(
+            url="/login",
+            status_code=303,
+        )
+
+    return templates.TemplateResponse(
+        request=request,
+        name="change_password.html",
+        context={
+            "error": None,
+        },
+    )
+
+
+@app.post("/change-password")
+def change_password(
+    request: Request,
+    current_password: str = Form(...),
+    new_password: str = Form(...),
+    confirm_password: str = Form(...),
+):
+    user_id = request.session.get("user_id")
+
+    if user_id is None:
+        return RedirectResponse(
+            url="/login",
+            status_code=303,
+        )
+
+    with SessionLocal() as session:
+        user = session.get(User, user_id)
+
+        if user is None or not user.is_active:
+            request.session.clear()
+
+            return RedirectResponse(
+                url="/login",
+                status_code=303,
+            )
+
+        if not verify_password(
+            current_password,
+            user.password_hash,
+        ):
+            return templates.TemplateResponse(
+                request=request,
+                name="change_password.html",
+                context={
+                    "error": "Den nuværende adgangskode er forkert.",
+                },
+                status_code=400,
+            )
+
+        if new_password != confirm_password:
+            return templates.TemplateResponse(
+                request=request,
+                name="change_password.html",
+                context={
+                    "error": "De to nye adgangskoder er ikke ens.",
+                },
+                status_code=400,
+            )
+
+        valid, message = password_is_valid(
+            new_password,
+            user.role,
+        )
+
+        if not valid:
+            return templates.TemplateResponse(
+                request=request,
+                name="change_password.html",
+                context={
+                    "error": message,
+                },
+                status_code=400,
+            )
+
+        user.password_hash = hash_password(
+            new_password
+        )
+        user.must_change_password = False
+
+        session.commit()
+
+        request.session["must_change_password"] = False
+
+        role = user.role
+
+    if role == "felt":
+        return RedirectResponse(
+            url="/vpmanhole/",
+            status_code=303,
+        )
+
+    return RedirectResponse(
+        url="/",
+        status_code=303,
+    )
 
 def get_teams():
     return team_repo.load_team_map()
