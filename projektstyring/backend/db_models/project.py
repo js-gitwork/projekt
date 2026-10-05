@@ -104,6 +104,12 @@ class Project(Base):
         order_by="Installation.sequence",
     )
 
+    constraints = relationship(
+        "ProjectConstraint",
+        back_populates="project",
+        order_by="ProjectConstraint.end_date",
+    )
+
     tasks = relationship(
         "ProjectTask",
         back_populates="project",
@@ -113,4 +119,10 @@ class Project(Base):
         "Manhole",
         back_populates="project",
         order_by="Manhole.manhole_no",
+    )
+
+    deviations = relationship(
+        "Deviation",
+        back_populates="project",
+        order_by="Deviation.deviation_number",
     )

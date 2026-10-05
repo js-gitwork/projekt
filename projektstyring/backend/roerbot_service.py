@@ -8,7 +8,6 @@ from projektstyring.backend.project_creation_service import (
     PROJECT_CREATION_WORKFLOW,
     analyze_project_creation,
     handle_project_creation_message,
-    is_confirmation,
 )
 from projektstyring.backend.repositories.conversation_state_repository import (
     clear_active_conversation,
@@ -24,6 +23,7 @@ from projektstyring.backend.roerbot_scenario_service import (
 from projektstyring.backend.roerbot_context import (
     build_context,
     build_interpreter_context,
+    resolve_project_references,
 )
 from projektstyring.backend.roerbot_interpreter import interpret_question
 from projektstyring.backend.roerbot_reporter import create_report
@@ -404,15 +404,298 @@ def handle_report(
 
 def handle_project_creation(
     question: str,
+    *,
+    interpretation: dict[str, Any],
 ) -> dict[str, str]:
     result = handle_project_creation_message(
         question,
+        interpretation=interpretation,
         user_key="default",
     )
 
     return {
         "answer": result["answer"]
     }
+
+def format_scenario_consequences(
+    active_revision: dict[str, Any],
+) -> str:
+    """
+    Formatterer de konsekvenser, som allerede er beregnet og gemt
+    på den aktive scenarierevision.
+
+    Der foretages ingen ny evaluering her.
+
+    Kilder:
+    - ScenarioRevision.constraints:
+      deterministiske constraint/watchdog-konsekvenser.
+    - ScenarioRevision.conflicts:
+      allerede beregnede holdkonflikter.
+    - ScenarioRevision.warnings:
+      allerede beregnede planadvarsler og ikke-planlagt arbejde.
+
+    Rørbot præsenterer altså kun eksisterende beregnede resultater
+    og udleder ikke selv nye risici.
+    """
+
+    evaluations = (
+        active_revision.get("constraints")
+        or []
+    )
+
+    conflicts = (
+        active_revision.get("conflicts")
+        or []
+    )
+
+    plan_warnings = (
+        active_revision.get("warnings")
+        or []
+    )
+
+    introduced: list[dict[str, Any]] = []
+    persisting: list[dict[str, Any]] = []
+    resolved: list[dict[str, Any]] = []
+
+    for evaluation in evaluations:
+        introduced.extend(
+            evaluation.get("introduced")
+            or []
+        )
+        persisting.extend(
+            evaluation.get("persisting")
+            or []
+        )
+        resolved.extend(
+            evaluation.get("resolved")
+            or []
+        )
+
+    if (
+        not introduced
+        and not persisting
+        and not resolved
+        and not conflicts
+        and not plan_warnings
+    ):
+        return ""
+
+    lines = [
+        "Konsekvenser:",
+    ]
+
+    def constraint_warning_text(
+        warning: dict[str, Any],
+    ) -> str:
+        message = str(
+            warning.get("message")
+            or warning.get("description")
+            or ""
+        ).strip()
+
+        if message:
+            return message
+
+        warning_type = str(
+            warning.get("warning_type")
+            or "ukendt forhold"
+        ).strip()
+
+        reference = str(
+            warning.get("reference")
+            or ""
+        ).strip()
+
+        installation_no = str(
+            warning.get("installation_no")
+            or ""
+        ).strip()
+
+        installation_nos = [
+            str(value).strip()
+            for value in (
+                warning.get("installation_nos")
+                or []
+            )
+            if str(value).strip()
+        ]
+
+        parts = [
+            warning_type,
+        ]
+
+        if reference:
+            parts.append(
+                f"reference {reference}"
+            )
+
+        if installation_no:
+            parts.append(
+                f"installation {installation_no}"
+            )
+
+        elif installation_nos:
+            parts.append(
+                "installation "
+                + ", ".join(installation_nos)
+            )
+
+        return " – ".join(parts)
+
+    #
+    # Nye deterministiske forhold har højeste prioritet.
+    #
+    if introduced:
+        lines.append("")
+        lines.append(
+            f"Nye forhold ({len(introduced)}):"
+        )
+
+        for warning in introduced:
+            lines.append(
+                f"- {constraint_warning_text(warning)}"
+            )
+
+    #
+    # Holdkonflikter beskriver scenariets beregnede portefølje
+    # efter ændringen.
+    #
+    if conflicts:
+        lines.append("")
+        lines.append(
+            f"Holdkonflikter ({len(conflicts)}):"
+        )
+
+        for conflict in conflicts:
+            team = str(
+                conflict.get("team")
+                or "Ukendt hold"
+            ).strip()
+
+            conflict_date = str(
+                conflict.get("date")
+                or "ukendt dato"
+            ).strip()
+
+            projects = [
+                str(project_id).strip()
+                for project_id in (
+                    conflict.get("projects")
+                    or []
+                )
+                if str(project_id).strip()
+            ]
+
+            if projects:
+                lines.append(
+                    f"- {team} er planlagt på flere projekter "
+                    f"den {conflict_date}: "
+                    f"{', '.join(projects)}."
+                )
+            else:
+                lines.append(
+                    f"- {team} har en planlægningskonflikt "
+                    f"den {conflict_date}."
+                )
+
+    #
+    # Planmotorens egne advarsler og ikke-planlagte arbejde.
+    #
+    if plan_warnings:
+        lines.append("")
+        lines.append(
+            f"Planadvarsler ({len(plan_warnings)}):"
+        )
+
+        for warning in plan_warnings:
+            warning_type = str(
+                warning.get("type")
+                or "warning"
+            ).strip()
+
+            project_id = str(
+                warning.get("project_id")
+                or ""
+            ).strip()
+
+            installation_id = str(
+                warning.get("installation_id")
+                or ""
+            ).strip()
+
+            task_type = str(
+                warning.get("task_type")
+                or ""
+            ).strip()
+
+            message = str(
+                warning.get("message")
+                or "Planmotoren har registreret et forhold."
+            ).strip()
+
+            context_parts = []
+
+            if project_id:
+                context_parts.append(
+                    project_id
+                )
+
+            if installation_id:
+                context_parts.append(
+                    f"installation {installation_id}"
+                )
+
+            if (
+                warning_type == "rest_work"
+                and task_type
+            ):
+                context_parts.append(
+                    task_type
+                )
+
+            if context_parts:
+                lines.append(
+                    f"- {' – '.join(context_parts)}: "
+                    f"{message}"
+                )
+            else:
+                lines.append(
+                    f"- {message}"
+                )
+
+    #
+    # Eksisterende constraint-forhold kommer efter de forhold,
+    # der er mest relevante for beslutningen om selve ændringen.
+    #
+    if persisting:
+        lines.append("")
+        lines.append(
+            "Eksisterende forhold, som fortsætter "
+            f"({len(persisting)}):"
+        )
+
+        for warning in persisting:
+            lines.append(
+                f"- {constraint_warning_text(warning)}"
+            )
+
+    #
+    # Det er også beslutningsrelevant, hvis scenariet faktisk
+    # fjerner et eksisterende problem.
+    #
+    if resolved:
+        lines.append("")
+        lines.append(
+            f"Forhold som løses ({len(resolved)}):"
+        )
+
+        for warning in resolved:
+            lines.append(
+                f"- {constraint_warning_text(warning)}"
+            )
+
+    return "\n".join(lines)
+
 
 def handle_scenario_change(
     *,
@@ -425,9 +708,11 @@ def handle_scenario_change(
     Behandler en struktureret ændring gennem den fælles
     scenariemotor.
 
-    Et eksisterende aktivt scenario genbruges.
-    Hvis samtalen endnu ikke har et scenario, oprettes et nyt
-    for de projekter, som interpreterens scope indeholder.
+    Et eksisterende aktivt scenario genbruges, hvis det omfatter
+    de projekter, som den nye ændring vedrører.
+
+    Hvis samtalen ikke har et brugbart aktivt scenario, oprettes
+    et nyt for de projekter, som interpreterens scope indeholder.
 
     Den virkelige projektdatabase ændres ikke her.
     """
@@ -439,11 +724,29 @@ def handle_scenario_change(
             active_state.data or {}
         )
 
+    scope = (
+        interpretation.get("scope")
+        or {}
+    )
+
+    project_ids = [
+        str(project_id).strip()
+        for project_id in scope.get(
+            "project_ids",
+            [],
+        )
+        if str(project_id).strip()
+    ]
+
     scenario_id = str(
         active_data.get("scenario_id")
         or ""
     ).strip()
 
+    #
+    # Hvis samtalen allerede peger på et scenario, undersøger vi
+    # først, om det stadig kan bruges til den aktuelle ændring.
+    #
     if scenario_id:
         try:
             existing_scenario = (
@@ -455,25 +758,40 @@ def handle_scenario_change(
             if existing_scenario.get("status") in {
                 "committed",
                 "cancelled",
-           }:
+            }:
                 scenario_id = ""
+
+            else:
+                existing_project_ids = {
+                    str(project_id).strip()
+                    for project_id in (
+                        existing_scenario.get(
+                            "project_ids"
+                        )
+                        or []
+                    )
+                    if str(project_id).strip()
+                }
+
+                requested_project_ids = set(
+                    project_ids
+                )
+
+                if (
+                    requested_project_ids
+                    and not requested_project_ids.issubset(
+                        existing_project_ids
+                    )
+                ):
+                    scenario_id = ""
 
         except FileNotFoundError:
             scenario_id = ""
 
-    scope = (
-        interpretation.get("scope")
-        or {}
-    )
-    project_ids = [
-        str(project_id).strip()
-        for project_id in scope.get(
-            "project_ids",
-            [],
-        )
-        if str(project_id).strip()
-    ]
-
+    #
+    # Hvis der ikke findes et brugbart scenario, opretter vi et
+    # nyt for de projekter, som interpreterens scope indeholder.
+    #
     if not scenario_id:
         if not project_ids:
             return {
@@ -503,6 +821,9 @@ def handle_scenario_change(
             scenario["scenario_id"]
         )
 
+    #
+    # Selve ændringen sendes nu gennem den fælles scenariemotor.
+    #
     result = (
         roerbot_scenario_service.process_interpretation(
             scenario_id=scenario_id,
@@ -544,6 +865,12 @@ def handle_scenario_change(
     changes = (
         active_revision.get("changes")
         or []
+    )
+
+    consequence_text = (
+        format_scenario_consequences(
+            active_revision
+        )
     )
 
     # Bevar den eksisterende samtaletilstand,
@@ -617,39 +944,63 @@ def handle_scenario_change(
                 or "det valgte objekt"
             )
 
+        consequence_section = ""
+
+        if consequence_text:
+            consequence_section = (
+                f"\n\n{consequence_text}"
+            )
+
         return {
             "answer": (
-                f"Jeg har oprettet et forslag i scenariet.\n\n"
+                "Jeg har oprettet et forslag i scenariet.\n\n"
                 f"Ændring: {target_text}\n"
                 f"Felt: {field}\n"
                 f"Fra: {before_value}\n"
-                f"Til: {after_value}\n\n"
+                f"Til: {after_value}"
+                f"{consequence_section}\n\n"
                 "Ændringen er ikke gemt i de gældende data endnu.\n\n"
                 "Skal jeg godkende og gennemføre ændringen?"
             )
         }
 
+    consequence_section = ""
+
+    if consequence_text:
+        consequence_section = (
+            f"\n\n{consequence_text}"
+        )
+
     return {
         "answer": (
             f"Jeg har lagt {len(changes)} foreslåede ændringer "
-            "ind i scenariet.\n\n"
+            "ind i scenariet."
+            f"{consequence_section}\n\n"
             "De gældende data er ikke ændret endnu.\n\n"
             "Skal jeg godkende og gennemføre ændringerne?"
         )
     }
-
-def handle_scenario_approval(
+def handle_scenario_decision(
     *,
-    question: str,
+    interpretation: dict[str, Any],
     active_state: Any,
-) -> dict[str, str] | None:
+) -> dict[str, str]:
     """
-    Godkender et aktivt Rørbot-scenarie, hvis brugerens besked
-    tydeligt er en bekræftelse.
+    Udfører en allerede fortolket beslutning om det aktive
+    Rørbot-scenarie.
+
+    Sprogforståelsen hører til i AI-interpreteren.
+    Denne funktion udfører kun den strukturerede beslutning
+    deterministisk.
     """
 
     if active_state is None:
-        return None
+        return {
+            "answer": (
+                "Der er ikke noget aktivt scenarie "
+                "at tage stilling til."
+            )
+        }
 
     data = dict(
         active_state.data or {}
@@ -661,40 +1012,56 @@ def handle_scenario_approval(
     ).strip()
 
     if not scenario_id:
-        return None
+        return {
+            "answer": (
+                "Der er ikke noget aktivt scenarie "
+                "at tage stilling til."
+            )
+        }
 
-    normalized = str(
-        question or ""
-    ).strip().casefold()
+    decision = str(
+        interpretation.get("scenario_decision")
+        or ""
+    ).strip()
 
-    approvals = {
-        "ja",
-        "ja tak",
-        "godkend",
-        "godkend ændringen",
-        "gennemfør",
-        "gennemfør ændringen",
-        "ok",
-        "okay",
-    }
+    if decision == "approve":
+        result = approve_scenario_revision(
+            scenario_id=scenario_id,
+            approved_by="Jacob",
+        )
 
-    if normalized not in approvals:
-        return None
+        if result.get("ok"):
+            clear_active_conversation(
+                "default"
+            )
 
-    result = approve_scenario_revision(
-        scenario_id=scenario_id,
-        approved_by="Jacob",
-    )
+        return {
+            "answer": str(
+                result.get("answer")
+                or "Scenariet er behandlet."
+            )
+        }
 
-    if result.get("ok"):
+    if decision == "discard":
+        planning_scenario_service.discard_scenario(
+            scenario_id
+        )
+
         clear_active_conversation(
             "default"
         )
 
+        return {
+            "answer": (
+                "Forslaget er kasseret. "
+                "De gældende projektdata er ikke ændret."
+            )
+        }
+
     return {
-        "answer": str(
-            result.get("answer")
-            or "Scenariet er behandlet."
+        "answer": (
+            "Jeg kunne ikke afgøre sikkert, "
+            "hvad der skal ske med scenariet."
         )
     }
 
@@ -726,39 +1093,6 @@ def ask_roerbot(
         "default"
     )
 
-    if (
-        active_state is not None
-        and active_state.workflow
-        == PROJECT_CREATION_WORKFLOW
-    ):
-        creation_data = dict(
-            active_state.data or {}
-        )
-
-        creation_analysis = (
-            analyze_project_creation(
-                creation_data
-            )
-        )
-
-        if (
-            creation_analysis.get("complete")
-            and is_confirmation(
-                normalized_question
-            )
-        ):
-            return handle_project_creation(
-                normalized_question
-            )
-
-    approval_result = handle_scenario_approval(
-        question=normalized_question,
-        active_state=active_state,
-    )
-
-    if approval_result is not None:
-        return approval_result
-
     conversation_context = build_agent_context(
         question=normalized_question,
         active_state=active_state,
@@ -769,9 +1103,35 @@ def ask_roerbot(
         conversation_context=conversation_context,
     )
 
+    interpretation = resolve_project_references(
+        interpretation
+    )
+
     intent = interpretation.get(
         "intent"
     )
+
+    # Et afslag på et aktivt projektudkast må ikke
+    # behandles som kassering af et planlægningsscenarie.
+    #
+    # Denne kontrol anvender den strukturerede AI-beslutning
+    # og den faktiske workflowtilstand – ikke nøgleord
+    # fra brugerens besked.
+    if (
+        active_state is not None
+        and active_state.workflow == "project_creation"
+        and intent == "scenario_decision"
+        and interpretation.get("scenario_decision") == "discard"
+    ):
+        interpretation["intent"] = "project_creation"
+        interpretation["project_creation_action"] = "cancel"
+        interpretation["project_creation_fields"] = {}
+        intent = "project_creation"
+    if intent == "scenario_decision":
+        return handle_scenario_decision(
+            interpretation=interpretation,
+            active_state=active_state,
+        )
 
     if intent == "report":
         return handle_report(
@@ -782,7 +1142,8 @@ def ask_roerbot(
 
     if intent == "project_creation":
         return handle_project_creation(
-            normalized_question
+            normalized_question,
+            interpretation=interpretation,
         )
 
     if intent == "change":

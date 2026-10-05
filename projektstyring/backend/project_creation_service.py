@@ -10,6 +10,9 @@ from projektstyring.backend.project_creation_parser import (
 from projektstyring.backend.project_factory import (
     create_project,
 )
+from projektstyring.backend.installation_service import (
+    create_installations,
+)
 from projektstyring.backend.project_repository import (
     ProjectRepository,
 )
@@ -54,6 +57,7 @@ FIELD_LABELS = {
     "start_date": "Startdato",
     "project_manager": "Projektleder",
     "site_manager": "Entrepriseleder",
+    "installation_count": "Antal installationer",
 }
 
 project_repository = ProjectRepository()
@@ -97,19 +101,29 @@ def merge_data(
 def analyze_project_creation(
     data: dict[str, Any],
 ) -> dict[str, Any]:
+    """
+    Kontrollerer obligatoriske projektoplysninger og
+    medtager samtidig alle kendte valgfrie oplysninger
+    i projektoversigten.
+    """
+
     missing = []
-    provided = {}
 
+    # Alle kendte oplysninger skal vises, også valgfrie.
+    provided = {
+        field: value
+        for field, value in data.items()
+        if value is not None
+        and value != ""
+        and field in FIELD_LABELS
+    }
+
+    # Kun felterne i PROJECT_CREATION_FIELDS
+    # er obligatoriske.
     for field in PROJECT_CREATION_FIELDS:
-        value = data.get(
-            field.name
-        )
+        value = data.get(field.name)
 
-        if value not in {
-            None,
-            "",
-        }:
-            provided[field.name] = value
+        if value is not None and value != "":
             continue
 
         missing.append(
@@ -125,9 +139,7 @@ def analyze_project_creation(
         )
 
     return {
-        "workflow": (
-            PROJECT_CREATION_WORKFLOW
-        ),
+        "workflow": PROJECT_CREATION_WORKFLOW,
         "complete": not missing,
         "provided": provided,
         "missing": missing,
@@ -139,101 +151,103 @@ def analyze_project_creation(
     }
 
 
-def parse_followup_answer(
-    text: str,
-    active_data: dict[str, Any],
-    *,
-    default_year: int,
+def normalize_project_creation_fields(
+    fields: dict[str, Any] | None,
 ) -> dict[str, Any]:
-    parsed = (
-        parse_project_creation_request(
-            text,
-            default_year=default_year,
-        )
-    )
+    """
+    Validerer feltværdier fra den eksisterende AI-interpreter.
 
-    cleaned = clean_data(
-        parsed
-    )
-
-    if cleaned:
-        return cleaned
-
-    analysis = (
-        analyze_project_creation(
-            active_data
-        )
-    )
-
-    missing = (
-        analysis.get("missing")
-        or []
-    )
-
-    if not missing:
-        return {}
-
-    next_field = str(
-        missing[0]["field"]
-    )
-
-    value = str(
-        text or ""
-    ).strip()
-
-    if not value:
-        return {}
-
-    return {
-        next_field: value,
+    AI'en fortolker betydningen. Python kontrollerer,
+    hvilke værdier der må gemmes i projektudkastet.
+    """
+    allowed_text_fields = {
+        "name",
+        "customer",
+        "project_manager",
+        "site_manager",
+        "city",
+        "preparation_team",
     }
 
+    result = {}
 
-def is_confirmation(
-    text: str,
-) -> bool:
-    normalized = str(
-        text or ""
-    ).strip().casefold()
+    for key, value in (fields or {}).items():
+        if value is None or isinstance(value, (bool, dict, list)):
+            continue
 
-    return normalized in {
-        "ja",
-        "ja tak",
-        "opret",
-        "opret projektet",
-        "gem",
-        "gem projektet",
-    }
+        if key == "project_id":
+            candidate = str(value).strip().upper()
+
+            if (
+                candidate.startswith("V")
+                and len(candidate) > 1
+                and candidate[1:].isdigit()
+            ):
+                result[key] = candidate
+
+        elif key == "installation_count":
+            try:
+                count = int(value)
+            except (TypeError, ValueError):
+                continue
+
+            if count > 0:
+                result[key] = count
+
+        elif key == "start_date":
+            try:
+                result[key] = date.fromisoformat(
+                    str(value).strip()
+                ).isoformat()
+            except (TypeError, ValueError):
+                continue
+
+        elif key in allowed_text_fields:
+            candidate = str(value).strip()
+
+            if candidate:
+                result[key] = candidate
+
+    return result
 
 
 def build_project_from_creation_data(
     data: dict[str, Any],
 ) -> dict[str, Any]:
+    """
+    Bygger projektet ud fra det godkendte projektudkast.
+
+    Installationerne oprettes uden surveyresultater.
+    Survey forbliver i sin oprindelige, uafsluttede tilstand.
+    """
+
     project = create_project(
-        project_id=data.get(
-            "project_id"
-        ),
-        name=data.get(
-            "name"
-        ),
-        customer=data.get(
-            "customer",
+        project_id=data["project_id"],
+        name=data["name"],
+        customer=data.get("customer", ""),
+        project_manager=data.get(
+            "project_manager",
             "",
         ),
-        city=data.get(
-            "city",
+        site_manager=data.get(
+            "site_manager",
             "",
         ),
-        start_date=data.get(
-            "start_date",
-            "",
-        ),
+        city=data.get("city", ""),
+        start_date=data.get("start_date", ""),
         notes=(
             "Oprettet som udkast via Rørbot."
         ),
     )
 
-    project["installations"] = []
+    installation_count = int(
+        data.get("installation_count") or 0
+    )
+
+    create_installations(
+        project,
+        installation_count,
+    )
 
     return project
 
@@ -241,162 +255,175 @@ def build_project_from_creation_data(
 def handle_project_creation_message(
     text: str,
     *,
-    default_year: int | None = None,
+    interpretation: dict[str, Any],
     user_key: str = "default",
 ) -> dict[str, Any]:
     """
-    Behandler en projektoprettelsesdialog.
+    Behandler interpreterens strukturerede projektbeslutning.
 
-    Conversation state bruges kun til den midlertidige dialog.
-    Det færdige projekt gemmes gennem ProjectRepository.
-
-    Servicen håndterer ingen andre workflows eller beslutninger.
+    Funktionen foretager ingen selvstændig AI-fortolkning.
+    Projektet gemmes kun ved en særskilt godkendelse.
     """
 
-    resolved_year = (
-        default_year
-        if default_year is not None
-        else date.today().year
+    action = interpretation.get(
+        "project_creation_action"
     )
 
-    normalized_text = str(
-        text or ""
-    ).strip()
-
-    active_state = (
-        get_active_conversation(
-            user_key
-        )
+    fields = normalize_project_creation_fields(
+        interpretation.get("project_creation_fields")
     )
 
-    if (
+    active_state = get_active_conversation(
+        user_key
+    )
+
+    has_active_draft = (
         active_state is not None
-        and active_state.workflow
-        == PROJECT_CREATION_WORKFLOW
-    ):
-        existing_data = dict(
-            active_state.data
-            or {}
-        )
+        and active_state.workflow == PROJECT_CREATION_WORKFLOW
+    )
 
-        existing_analysis = (
-            analyze_project_creation(
-                existing_data
-            )
-        )
+    existing_data = (
+        dict(active_state.data or {})
+        if has_active_draft
+        else {}
+    )
 
-        if (
-            existing_analysis[
-                "complete"
-            ]
-            and is_confirmation(
-                normalized_text
-            )
-        ):
-            project = (
-                build_project_from_creation_data(
-                    existing_data
-                )
-            )
+    existing_analysis = analyze_project_creation(
+        existing_data
+    )
 
-            project_repository.save_project(
-                project
-            )
-
-            clear_active_conversation(
-                user_key
-            )
-
+    # Godkendelse må aldrig indeholde samtidige rettelser.
+    if action == "approve":
+        if fields:
             return {
-                "analysis": (
-                    existing_analysis
-                ),
-                "data": (
-                    existing_data
-                ),
-                "project": project,
+                "analysis": existing_analysis,
+                "data": existing_data,
                 "answer": (
-                    f"Projekt {project['id']} "
-                    f"— {project['name']} "
-                    "er oprettet som udkast."
+                    "Jeg har registreret nye oplysninger "
+                    "sammen med godkendelsen. "
+                    "Projektet er ikke oprettet. "
+                    "Send rettelsen først, så viser jeg "
+                    "det opdaterede udkast til godkendelse."
                 ),
             }
 
-        new_data = parse_followup_answer(
-            normalized_text,
-            existing_data,
-            default_year=resolved_year,
+        if not has_active_draft:
+            return {
+                "analysis": existing_analysis,
+                "data": existing_data,
+                "answer": (
+                    "Der findes ikke et aktivt "
+                    "projektudkast at godkende."
+                ),
+            }
+
+        if not existing_analysis["complete"]:
+            return {
+                "analysis": existing_analysis,
+                "data": existing_data,
+                "answer": format_project_creation_analysis(
+                    existing_analysis
+                ),
+            }
+
+        project = build_project_from_creation_data(
+            existing_data
         )
 
-        merged_data = merge_data(
-            existing_data,
-            new_data,
+        saved_project = project_repository.save_project(
+            project
         )
 
-        analysis = (
-            analyze_project_creation(
-                merged_data
-            )
-        )
-
-        # Dialogtilstanden bevares også når alle
-        # oplysninger er til stede. Først efter
-        # eksplicit bekræftelse oprettes projektet
-        # og conversation state ryddes.
-        save_active_conversation(
-            workflow=(
-                PROJECT_CREATION_WORKFLOW
-            ),
-            data=merged_data,
-            user_key=user_key,
+        clear_active_conversation(
+            user_key
         )
 
         return {
-            "analysis": analysis,
-            "data": merged_data,
+            "analysis": existing_analysis,
+            "data": existing_data,
+            "project": saved_project,
             "answer": (
-                format_project_creation_analysis(
-                    analysis,
-                    updated_fields=list(
-                        new_data.keys()
-                    ),
-                )
+                f"Projekt {project['id']} — "
+                f"{project['name']} er oprettet "
+                "som udkast."
             ),
         }
 
-    parsed = (
-        parse_project_creation_request(
-            normalized_text,
-            default_year=resolved_year,
-        )
+    # Annullering afslutter den midlertidige projektoprettelse.
+    # Der er endnu ikke oprettet noget projekt i databasen.
+    if action == "cancel":
+        if has_active_draft:
+            clear_active_conversation(user_key)
+
+        return {
+            "analysis": existing_analysis,
+            "data": {},
+            "answer": (
+                "Projektoprettelsen er annulleret. "
+                "Der er ikke oprettet noget projekt."
+            ),
+        }
+
+    if action == "unrelated":
+        return {
+            "analysis": existing_analysis,
+            "data": existing_data,
+            "answer": (
+                "Beskeden vedrører ikke projektoprettelsen. "
+                "Projektudkastet er uændret."
+            ),
+        }
+
+    if action == "question":
+        if not has_active_draft:
+            return {
+                "analysis": existing_analysis,
+                "data": existing_data,
+                "answer": (
+                    "Der er ikke nogen aktiv "
+                    "projektoprettelse."
+                ),
+            }
+
+        return {
+            "analysis": existing_analysis,
+            "data": existing_data,
+            "answer": format_project_creation_analysis(
+                existing_analysis
+            ),
+        }
+
+    if action != "update" or not fields:
+        return {
+            "analysis": existing_analysis,
+            "data": existing_data,
+            "answer": (
+                "Jeg kunne ikke udlede en sikker "
+                "projektændring. Udkastet er uændret."
+            ),
+        }
+
+    merged_data = merge_data(
+        existing_data,
+        fields,
     )
 
-    data = clean_data(
-        parsed
-    )
-
-    analysis = (
-        analyze_project_creation(
-            data
-        )
+    analysis = analyze_project_creation(
+        merged_data
     )
 
     save_active_conversation(
-        workflow=(
-            PROJECT_CREATION_WORKFLOW
-        ),
-        data=data,
+        workflow=PROJECT_CREATION_WORKFLOW,
+        data=merged_data,
         user_key=user_key,
     )
 
     return {
         "analysis": analysis,
-        "data": data,
-        "answer": (
-            format_project_creation_analysis(
-                analysis,
-                updated_fields=[],
-            )
+        "data": merged_data,
+        "answer": format_project_creation_analysis(
+            analysis,
+            updated_fields=list(fields.keys()),
         ),
     }
 

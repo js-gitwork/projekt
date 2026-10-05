@@ -4,10 +4,10 @@ from fastapi import FastAPI, Form, Request
 from fastapi.responses import RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
-
 from projektstyring.backend.c5_importer import (
+    detect_c5_csv_type,
     parse_c5_csv,
-    parse_c5_technical_asset_import,
+    parse_c5_import,
 )
 from projektstyring.backend.project_operations import add_installations
 from projektstyring.backend.project_planner import (
@@ -31,6 +31,12 @@ from projektstyring.backend.importers.technical_asset_import_executor import (
 from projektstyring.backend.importers.technical_asset_import_service import (
     TechnicalAssetImportService,
 )
+from projektstyring.backend.importers.deviation_import import (
+    DeviationImport,
+)
+from projektstyring.backend.importers.deviation_import_service import (
+    DeviationImportService,
+)
 from projektstyring.backend.task_assignments import (
     TASK_TYPES,
     empty_task_assignments,
@@ -44,8 +50,11 @@ from fastapi.responses import JSONResponse
 from projektstyring.backend.planning_board_service import (
     build_planning_board,
 )
+from projektstyring.vpmanhole.router import router as vpmanhole_router
 
 app = FastAPI()
+
+app.include_router(vpmanhole_router)
 
 app.mount(
     "/static",
@@ -65,6 +74,9 @@ technical_asset_import_service = (
     )
 )
 
+deviation_import_service = (
+    DeviationImportService()
+)
 
 def get_teams():
     return team_repo.load_team_map()
@@ -775,6 +787,87 @@ def project_work_cards(request: Request, project_id: str):
         },
     )
 
+def build_c5_import_report(preview_result):
+    """
+    Bygger en deterministisk kontrolrapport til Rørbot
+    ud fra importmotorens faktiske preview-resultat.
+
+    Funktionen foretager ingen selvstændig importkontrol
+    og ændrer ingen data.
+    """
+
+    conflicts = list(
+        preview_result.conflicts
+    )
+
+    blocking = [
+        conflict
+        for conflict in conflicts
+        if conflict.blocks_import
+    ]
+
+    non_blocking = [
+        conflict
+        for conflict in conflicts
+        if not conflict.blocks_import
+    ]
+
+    if blocking:
+        status = "blocked"
+
+        summary = (
+            f"Jeg har fundet {len(conflicts)} "
+            "konflikt(er), hvoraf "
+            f"{len(blocking)} blokerer importen. "
+            "Importen kan ikke godkendes, før "
+            "de blokerende konflikter er løst."
+        )
+
+    elif non_blocking:
+        status = "warning"
+
+        summary = (
+            f"Jeg har fundet {len(non_blocking)} "
+            "ikke-blokerende konflikt(er). "
+            "Importen kan gennemføres, men de "
+            "konfliktramte oplysninger håndteres "
+            "efter importmotorens sikkerhedsregler. "
+            "Se detaljerne nedenfor."
+        )
+
+    else:
+        status = "ok"
+
+        summary = (
+            "Jeg har kontrolleret forhåndsvisningen. "
+            "Alt er i orden – ingen konflikter fundet. "
+            "Importen er klar til godkendelse."
+        )
+
+    work_entries = [
+        action.key
+        for action in preview_result.actions
+        if (
+            action.entity_type == "manhole_work"
+            and action.action == "create"
+        )
+    ]
+
+    return {
+        "status": status,
+        "summary": summary,
+        "conflicts": conflicts,
+        "blocking_count": len(blocking),
+        "non_blocking_count": len(non_blocking),
+        "can_import": not blocking,
+        "created": preview_result.created,
+        "updated": preview_result.updated,
+        "unchanged": preview_result.unchanged,
+        "work_entries_created": (
+            preview_result.work_entries_created
+        ),
+        "work_entries": work_entries,
+    }
 
 @app.get("/projects/{project_id}/c5-import")
 def c5_import_form(request: Request, project_id: str):
@@ -802,32 +895,51 @@ async def c5_import_preview(
         form.get("csv_text", "")
     )
 
-    # Data til den eksisterende detaljerede preview-visning.
-    updates = parse_c5_csv(
+    import_type = detect_c5_csv_type(
         csv_text
     )
 
-    updates = [
-        update
-        for update in updates
-        if update.get("project_id") == project_id.upper()
-    ]
-
-    # Byg præcis den samme tekniske import,
-    # som "Godkend import" senere vil gennemføre.
-    technical_import = (
-        parse_c5_technical_asset_import(
-            csv_text=csv_text,
-            project_id=project_id,
-        )
+    import_data = parse_c5_import(
+        csv_text=csv_text,
+        project_id=project_id,
     )
 
-    # Kør hele importkæden mod databasen,
-    # men rollback altid bagefter.
-    preview_result = (
-        technical_asset_import_service.preview(
-            technical_import
+    if isinstance(
+        import_data,
+        DeviationImport,
+    ):
+        updates = []
+
+        preview_result = (
+            deviation_import_service.preview(
+                import_data
+            )
         )
+
+    else:
+        # Den eksisterende detaljerede
+        # C5-preview for tekniske data.
+        updates = parse_c5_csv(
+            csv_text
+        )
+
+        updates = [
+            update
+            for update in updates
+            if (
+                update.get("project_id")
+                == project_id.upper()
+            )
+        ]
+
+        preview_result = (
+            technical_asset_import_service.preview(
+                import_data
+            )
+        )
+
+    roerbot_import_report = build_c5_import_report(
+        preview_result
     )
 
     return templates.TemplateResponse(
@@ -836,8 +948,10 @@ async def c5_import_preview(
         {
             "project": project,
             "csv_text": csv_text,
+            "import_type": import_type,
             "updates": updates,
             "preview_result": preview_result,
+            "roerbot_import_report": roerbot_import_report,
         },
     )
 
@@ -852,63 +966,29 @@ async def c5_import_apply(
         form.get("csv_text", "")
     )
 
-    print(
-       "C5 APPLY HEADER:",
-        csv_text.splitlines()[0]
-        if csv_text.splitlines()
-        else "",
+    import_data = parse_c5_import(
+        csv_text=csv_text,
+        project_id=project_id,
     )
 
-    technical_import = (
-        parse_c5_technical_asset_import(
-            csv_text=csv_text,
-            project_id=project_id,
+    if isinstance(
+        import_data,
+        DeviationImport,
+    ):
+        deviation_import_service.import_deviations(
+            import_data
         )
-    )
 
-    for installation in technical_import.installations:
-        if installation.installation_no == "1":
-            for stretch in installation.stretches:
-                if (
-                    stretch.bottom_manhole_no == "4612007"
-                    and stretch.top_manhole_no == "4612008"
-                ):
-                    print(
-                        "C5 PARSED METADATA:",
-                    stretch.metadata,
-                )
-
-    print(
-        "C5 APPLY PARSED:",
-        "project=",
-        technical_import.project_id,
-        "installations=",
-        len(technical_import.installations),
-        "stretches=",
-        sum(
-            len(installation.stretches)
-            for installation
-            in technical_import.installations
-        ),
-        "manholes=",
-        len(technical_import.manholes),
-    )
-
-    import_result = (
+    else:
         technical_asset_import_service.import_assets(
-            technical_import
+            import_data
         )
-    )
-
-    print(
-        "C5 APPLY RESULT:",
-        import_result,
-    )
 
     return RedirectResponse(
         url=f"/projects/{project_id}",
         status_code=303,
     )
+
 @app.post("/assistant/ask")
 def roerbot_global_ask(
     question: str = Form(...),

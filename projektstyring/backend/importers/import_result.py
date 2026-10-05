@@ -9,6 +9,15 @@ class ImportAction:
     entity_type: str
     action: str
     key: str
+    fields: list[str] = field(
+        default_factory=list
+    )
+    existing_values: dict[str, Any] = field(
+        default_factory=dict
+    )
+    incoming_values: dict[str, Any] = field(
+        default_factory=dict
+    )
 
 
 @dataclass(slots=True)

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
+from typing import Any
 
 
 @dataclass
@@ -25,6 +26,12 @@ class Team:
         default_factory=list
     )
 
+    calendar_exceptions: list[
+        dict[str, Any]
+    ] = field(
+        default_factory=list
+    )
+
     active: bool = True
 
     def can_do(
@@ -40,7 +47,7 @@ class Team:
     ) -> float:
         task_rates = self.capacity_rates.get(
             task_type,
-            {},
+            {}
         )
 
         return float(

@@ -114,6 +114,38 @@ class MultiScheduleEngine:
 
                         continue
 
+                    (
+                        is_working_day,
+                        calendar_reason,
+                    ) = (
+                        self._arbejdsdag_status(
+                            aktivitet.start_dato,
+                            hold,
+                        )
+                    )
+
+                    if not is_working_day:
+                        result.add_warning(
+                            installation_id=(
+                                aktivitet.installation_id
+                            ),
+                            message=(
+                                f"Hovedledning på installation "
+                                f"{aktivitet.installation_id} "
+                                f"er låst til "
+                                f"{aktivitet.start_dato}, men "
+                                f"holdet '{aktivitet.hold}' "
+                                "er ikke registreret som "
+                                "tilgængeligt den dag"
+                                + (
+                                    f": {calendar_reason}"
+                                    if calendar_reason
+                                    else "."
+                                )
+                            ),
+                            severity="warning",
+                        )
+
                     aktivitet.slut_dato = (
                         aktivitet.start_dato
                     )
@@ -267,11 +299,163 @@ class MultiScheduleEngine:
 
         return False
 
+    def _find_calendar_exception(
+        self,
+        dato: date,
+        hold,
+    ):
+        """
+        Finder den kalenderundtagelse, der gælder
+        for holdet på den angivne dato.
+
+        Holdspecifikke undtagelser har højere
+        prioritet end kalenderbrede undtagelser.
+
+        Hvis flere undtagelser af samme type
+        overlapper, bruges den senest oprettede
+        deterministisk via højeste id.
+        """
+
+        matches = []
+
+        for exception in getattr(
+            hold,
+            "calendar_exceptions",
+            [],
+        ):
+            date_from = exception.get(
+                "date_from"
+            )
+            date_to = exception.get(
+                "date_to"
+            )
+
+            if (
+                date_from is None
+                or date_to is None
+            ):
+                continue
+
+            if not (
+                date_from
+                <= dato
+                <= date_to
+            ):
+                continue
+
+            matches.append(
+                exception
+            )
+
+        if not matches:
+            return None
+
+        matches.sort(
+            key=lambda exception: (
+                0
+                if exception.get("scope")
+                == "team"
+                else 1,
+                -int(
+                    exception.get("id")
+                    or 0
+                ),
+            )
+        )
+
+        return matches[0]
+
+    def _arbejdsdag_status(
+        self,
+        dato: date,
+        hold,
+    ) -> tuple[bool, str]:
+        """
+        Returnerer både arbejdsstatus og årsag.
+
+        Kalenderundtagelser har højeste prioritet,
+        fordi de netop kan ændre en normal
+        arbejdsdag til fridag eller omvendt.
+        """
+
+        exception = (
+            self._find_calendar_exception(
+                dato,
+                hold,
+            )
+        )
+
+        if exception is not None:
+            working = bool(
+                exception.get(
+                    "working"
+                )
+            )
+
+            reason = str(
+                exception.get("reason")
+                or exception.get(
+                    "exception_type"
+                )
+                or "kalenderundtagelse"
+            ).strip()
+
+            return (
+                working,
+                reason,
+            )
+
+        if dato in self.globale_helligdage:
+            return (
+                False,
+                "global helligdag",
+            )
+
+        if self._er_ferie(dato):
+            return (
+                False,
+                "ferieperiode",
+            )
+
+        if hold.working_days:
+            if (
+                dato.weekday()
+                in hold.working_days
+            ):
+                return (
+                    True,
+                    "normal arbejdsdag",
+                )
+
+            return (
+                False,
+                "holdets normale arbejdsuge",
+            )
+
+        if dato.weekday() < 5:
+            return (
+                True,
+                "normal arbejdsdag",
+            )
+
+        return (
+            False,
+            "weekend",
+        )
+
     def _er_arbejdsdag(
         self,
         dato: date,
         hold,
     ) -> bool:
+        working, _reason = (
+            self._arbejdsdag_status(
+                dato,
+                hold,
+            )
+        )
+
+        return working
         if dato in self.globale_helligdage:
             return False
 

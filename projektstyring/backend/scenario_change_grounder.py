@@ -160,10 +160,21 @@ class ScenarioChangeGrounder:
         context_text: str,
     ) -> dict[str, dict[str, str]]:
         """
-        Validerer alle grounding-citater og grupperer dem efter target.
+        Validerer grounding-citater og grupperer dem efter target.
+
+        Strukturelle dele af change-kontrakten, fx feltnavne,
+        er ikke brugerdata og skal derfor ikke tekst-groundes.
+        De valideres senere af scenariemotorens egne whitelists.
         """
 
         result = {}
+
+        structural_targets = {
+            "field",
+            "after.field",
+            "change_type",
+            "target_type",
+        }
 
         for item in grounding:
             if not isinstance(item, dict):
@@ -173,8 +184,8 @@ class ScenarioChangeGrounder:
                 item.get("target") or ""
             ).strip()
 
-            if target == "after.field":
-                target = "field"
+            if target in structural_targets:
+                continue
 
             quote = str(
                 item.get("quote") or ""
@@ -221,7 +232,12 @@ class ScenarioChangeGrounder:
         change: dict[str, Any],
     ) -> set[str]:
         """
-        Bestemmer hvilke faktiske værdier ændringstypen kræver belæg for.
+        Bestemmer hvilke faktiske bruger-/domæneværdier
+        ændringstypen kræver tekstgrundlag for.
+
+        Strukturelle værdier som change_type, target_type og field
+        groundes ikke. De valideres af scenariemotorens kontrakt
+        og felt-whitelists.
         """
 
         change_type = str(
@@ -233,17 +249,27 @@ class ScenarioChangeGrounder:
         }
 
         if change_type == "project_field_change":
-            required.add("field")
             required.add("after.value")
 
         elif change_type == "installation_field_change":
-            required.add("installation_id")
-            required.add("field")
+            selection = change.get("selection")
+
+            has_all_selection = (
+                isinstance(selection, dict)
+                and str(
+                    selection.get("type") or ""
+                ).strip() == "all"
+            )
+
+            if has_all_selection:
+                required.add("selection")
+            else:
+                required.add("installation_id")
+
             required.add("after.value")
 
         elif change_type == "manhole_field_change":
             required.add("manhole_no")
-            required.add("field")
             required.add("after.value")
 
         elif change_type == "task_assignment_change":

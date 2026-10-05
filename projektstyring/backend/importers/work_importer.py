@@ -422,14 +422,6 @@ class WorkImporter:
                 source.notes
                 or ""
             ).strip()
-            and dict(
-                existing.get("metadata")
-                or {}
-            )
-            == dict(
-                source.metadata
-                or {}
-            )
         )
 
     @staticmethod

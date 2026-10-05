@@ -11,7 +11,9 @@ from projektstyring.backend.project_repository import (
 from projektstyring.backend.repositories.production_group_repository import (
     ProductionGroupRepository,
 )
-
+from projektstyring.backend.repositories.deviation_repository import (
+    DeviationRepository,
+)
 
 class RemainingWorkService:
     """
@@ -37,6 +39,7 @@ class RemainingWorkService:
         project_repository: ProjectRepository | None = None,
         production_status_service: ProductionStatusService | None = None,
         production_group_repository: ProductionGroupRepository | None = None,
+        deviation_repository: DeviationRepository | None = None,
     ) -> None:
         self.project_repository = (
             project_repository
@@ -54,6 +57,12 @@ class RemainingWorkService:
             production_group_repository
             if production_group_repository is not None
             else ProductionGroupRepository()
+        )
+
+        self.deviation_repository = (
+            deviation_repository
+            if deviation_repository is not None
+            else DeviationRepository()
         )
 
     def build_project_remaining_work(
@@ -121,13 +130,21 @@ class RemainingWorkService:
             )
         )
 
+        open_deviations = (
+            self.deviation_repository
+            .list_open_for_project(
+                project_id
+            )
+        )
+
         return {
             "project_id": project_id,
             "production_groups": production_groups,
             "production_group_status": (
-                production_group_status
+               production_group_status
             ),
             "installations": installations,
+            "open_deviations": open_deviations,
         }
 
     def _build_installation_remaining_work(

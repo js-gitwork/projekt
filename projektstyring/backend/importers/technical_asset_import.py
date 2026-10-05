@@ -122,6 +122,22 @@ class ImportedInstallationAssets:
         default_factory=list
     )
 
+@dataclass(slots=True)
+class ImportedProjectConstraint:
+    constraint_type: str
+    reference: str = ""
+
+    start_date: date | None = None
+    end_date: date | None = None
+
+    source: str = ""
+    source_reference: str | None = None
+
+    notes: str = ""
+
+    metadata: dict[str, Any] = field(
+        default_factory=dict
+    )
 
 @dataclass(slots=True)
 class TechnicalAssetImport:
@@ -149,6 +165,12 @@ class TechnicalAssetImport:
 
     service_connection_work: list[
         ImportedServiceConnectionWork
+    ] = field(
+        default_factory=list
+    )
+
+    project_constraints: list[
+        ImportedProjectConstraint
     ] = field(
         default_factory=list
     )

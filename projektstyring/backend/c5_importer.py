@@ -9,6 +9,7 @@ from projektstyring.backend.importers.technical_asset_import import (
     ImportedInstallationAssets,
     ImportedManhole,
     ImportedManholeWork,
+    ImportedProjectConstraint,
     ImportedStretch,
     TechnicalAssetImport,
 )
@@ -833,10 +834,31 @@ def parse_c5_manhole_work(
     )
 
     if reader.fieldnames:
-        reader.fieldnames = [
+        normalized_fieldnames = [
             normalize_column_name(name)
             for name in reader.fieldnames
         ]
+
+        ds437_index = 0
+
+        for index, name in enumerate(
+            normalized_fieldnames
+        ):
+            if name != "DS437":
+                continue
+
+            ds437_index += 1
+
+            if ds437_index == 1:
+                normalized_fieldnames[index] = (
+                    "Brønd 1 DS437"
+                )
+            elif ds437_index == 2:
+                normalized_fieldnames[index] = (
+                    "Brønd 2 DS437"
+                )
+
+        reader.fieldnames = normalized_fieldnames
 
     result: list[ImportedManholeWork] = []
     seen: set[tuple[str, str]] = set()
@@ -880,12 +902,32 @@ def parse_c5_manhole_work(
                 or ""
             ).strip().casefold()
 
-            if renovation_value not in {
+            ds437_value = str(
+                row.get(
+                    f"Brønd {side} DS437"
+                )
+                or ""
+            ).strip().casefold()
+
+            yes_values = {
                 "ja",
                 "yes",
                 "1",
                 "true",
-            }:
+            }
+
+            is_total = (
+                renovation_value in yes_values
+            )
+            is_ds437 = (
+                ds437_value in yes_values
+            )
+
+            if is_total:
+                renovation_type = "total"
+            elif is_ds437:
+                renovation_type = "ds437"
+            else:
                 continue
 
             performed_date = parse_c5_date(
@@ -946,11 +988,312 @@ def parse_c5_manhole_work(
                         "renovation_flag": (
                             renovation_value
                         ),
+                        "ds437_flag": (
+                            ds437_value
+                        ),
+                        "renovation_type": (
+                            renovation_type
+                        ),
+                        "installation_no": str(
+                            row.get("Inst.nr")
+                            or ""
+                        ).strip(),
                     },
                 )
             )
 
     return result
+
+def parse_c5_availability_permits(
+    csv_text: str,
+    project_id: str,
+) -> list[ImportedProjectConstraint]:
+    """
+    Samler C5-rådighedstilladelser fra projektoversigten.
+
+    Én tilladelse kan forekomme på mange installationsrækker.
+    Tilladelser samles derfor pr. tilladelsesnummer.
+
+    Funktionen ændrer ikke databasen.
+    """
+    normalized_project_id = normalize_project_id(
+        project_id
+    )
+
+    reader = csv.DictReader(
+        io.StringIO(csv_text),
+        delimiter=";",
+    )
+
+    if reader.fieldnames:
+        reader.fieldnames = [
+            normalize_column_name(name)
+            for name in reader.fieldnames
+        ]
+
+    permits: dict[str, dict[str, Any]] = {}
+
+    for row in reader:
+        row = {
+            normalize_column_name(key): value
+            for key, value in row.items()
+        }
+
+        row_project_id = normalize_project_id(
+            row.get("Projekt")
+        )
+
+        if row_project_id != normalized_project_id:
+            continue
+
+        permit_number = str(
+            row.get("Tilladnr.") or ""
+        ).strip()
+
+        permit_week = str(
+            row.get("Tillad-uge") or ""
+        ).strip()
+
+        start_date_raw = str(
+            row.get("Tillad-start") or ""
+        ).strip()
+
+        end_date_raw = str(
+            row.get("Tillad-slut") or ""
+        ).strip()
+
+        # En helt tom tilladelsesregistrering betyder:
+        # ingen ny information fra C5.
+        if not any(
+            (
+                permit_number,
+                permit_week,
+                start_date_raw,
+                end_date_raw,
+            )
+        ):
+            continue
+
+        # Tilladelser uden nummer kan ikke sikkert
+        # aggregeres/idempotent identificeres endnu.
+        # De gemmes derfor ikke som constraints.
+        if not permit_number:
+            continue
+
+        installation_no = normalize_installation_id(
+            row.get("Inst.nr")
+        )
+
+        permit = permits.setdefault(
+            permit_number,
+            {
+                "installation_nos": set(),
+                "permit_weeks": set(),
+                "start_date_raw_values": set(),
+                "end_date_raw_values": set(),
+            },
+        )
+
+        if installation_no:
+            permit["installation_nos"].add(
+                installation_no
+            )
+
+        if permit_week:
+            permit["permit_weeks"].add(
+                permit_week
+            )
+
+        if start_date_raw:
+            permit["start_date_raw_values"].add(
+                start_date_raw
+            )
+
+        if end_date_raw:
+            permit["end_date_raw_values"].add(
+                end_date_raw
+            )
+
+    result: list[ImportedProjectConstraint] = []
+
+    for permit_number, permit in sorted(
+        permits.items()
+    ):
+        permit_weeks = sorted(
+            permit["permit_weeks"]
+        )
+
+        start_date_raw_values = sorted(
+            permit["start_date_raw_values"]
+        )
+
+        end_date_raw_values = sorted(
+            permit["end_date_raw_values"]
+        )
+
+        start_date_raw = (
+            start_date_raw_values[0]
+            if len(start_date_raw_values) == 1
+            else ""
+        )
+
+        end_date_raw = (
+            end_date_raw_values[0]
+            if len(end_date_raw_values) == 1
+            else ""
+        )
+
+        start_date = parse_c5_date(
+            start_date_raw
+        )
+
+        end_date = parse_c5_date(
+            end_date_raw
+        )
+
+        metadata = {
+            "installation_nos": sorted(
+                permit["installation_nos"]
+            ),
+            "permit_week": (
+                permit_weeks[0]
+                if len(permit_weeks) == 1
+                else None
+            ),
+            "permit_week_values": permit_weeks,
+            "start_date_raw": start_date_raw,
+            "end_date_raw": end_date_raw,
+            "start_date_raw_values": (
+                start_date_raw_values
+            ),
+            "end_date_raw_values": (
+                end_date_raw_values
+            ),
+            "source": "c5_csv",
+        }
+
+        # Vi vælger ikke stiltiende mellem modstridende
+        # C5-værdier. Importservicen kan bruge disse
+        # observationer til en ikke-blokerende advarsel.
+        if len(start_date_raw_values) > 1:
+            metadata[
+                "conflicting_start_dates"
+            ] = True
+
+        if len(end_date_raw_values) > 1:
+            metadata[
+                "conflicting_end_dates"
+            ] = True
+
+        if len(permit_weeks) > 1:
+            metadata[
+                "conflicting_permit_weeks"
+            ] = True
+
+        result.append(
+            ImportedProjectConstraint(
+                constraint_type=(
+                    "availability_permit"
+                ),
+                reference=permit_number,
+                start_date=start_date,
+                end_date=end_date,
+                source="c5",
+                source_reference=permit_number,
+                metadata=metadata,
+            )
+        )
+
+    return result
+
+def parse_c5_missing_permit_references(
+    csv_text: str,
+    project_id: str,
+) -> list[dict[str, Any]]:
+    """
+    Finder C5-rækker med oplysninger om en rådighedstilladelse,
+    men uden Tilladnr.
+
+    Rækkerne kan ikke sikkert oprettes som ProjectConstraint,
+    fordi de mangler en stabil identitet. De returneres derfor
+    som observationer, så importen kan advare uden at gætte.
+    """
+
+    normalized_project_id = normalize_project_id(
+        project_id
+    )
+
+    reader = csv.DictReader(
+        io.StringIO(csv_text),
+        delimiter=";",
+    )
+
+    if reader.fieldnames:
+        reader.fieldnames = [
+            normalize_column_name(name)
+            for name in reader.fieldnames
+        ]
+
+    observations: list[dict[str, Any]] = []
+
+    for row in reader:
+        row = {
+            normalize_column_name(key): value
+            for key, value in row.items()
+        }
+
+        if normalize_project_id(
+            row.get("Projekt")
+        ) != normalized_project_id:
+            continue
+
+        permit_number = str(
+            row.get("Tilladnr.") or ""
+        ).strip()
+
+        permit_week = str(
+            row.get("Tillad-uge") or ""
+        ).strip()
+
+        start_date_raw = str(
+            row.get("Tillad-start") or ""
+        ).strip()
+
+        end_date_raw = str(
+            row.get("Tillad-slut") or ""
+        ).strip()
+
+        # Ingen permitoplysninger overhovedet:
+        # der er intet at advare om.
+        if not any(
+            (
+                permit_number,
+                permit_week,
+                start_date_raw,
+                end_date_raw,
+            )
+        ):
+            continue
+
+        # Har rækken et nummer, håndteres den af
+        # parse_c5_availability_permits().
+        if permit_number:
+            continue
+
+        installation_no = normalize_installation_id(
+            row.get("Inst.nr")
+        )
+
+        observations.append(
+            {
+                "installation_no": installation_no,
+                "permit_week": permit_week,
+                "start_date_raw": start_date_raw,
+                "end_date_raw": end_date_raw,
+            }
+        )
+
+    return observations
 
 def parse_c5_project_overview_import(
     csv_text: str,
@@ -996,6 +1339,20 @@ def parse_c5_project_overview_import(
     manhole_work = parse_c5_manhole_work(
         csv_text=csv_text,
         project_id=normalized_project_id,
+    )
+
+    project_constraints = (
+        parse_c5_availability_permits(
+            csv_text=csv_text,
+            project_id=normalized_project_id,
+        )
+    )
+
+    missing_permit_references = (
+        parse_c5_missing_permit_references(
+            csv_text=csv_text,
+            project_id=normalized_project_id,
+        )
     )
 
     manhole_numbers: set[str] = set()
@@ -1141,6 +1498,7 @@ def parse_c5_project_overview_import(
         installations=imported_installations,
         manholes=manholes,
         manhole_work=manhole_work,
+        project_constraints=project_constraints,
         metadata={
             "installation_count": len(
                 imported_installations
@@ -1148,6 +1506,9 @@ def parse_c5_project_overview_import(
             "source_format": "c5_csv",
             "survey_manhole_depth_count": len(
                 survey_manhole_depths
+            ),
+            "missing_permit_references": (
+                missing_permit_references
             ),
         },
     )

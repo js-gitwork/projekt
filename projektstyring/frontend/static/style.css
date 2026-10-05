@@ -484,6 +484,221 @@ body {
 }
 
 /* ------------------------------------------------------------
+   Rørbot – animationer og kompakt taleboble
+------------------------------------------------------------ */
+
+.roerbot-avatar img {
+    transform-origin: center center;
+}
+
+.roerbot-avatar img.roerbot-hop {
+    animation: roerbotHop 850ms ease-in-out;
+}
+
+.roerbot-avatar img.roerbot-spin {
+    animation: roerbotSpin 850ms ease-in-out;
+}
+
+.roerbot-avatar img.roerbot-dance {
+    animation: roerbotDance 850ms ease-in-out;
+}
+
+.roerbot-avatar img.roerbot-tilt {
+    animation: roerbotTilt 850ms ease-in-out;
+}
+
+@keyframes roerbotHop {
+    0%, 100% { transform: translateY(0); }
+    35% { transform: translateY(-24px) rotate(-8deg); }
+    65% { transform: translateY(-8px) rotate(8deg); }
+}
+
+@keyframes roerbotSpin {
+    0% { transform: rotate(0deg) scale(1); }
+    50% { transform: rotate(180deg) scale(1.08); }
+    100% { transform: rotate(360deg) scale(1); }
+}
+
+@keyframes roerbotDance {
+    0%, 100% { transform: translateY(0) rotate(0deg); }
+    25% { transform: translateY(-12px) rotate(-12deg); }
+    50% { transform: translateY(0) rotate(12deg); }
+    75% { transform: translateY(-18px) rotate(-8deg); }
+}
+
+@keyframes roerbotTilt {
+    0%, 100% { transform: rotate(0deg); }
+    30% { transform: rotate(-12deg); }
+    65% { transform: rotate(9deg); }
+}
+
+.roerbot-bubble[hidden] {
+    display: none !important;
+}
+
+.roerbot-bubble {
+    position: absolute;
+
+    /* Boblen åbner mod højre fra Rørbots siderør */
+    left: 112px;
+    bottom: 64px;
+
+    width: 340px;
+    max-width: calc(100vw - 155px);
+    max-height: min(430px, 65vh);
+
+    overflow: visible;
+
+    padding: 14px;
+
+    background: #fffaf5;
+    border: 2px solid #f97316;
+    border-radius: 16px;
+
+    box-shadow: 0 8px 28px rgba(0, 0, 0, 0.18);
+
+    opacity: 0;
+    transform: translateX(-10px) scale(0.96);
+    transform-origin: left bottom;
+
+    transition: opacity 220ms ease, transform 220ms ease;
+}
+
+/* Indholdet kan rulles uden at klippe taleboblens spids */
+
+#roerbotBubbleContent {
+    max-height: min(300px, 45vh);
+    overflow-y: auto;
+}
+
+/* Spidsen peger tilbage mod siderøret */
+
+.roerbot-bubble::before {
+    content: "";
+    position: absolute;
+
+    left: -12px;
+    bottom: 19px;
+
+    width: 19px;
+    height: 19px;
+
+    background: #fffaf5;
+
+    border-left: 2px solid #f97316;
+    border-bottom: 2px solid #f97316;
+
+    transform: rotate(45deg);
+}
+
+.roerbot-bubble.visible {
+    opacity: 1;
+    transform: translateX(0) scale(1);
+}
+
+.roerbot-bubble-heading {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 10px;
+    color: #c2410c;
+}
+
+.roerbot-bubble-heading button {
+    background: transparent;
+    border: none;
+    font-size: 22px;
+    cursor: pointer;
+    color: #9a3412;
+}
+
+#roerbotBubbleContent p {
+    margin: 0 0 12px;
+    line-height: 1.5;
+    white-space: pre-line;
+    overflow-wrap: anywhere;
+}
+
+.roerbot-bubble details {
+    margin: 10px 0;
+    font-size: 0.9rem;
+}
+
+.roerbot-bubble summary {
+    cursor: pointer;
+    font-weight: bold;
+    color: #c2410c;
+}
+
+.roerbot-conflict-list {
+    margin-top: 10px;
+}
+
+.roerbot-conflict-item {
+    padding: 8px 0;
+    border-top: 1px solid #fed7aa;
+}
+
+.roerbot-conflict-item p {
+    margin: 4px 0 !important;
+}
+
+.roerbot-bubble-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-top: 12px;
+}
+
+.roerbot-action {
+    padding: 9px 12px;
+    border: 1px solid #fdba74;
+    border-radius: 8px;
+    background: white;
+    color: #9a3412;
+    cursor: pointer;
+    font-weight: 600;
+}
+
+.roerbot-action.primary {
+    background: #f97316;
+    border-color: #f97316;
+    color: white;
+}
+
+.roerbot-action:hover {
+    filter: brightness(0.95);
+}
+
+@media (max-width: 600px) {
+    .roerbot-widget {
+        left: 12px;
+        bottom: 12px;
+    }
+
+    .roerbot-avatar {
+        width: 72px;
+        height: 72px;
+    }
+
+    .roerbot-bubble {
+        left: 82px;
+        bottom: 46px;
+        max-width: calc(100vw - 110px);
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .roerbot-avatar img {
+        animation: none !important;
+    }
+
+    .roerbot-bubble {
+        transition: none;
+    }
+}
+
+/* ------------------------------------------------------------
    Planlægningscenter
 ------------------------------------------------------------ */
 

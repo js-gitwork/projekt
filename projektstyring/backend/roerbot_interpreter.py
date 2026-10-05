@@ -34,6 +34,33 @@ ALLOWED_INTENTS = {
     "general",
     "clarification",
     "production_status",
+    "scenario_decision",
+}
+
+
+ALLOWED_SCENARIO_DECISIONS = {
+    "approve",
+    "discard",
+}
+
+ALLOWED_PROJECT_CREATION_ACTIONS = {
+    "update",
+    "approve",
+    "question",
+    "cancel",
+    "unrelated",
+}
+
+ALLOWED_PROJECT_CREATION_FIELDS = {
+    "project_id",
+    "name",
+    "customer",
+    "project_manager",
+    "site_manager",
+    "city",
+    "start_date",
+    "installation_count",
+    "preparation_team",
 }
 
 ALLOWED_RESOURCES = {
@@ -55,18 +82,25 @@ ALLOWED_RESOURCES = {
     "snapshots",
     "changes",
     "project_rules",
+    "project_constraints",
+    "project_watchdog",
 }
 
 RESOURCE_DESCRIPTIONS = {
-    "projects": (
-        "Oversigt over projekter og deres centrale felter."
-    ),
-    "project": (
-        "Komplette data for et eller flere konkrete projekter."
-    ),
-    "installations": (
-        "Installationernes grunddata."
-    ),
+"projects": (
+    "Oversigt over projekter og deres centrale projektfelter. "
+    "Bruges ikke til at hente eller tælle installationer."
+),
+"project": (
+    "Komplette projektdata for et eller flere konkrete projekter. "
+    "Brug den relevante særskilte resource, når spørgsmålet handler "
+    "om installationer, opgaver, fremdrift eller andre underdata."
+),
+"installations": (
+    "Installationernes grunddata. Brug denne resource, når brugeren "
+    "spørger om installationer, herunder hvilke installationer et "
+    "projekt har eller hvor mange installationer der findes."
+),
     "tasks": (
         "Projektets opgaver og opgavetyper."
     ),
@@ -109,6 +143,24 @@ RESOURCE_DESCRIPTIONS = {
         "ukendt status og dokumenteret færdigt arbejde. "
         "Brug denne til almindelige spørgsmål om hvad der mangler, "
         "hvad der er færdigt, og om et projekt er klar til næste trin."
+    ),
+    "project_constraints": (
+        "Projektets faktuelle rammebetingelser og frister. "
+        "Indeholder blandt andet rådighedstilladelser med "
+        "tilladelsesnummer, gyldighedsperiode og hvilke "
+        "installationer de dækker samt projektdeadline. "
+        "Brug denne resource ved spørgsmål om tilladelser, "
+        "frister, deadlines og andre projektconstraints."
+    ),
+    "project_watchdog": (
+        "Deterministiske projektadvarsler beregnet af systemets "
+        "watchdog. Indeholder aktuelle advarsler om blandt andet "
+        "rådighedstilladelser, dokumenteret restarbejde, åbne "
+        "afvigelser og projektdeadlines. Brug denne resource ved "
+        "spørgsmål om risici, problemer, advarsler, forhold der "
+        "kræver opmærksomhed, eller om der er noget på projektet "
+        "man bør reagere på. AI'en skal ikke selv udlede disse "
+        "advarsler fra rå projektdata."
     ),
     "decisions": (
         "Gemte beslutninger."
@@ -338,6 +390,7 @@ def normalize_data_requests(
     return result
 
 
+
 def normalize_change(
     value: Any,
 ) -> dict[str, Any] | None:
@@ -396,6 +449,7 @@ def normalize_change(
             if isinstance(item, dict)
         ],
     }
+
     if isinstance(value.get("before"), dict):
         normalized["before"] = dict(
             value["before"]
@@ -431,6 +485,18 @@ def normalize_change(
     if isinstance(options, dict):
         normalized["options"] = dict(options)
 
+    selection = value.get("selection")
+
+    if isinstance(selection, dict):
+        selection_type = str(
+            selection.get("type") or ""
+        ).strip()
+
+        if selection_type == "all":
+            normalized["selection"] = {
+                "type": "all",
+            }
+
     if change_type == "project_field_change":
         field = str(
             after.get("field") or ""
@@ -459,10 +525,23 @@ def normalize_change(
         ):
             return None
 
-        if not normalized.get(
-            "installation_id"
-        ) and not after.get(
-            "installation_id"
+        has_installation_id = bool(
+            normalized.get("installation_id")
+            or after.get("installation_id")
+        )
+
+        selection = normalized.get(
+            "selection"
+        )
+
+        has_valid_selection = (
+            isinstance(selection, dict)
+            and selection.get("type") == "all"
+        )
+
+        if (
+            not has_installation_id
+            and not has_valid_selection
         ):
             return None
 
@@ -531,7 +610,6 @@ def normalize_changes(
 
     return result
 
-
 def normalize_interpretation(
     question: str,
     value: dict[str, Any],
@@ -578,6 +656,54 @@ def normalize_interpretation(
         value.get("changes")
     )
 
+    scenario_decision = str(
+        value.get("scenario_decision") or ""
+    ).strip().lower()
+
+    if scenario_decision not in ALLOWED_SCENARIO_DECISIONS:
+        scenario_decision = None
+
+    project_creation_action = str(
+        value.get("project_creation_action") or ""
+    ).strip().lower()
+
+    if project_creation_action not in ALLOWED_PROJECT_CREATION_ACTIONS:
+        project_creation_action = None
+
+    raw_project_fields = value.get(
+        "project_creation_fields"
+    )
+
+    if not isinstance(raw_project_fields, dict):
+        raw_project_fields = {}
+
+    project_creation_fields = {
+        key: field_value
+        for key, field_value in raw_project_fields.items()
+        if key in ALLOWED_PROJECT_CREATION_FIELDS
+        and field_value is not None
+        and field_value != ""
+        and not isinstance(field_value, (dict, list, bool))
+    }
+
+    # En besked med feltændringer må aldrig samtidig
+    # udløse oprettelse af projektet.
+    if (
+        project_creation_action == "approve"
+        and project_creation_fields
+    ):
+        project_creation_action = "update"
+
+    if intent == "project_creation":
+        if project_creation_action is None:
+            project_creation_action = "question"
+
+        if (
+            project_creation_action == "update"
+            and not project_creation_fields
+        ):
+            project_creation_action = "question"
+
     data_requests = normalize_data_requests(
         value.get("data_requests")
     )
@@ -609,6 +735,21 @@ def normalize_interpretation(
                 )
             }
 
+    if (
+        intent == "scenario_decision"
+        and scenario_decision is None
+    ):
+        intent = "clarification"
+
+        if clarification is None:
+            clarification = {
+                "question": (
+                    "Jeg kunne ikke afgøre sikkert, "
+                    "om scenariet skal godkendes "
+                    "eller kasseres."
+                )
+            }
+
     return {
         "intent": intent,
         "confidence": confidence,
@@ -620,6 +761,9 @@ def normalize_interpretation(
         ),
         "data_strategy": data_strategy,
         "data_requests": data_requests,
+        "scenario_decision": scenario_decision,
+        "project_creation_action": project_creation_action,
+        "project_creation_fields": project_creation_fields,
         "changes": changes,
         "analysis": {
             "type": str(
@@ -696,9 +840,98 @@ Regler for datoer:
 Mulige hensigter:
 - report: brugeren ønsker data, overblik, analyse eller rapport
 - change: brugeren ønsker at ændre eller revidere et scenarie
+- scenario_decision: brugeren tager stilling til et allerede aktivt
+  scenarieforslag
 - project_creation: brugeren ønsker at oprette et projekt
+
+Regler for igangværende projektoprettelse:
+
+- Et aktivt projektudkast og et aktivt planlægningsscenarie
+  er to forskellige workflows.
+
+- Når workflow er "project_creation", og brugerens besked
+  er et svar på det seneste spørgsmål om at oprette
+  projektudkastet, skal intent være "project_creation".
+
+- Et afslag på at oprette projektudkastet skal returneres
+  som project_creation_action="cancel".
+  Brug ikke intent="scenario_decision" til dette.
+
+- En godkendelse af projektudkastet skal returneres som
+  project_creation_action="approve", men kun når brugeren
+  utvetydigt ønsker projektet oprettet.
+
+- Fortolk svaret semantisk ud fra samtalekonteksten.
+  Reglerne må ikke afhænge af en fast liste over
+  bestemte ja- eller nej-formuleringer.
+
+- Hvis samtalekontekstens workflow er "project_creation",
+  findes der allerede et aktivt projektudkast.
+
+- Fortolk brugerens nye besked i sammenhæng med dette udkast.
+
+- Hvis brugeren besvarer et spørgsmål om projektet, skal
+  intent være "project_creation".
+
+- Et kort svar som "HTK" kan være et svar på det seneste
+  spørgsmål om kunden. Brug samtalekonteksten til at afgøre det.
+
+- Hvis brugeren supplerer eller korrigerer oplysninger om
+  det aktive projekt, skal intent være "project_creation".
+
+- Hvis brugeren spørger, hvilke projektoplysninger der
+  mangler, eller beder om en oversigt over projektudkastet,
+  skal intent også være "project_creation".
+
+- Et spørgsmål om projektudkastet er ikke en ny feltværdi.
+
+- Hvis brugeren stiller et selvstændigt spørgsmål, der ikke
+  vedrører projektoprettelsen, skal den relevante almindelige
+  intent anvendes. Et aktivt projektudkast må ikke overtage
+  alle efterfølgende beskeder.
+
+- Interpreteren må ikke selv oprette projektet eller ændre
+  projektdata. Den beskriver alene brugerens hensigt.
 - general: fagligt eller almindeligt spørgsmål
 - clarification: nødvendige oplysninger mangler
+
+Regler for beslutninger om aktive scenarier:
+
+- Disse regler gælder kun planlægningsscenarier.
+  De gælder aldrig godkendelse eller afvisning af
+  et projektudkast under workflow="project_creation".
+
+- Brug kun intent="scenario_decision", når der findes et aktivt
+  scenarie i samtalekonteksten, og brugeren faktisk tager stilling
+  til det fremlagte forslag.
+
+- scenario_decision="approve" betyder, at brugeren accepterer det
+  aktive forslag og ønsker det gennemført.
+
+- scenario_decision="discard" betyder, at brugeren afviser eller
+  opgiver det aktive forslag som helhed.
+
+- Fortolk brugerens betydning semantisk. Beslutningen må ikke
+  afhænge af bestemte nøgleord eller faste formuleringer.
+
+- Hvis brugeren i stedet foreslår en anden værdi, dato, opgave,
+  holdfordeling eller anden ændring til det eksisterende forslag,
+  skal intent være "change", ikke "scenario_decision".
+
+- Eksempel:
+  "Nej, drop det forslag"
+  betyder scenario_decision="discard".
+
+- Eksempel:
+  "Det ser fint ud, gennemfør det"
+  betyder scenario_decision="approve".
+
+- Eksempel:
+  "Nej, sæt den i stedet til den 22."
+  betyder intent="change", fordi brugeren reviderer forslaget.
+
+- Interpreteren beskriver kun brugerens beslutning.
+  Den må aldrig selv gennemføre, gemme, slette eller godkende data.
 
 Mulige rapportressourcer og deres betydning:
 {json.dumps(
@@ -752,6 +985,24 @@ Vigtige regler:
   interne restarbejdsstruktur til en særlig detaljeret analyse.
 - Spørgsmål om rå udført/planlagt produktionsstatus kan bruge
   resource="production_status".
+- Spørgsmål om rådighedstilladelser, tilladelsesnumre,
+  tilladelsesperioder, hvilke installationer en tilladelse dækker,
+  projektdeadline eller andre faktuelle projektfrister skal normalt
+  bruge resource="project_constraints".
+- Projektconstraints er faktuelle rammebetingelser og må ikke
+  forveksles med datoer eller deadlines fra planlægningsmotoren.
+- Spørgsmål om aktuelle risici, advarsler, problemer, forhold der
+  kræver opmærksomhed, eller om der er noget på et projekt man bør
+  være opmærksom på, skal normalt bruge
+  resource="project_watchdog".
+- project_watchdog indeholder deterministiske advarsler beregnet af
+  systemet. Du må ikke selv forsøge at udlede de samme advarsler fra
+  project_constraints, remaining_work, plan eller andre rå resources,
+  når project_watchdog kan besvare spørgsmålet.
+- Brug fortsat resource="project_constraints", når brugeren spørger
+  efter de faktuelle oplysninger selv, eksempelvis en tilladelses
+  nummer, gyldighedsperiode, dækkede installationer eller en
+  projektdeadline.
 
 Understøttede ændringstyper:
 {json.dumps(
@@ -823,6 +1074,38 @@ Tilladte brøndfelter:
   }}
 }}
 
+2a. Ændring af samme installationsfelt på alle installationer
+i et projekt:
+
+{{
+  "change_type": "installation_field_change",
+  "project_id": "V165460",
+  "selection": {{
+    "type": "all"
+  }},
+  "after": {{
+    "field": "hoveddato",
+    "value": "2026-10-07"
+  }},
+  "grounding": [
+    {{
+      "target": "project_id",
+      "quote": "V165460",
+      "source": "question"
+    }},
+    {{
+      "target": "selection",
+      "quote": "alle installationer",
+      "source": "question"
+    }},
+    {{
+      "target": "after.value",
+      "quote": "7. oktober",
+      "source": "question"
+    }}
+  ]
+}}
+
 3. Ændring af brøndfelt:
 
 {{
@@ -871,6 +1154,25 @@ Tilladte brøndfelter:
 
 Vigtige regler:
 - Forstå betydningen semantisk og ikke kun gennem nøgleord.
+- Brug projektoversigten i systemkonteksten til at identificere
+  projekter, når brugeren omtaler dem med projekt-id, projektnavn,
+  by eller en anden entydig projektbetegnelse.
+- Hvis brugerens projektbetegnelse entydigt matcher ét projekt i
+  systemkonteksten, skal det konkrete projekt-id placeres i
+  scope.project_ids.
+- Projektnavn, by og andre oplysninger, der bruges til at identificere
+  projektet, må ikke flyttes over som filtre på den efterfølgende
+  dataresource, medmindre feltet faktisk findes direkte på den
+  pågældende resource.
+- Når et konkret projekt først er identificeret via scope.project_ids,
+  skal dataresource normalt hentes inden for dette scope uden at
+  gentage projektets navn eller by som filter.
+- For resource="project_constraints" skal det relevante projekt
+  identificeres via scope.project_ids. Brug ikke projektets by eller
+  navn som filter på project_constraints.
+- For resource="project_watchdog" skal det relevante projekt
+  identificeres via scope.project_ids. Brug ikke projektets by eller
+  navn som filter på project_watchdog.
 - En besked kan indeholde flere ændringer.
 - Hver ændring skal placeres som ét objekt i changes.
 - Opfind aldrig projekt-id, installationsnummer eller hold.
@@ -882,6 +1184,24 @@ Vigtige regler:
   Vælg den relevante dataresource og lad systemet hente dataene.
 - Brug intent="change" ved både nye forslag og revisioner af et
   eksisterende scenarie.
+- Hvis brugeren ønsker samme installationsændring på samtlige
+  installationer i det valgte projekt, skal du ikke opfinde
+  installationsnumrene.
+
+- Brug i stedet:
+  "selection": {{
+    "type": "all"
+  }}
+
+- selection.type="all" betyder alle faktiske installationer på det
+  valgte projekt. Det efterfølgende systemlag finder de konkrete
+  installationer fra projektdata.
+
+- Brug kun installation_id, når brugeren henviser til én konkret
+  installation.
+
+- Hvis brugeren siger "alle installationer", må du ikke gætte eller
+  generere installation_ids selv.
 - Beskriv kun den ønskede nye tilstand.
 - Du må ikke producere tool eller args.
 - Hver ændring skal indeholde grounding.
@@ -896,7 +1216,10 @@ Vigtige regler:
   brug intent="clarification".
 - Groundingkravet gælder changes[] og må ikke bruges som grund til
   clarification ved almindelige rapportspørgsmål.
-- Du må ikke producere godkendelse eller databasekommandoer.
+- Du må ikke selv udføre godkendelse, kassering eller
+  databasekommandoer.
+- Ved intent="scenario_decision" må du kun beskrive brugerens
+  beslutning struktureret i scenario_decision.
 - Rapporter skal normalt have changes=[].
 
 - data_strategy beskriver, hvordan de nødvendige rapportdata
@@ -967,6 +1290,72 @@ Vigtige regler:
 
 - Ændringer skal bruge changes og have requires_engine=true.
 
+Regler for struktureret projektoprettelse:
+
+- Brug kun project_creation_action, når intent er
+  "project_creation".
+
+- Brug den aktive samtalekontekst til at forstå korte svar
+  og opfølgende spørgsmål.
+
+- Ved update skal project_creation_fields indeholde de
+  projektoplysninger, brugeren faktisk giver eller korrigerer.
+
+- Ved approve skal brugeren utvetydigt godkende oprettelsen
+  af det aktuelle projektudkast.
+
+- Hvis brugeren både godkender og ønsker en rettelse,
+  skal handlingen være update. Opret ikke projektet endnu.
+
+- Ved question skal projektudkastet forblive uændret.
+
+- Ved cancel skal projektet ikke oprettes.
+
+- Ved unrelated skal den almindelige hensigt anvendes,
+  så et aktivt projektudkast ikke overtager andre samtaler.
+
+- Udtræk ikke oplysninger fra projektets navn som separate
+  feltværdier, medmindre brugeren faktisk har angivet dem.
+
+- installation_count er valgfrit. Et uoplyst antal må
+  ikke erstattes med et opdigtet antal.
+
+- Returnér ingen feltændringer ved approve, question,
+  cancel eller unrelated.
+
+- Interpreteren fortolker kun beskeden. Den må aldrig
+  selv oprette eller gemme projektet.
+
+Projektoprettelsens feltstruktur:
+- project_id: Projektets V-nummer.
+- name: Projektets navn.
+- customer: Kunden.
+- project_manager: Projektlederen.
+- site_manager: Entrepriselederen.
+- city: By eller område.
+- start_date: Startdato i formatet YYYY-MM-DD.
+- installation_count: Antal installationer som positivt heltal.
+- preparation_team: Hold til forarbejde, hvis oplyst.
+
+Projektleder og entrepriseleder er selvstændige projektfelter.
+De må aldrig samles i notes, summary eller andre felter.
+
+Når brugeren oplyser projektleder, skal værdien placeres i
+project_creation_fields.project_manager.
+
+Når brugeren oplyser entrepriseleder, skal værdien placeres i
+project_creation_fields.site_manager.
+
+Udtræk alle faktisk oplyste projektfelter i den første besked,
+også når flere oplysninger gives i samme sætning.
+
+Brug kun de tilladte feltnavne i project_creation_fields.
+Opfind ikke nye felter, og placer ikke oplysninger i notes,
+når de har et selvstændigt projektfelt.
+
+Hvis installation_count ikke oplyses, skal feltet udelades.
+Det er ikke obligatorisk for projektoprettelse.
+
 Aktiv samtale- og scenariekontekst:
 {context_text}
 
@@ -976,7 +1365,7 @@ Ingen forklaring uden for JSON.
 
 Svarformat:
 {{
-  "intent": "report | change | project_creation | general | clarification",
+  "intent": "report | change | scenario_decision | project_creation | general | clarification",
   "confidence": 0.0,
   "summary": "Kort beskrivelse af brugerens hensigt",
   "scope": {{
@@ -987,6 +1376,9 @@ Svarformat:
   "data_strategy": "fetch | reuse_context | none",
   "data_requests": [],
   "changes": [],
+  "scenario_decision": "approve | discard | null",
+  "project_creation_action": "update | approve | question | cancel | unrelated | null",
+  "project_creation_fields": {{}},
   "analysis": {{
     "type": "list | summary | comparison | risk_analysis | scenario_revision | general_answer",
     "requires_engine": false

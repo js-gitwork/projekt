@@ -73,6 +73,7 @@ class StretchImporter:
                 continue
 
             updates: dict[str, Any] = {}
+            changed_metadata_fields: list[str] = []
 
             if existing["sequence"] != item.sequence:
                 updates["sequence"] = item.sequence
@@ -117,6 +118,22 @@ class StretchImporter:
                 existing["metadata"]
                 != item.source.metadata
             ):
+                metadata_fields = sorted(
+                    {
+                        *existing["metadata"].keys(),
+                        *item.source.metadata.keys(),
+                    }
+                )
+
+                changed_metadata_fields = [
+                    key
+                    for key in metadata_fields
+                    if (
+                        existing["metadata"].get(key)
+                        != item.source.metadata.get(key)
+                    )
+                ]
+
                 updates["metadata"] = (
                     item.source.metadata
                 )
@@ -129,6 +146,38 @@ class StretchImporter:
 
                 result.updated += 1
 
+                existing_values: dict[str, Any] = {}
+                incoming_values: dict[str, Any] = {}
+
+                for field in updates.keys():
+                    if field == "metadata":
+                        for metadata_field in (
+                            changed_metadata_fields
+                        ):
+                            diagnostic_field = (
+                                f"metadata:{metadata_field}"
+                            )
+
+                            existing_values[
+                                diagnostic_field
+                            ] = existing["metadata"].get(
+                                metadata_field
+                            )
+
+                            incoming_values[
+                                diagnostic_field
+                            ] = item.source.metadata.get(
+                                metadata_field
+                            )
+
+                    else:
+                        existing_values[field] = (
+                            existing.get(field)
+                        )
+                        incoming_values[field] = (
+                            updates[field]
+                        )
+
                 result.actions.append(
                     ImportAction(
                         entity_type="stretch",
@@ -138,6 +187,18 @@ class StretchImporter:
                             f"{item.key.bottom_manhole_no}-"
                             f"{item.key.top_manhole_no}"
                         ),
+                        fields=[
+                            (
+                                "metadata:" + ",".join(
+                                    changed_metadata_fields
+                                )
+                                if field == "metadata"
+                                else field
+                            )
+                            for field in updates.keys()
+                        ],
+                        existing_values=existing_values,
+                        incoming_values=incoming_values,
                     )
                 )
 

@@ -28,6 +28,12 @@ from projektstyring.backend.project_planner import (
 from projektstyring.backend.project_repository import (
     ProjectRepository,
 )
+from projektstyring.backend.project_constraint_status_service import (
+    ProjectConstraintStatusService,
+)
+from projektstyring.backend.project_constraint_watchdog_service import (
+    ProjectConstraintWatchdogService,
+)
 from projektstyring.backend.repositories.team_repository import (
     TeamRepository,
 )
@@ -38,11 +44,33 @@ from projektstyring.backend.production_status_service import (
 from projektstyring.backend.remaining_work_service import (
     RemainingWorkService,
 )
+from projektstyring.backend.repositories.project_constraint_repository import (
+    ProjectConstraintRepository,
+)
 
 project_repository = ProjectRepository()
 team_repository = TeamRepository()
+project_constraint_repository = ProjectConstraintRepository()
+project_constraint_status_service = (
+    ProjectConstraintStatusService()
+)
 production_status_service = ProductionStatusService()
 remaining_work_service = RemainingWorkService()
+
+project_constraint_watchdog_service = (
+    ProjectConstraintWatchdogService(
+        project_repository=project_repository,
+        constraint_repository=(
+            project_constraint_repository
+        ),
+        remaining_work_service=(
+            remaining_work_service
+        ),
+        constraint_status_service=(
+            project_constraint_status_service
+        ),
+    )
+)
 
 
 ALLOWED_FILTER_OPERATORS = {
@@ -1001,6 +1029,58 @@ def summarize_remaining_work(
             }
         )
 
+    open_deviations = []
+
+    for deviation in report.get(
+        "open_deviations",
+        [],
+    ):
+        if not isinstance(
+            deviation,
+            dict,
+        ):
+            continue
+
+        open_deviations.append(
+            {
+                "deviation_number": (
+                    deviation.get(
+                        "deviation_number"
+                    )
+                ),
+                "installation_no": (
+                    deviation.get(
+                        "installation_no"
+                    )
+                ),
+                "deviation_type": (
+                    deviation.get(
+                        "deviation_type"
+                    )
+                ),
+                "description": (
+                    deviation.get(
+                        "description"
+                    )
+                ),
+                "reported_date": (
+                    deviation.get(
+                        "reported_date"
+                    )
+                ),
+                "bottom_manhole_no": (
+                    deviation.get(
+                        "bottom_manhole_no"
+                    )
+                ),
+                "top_manhole_no": (
+                    deviation.get(
+                        "top_manhole_no"
+                    )
+                ),
+            }
+        )
+
     return {
         "project_id": report.get(
             "project_id"
@@ -1009,7 +1089,11 @@ def summarize_remaining_work(
         "production_groups": (
             production_groups
         ),
+        "open_deviations": (
+            open_deviations
+        ),
     }
+
 
 def load_remaining_work_summary_resource(
     interpretation: dict[str, Any],
@@ -1038,6 +1122,145 @@ def load_remaining_work_summary_resource(
         result.append(
             serialize_value(
                 summary
+            )
+        )
+
+    return result
+
+def load_project_constraints_resource(
+    interpretation: dict[str, Any],
+) -> list[dict[str, Any]]:
+    """
+    Henter et kompakt overblik over projektets
+    faktuelle constraints til Roerbot.
+
+    Constraints er projektfakta og ikke en del af
+    planlægningsmotorens opgaver.
+    """
+
+    result = []
+
+    for project_id in requested_project_ids(
+        interpretation
+    ):
+        stored_constraints = (
+            project_constraint_repository
+            .list_for_project(
+                project_id
+            )
+        )
+
+        constraints = []
+
+        for constraint in stored_constraints:
+            metadata = constraint.get(
+                "metadata"
+            )
+
+            if not isinstance(metadata, dict):
+                metadata = {}
+
+            status = (
+                project_constraint_status_service
+                .evaluate(
+                    constraint
+                )
+            )
+
+            compact_constraint = {
+                "constraint_type": (
+                    constraint.get(
+                        "constraint_type"
+                    )
+                ),
+                "reference": constraint.get(
+                    "reference"
+                ),
+                "start_date": constraint.get(
+                    "start_date"
+                ),
+                "end_date": constraint.get(
+                    "end_date"
+                ),
+                "status": status.get(
+                    "status"
+                ),
+                "status_as_of_date": (
+                    status.get(
+                        "as_of_date"
+                    )
+                ),
+                "source": constraint.get(
+                    "source"
+                ),
+                "notes": constraint.get(
+                    "notes"
+                ),
+            }
+
+            installation_nos = metadata.get(
+                "installation_nos"
+            )
+
+            if installation_nos:
+                compact_constraint[
+                    "installation_nos"
+                ] = list(
+                    installation_nos
+                )
+
+            permit_week = metadata.get(
+                "permit_week"
+            )
+
+            if permit_week:
+                compact_constraint[
+                    "permit_week"
+                ] = permit_week
+
+            constraints.append(
+                compact_constraint
+            )
+
+        result.append(
+            {
+                "project_id": project_id,
+                "constraints": serialize_value(
+                    constraints
+                ),
+            }
+        )
+
+    return result
+
+def load_project_watchdog_resource(
+    interpretation: dict[str, Any],
+) -> list[dict[str, Any]]:
+    """
+    Henter deterministiske watchdog-advarsler for
+    de projekter, Roerbot har bedt om.
+
+    Watchdoggen ændrer ingen data og foretager
+    ingen planlægning. Den vurderer eksisterende
+    projektdata, restarbejde, tilladelser og
+    deadlines.
+    """
+
+    result = []
+
+    for project_id in requested_project_ids(
+        interpretation
+    ):
+        watchdog = (
+            project_constraint_watchdog_service
+            .build_project_watchdog(
+                project_id
+            )
+        )
+
+        result.append(
+            serialize_value(
+                watchdog
             )
         )
 
@@ -1110,6 +1333,17 @@ def build_resource(
         return load_remaining_work_summary_resource(
             interpretation
         )
+
+    if resource == "project_constraints":
+        return load_project_constraints_resource(
+            interpretation
+        )
+
+    if resource == "project_watchdog":
+        return load_project_watchdog_resource(
+            interpretation
+        )
+
     # Disse ressourcer kobles på deres database-repositories i næste trin.
     if resource in {
         "calendars",
@@ -1135,6 +1369,7 @@ def build_context(
             or {}
         ),
         "resources": {},
+        "resource_metadata": {},
     }
 
     requests = interpretation.get(
@@ -1176,7 +1411,266 @@ def build_context(
 
         context["resources"][resource] = data
 
+        if isinstance(data, list):
+            context["resource_metadata"][resource] = {
+                "count": len(data),
+            }
+
     return context
+
+def resolve_project_references(
+    interpretation: dict[str, Any],
+) -> dict[str, Any]:
+    """
+    Resolver projektreferencer fra AI-fortolkningen til konkrete
+    project_ids.
+
+    Interpreteren kan eksempelvis forstå "Herslev" som et city-filter.
+    Denne funktion binder den sproglige reference til det faktiske
+    projekt i databasen, hvis matchningen er entydig.
+
+    Funktionen:
+    - respekterer project_ids, som allerede er fundet
+    - matcher project_id, project_name og city
+    - vælger kun automatisk ved præcis ét match
+    - fjerner projekt-identificerende filtre fra andre resources,
+      når projektet er blevet entydigt resolved
+    - hardcoder ingen projekter eller projektnavne
+    """
+
+    if not isinstance(interpretation, dict):
+        return interpretation
+
+    result = dict(interpretation)
+
+    raw_scope = result.get("scope")
+
+    if isinstance(raw_scope, dict):
+        scope = dict(raw_scope)
+    else:
+        scope = {}
+
+    existing_project_ids = [
+        str(value).strip()
+        for value in (
+            scope.get("project_ids") or []
+        )
+        if str(value or "").strip()
+    ]
+
+    data_requests = result.get(
+        "data_requests"
+    )
+
+    if not isinstance(data_requests, list):
+        data_requests = []
+
+    project_filter_fields = {
+        "project_id": "id",
+        "project_name": "name",
+        "project_city": "city",
+        "city": "city",
+    }
+
+    identity_filters = []
+
+    for request in data_requests:
+        if not isinstance(request, dict):
+            continue
+
+        filters = request.get("filters")
+
+        if not isinstance(filters, list):
+            continue
+
+        for filter_data in filters:
+            if not isinstance(
+                filter_data,
+                dict,
+            ):
+                continue
+
+            field = str(
+                filter_data.get("field")
+                or ""
+            ).strip()
+
+            operator = str(
+                filter_data.get("operator")
+                or "equals"
+            ).strip().casefold()
+
+            value = str(
+                filter_data.get("value")
+                or ""
+            ).strip()
+
+            if (
+                field not in project_filter_fields
+                or operator not in {
+                    "equals",
+                    "eq",
+                    "=",
+                }
+                or not value
+            ):
+                continue
+
+            identity_filters.append(
+                {
+                    "field": field,
+                    "project_field": (
+                        project_filter_fields[
+                            field
+                        ]
+                    ),
+                    "value": value,
+                }
+            )
+
+    resolved_project_ids = list(
+        existing_project_ids
+    )
+
+    if (
+        not resolved_project_ids
+        and identity_filters
+    ):
+        projects = []
+
+        for project_info in (
+            project_repository.list_projects()
+        ):
+            project_id = str(
+                project_info.get("id") or ""
+            ).strip()
+
+            if not project_id:
+                continue
+
+            project = (
+                project_repository.load_project(
+                    project_id
+                )
+            )
+
+            if not project:
+                continue
+
+            projects.append(
+                {
+                    "id": project_id,
+                    "name": str(
+                        project.get("name")
+                        or project_info.get(
+                            "name"
+                        )
+                        or ""
+                    ).strip(),
+                    "city": str(
+                        project.get("city")
+                        or project_info.get(
+                            "city"
+                        )
+                        or ""
+                    ).strip(),
+                }
+            )
+
+        candidates = projects
+
+        for filter_data in identity_filters:
+            project_field = filter_data[
+                "project_field"
+            ]
+
+            expected_value = (
+                filter_data["value"]
+                .strip()
+                .casefold()
+            )
+
+            candidates = [
+                project
+                for project in candidates
+                if str(
+                    project.get(
+                        project_field
+                    )
+                    or ""
+                )
+                .strip()
+                .casefold()
+                == expected_value
+            ]
+
+        if len(candidates) == 1:
+            resolved_project_ids = [
+                candidates[0]["id"]
+            ]
+
+    scope["project_ids"] = (
+        resolved_project_ids
+    )
+
+    result["scope"] = scope
+
+    if resolved_project_ids:
+        cleaned_requests = []
+
+        for request in data_requests:
+            if not isinstance(request, dict):
+                cleaned_requests.append(
+                    request
+                )
+                continue
+
+            cleaned_request = dict(
+                request
+            )
+
+            resource = str(
+                request.get("resource") or ""
+            ).strip()
+
+            filters = request.get(
+                "filters"
+            )
+
+            if (
+                resource != "projects"
+                and isinstance(filters, list)
+            ):
+                cleaned_request[
+                    "filters"
+                ] = [
+                    filter_data
+                    for filter_data in filters
+                    if not (
+                        isinstance(
+                            filter_data,
+                            dict,
+                        )
+                        and str(
+                            filter_data.get(
+                                "field"
+                            )
+                            or ""
+                        ).strip()
+                        in project_filter_fields
+                    )
+                ]
+
+            cleaned_requests.append(
+                cleaned_request
+            )
+
+        result["data_requests"] = (
+            cleaned_requests
+        )
+
+    return result
+
 def build_interpreter_context(
     *,
     question: str = "",

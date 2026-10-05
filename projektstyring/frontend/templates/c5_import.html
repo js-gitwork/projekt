@@ -37,42 +37,243 @@
     </form>
 </div>
 
-{% if updates %}
+{% if updates or preview_result %}
+
+{% if roerbot_import_report %}
+<script type="application/json" id="roerbotImportReportData">
+{
+    "status": {{ roerbot_import_report.status | tojson }},
+    "can_import": {{ roerbot_import_report.can_import | tojson }},
+    "created": {{ roerbot_import_report.created | tojson }},
+    "updated": {{ roerbot_import_report.updated | tojson }},
+    "unchanged": {{ roerbot_import_report.unchanged | tojson }},
+    "work_entries_created": {{ roerbot_import_report.work_entries_created | tojson }},
+    "work_entries": {{ roerbot_import_report.work_entries | tojson }},
+    "conflicts": [
+        {% for conflict in roerbot_import_report.conflicts %}
+        {
+            "key": {{ conflict.key | string | tojson }},
+            "field": {{ conflict.field | string | tojson }},
+            "message": {{ conflict.message | string | tojson }},
+            "blocks_import": {{ conflict.blocks_import | tojson }}
+        }{% if not loop.last %},{% endif %}
+        {% endfor %}
+    ]
+}
+</script>
+{% endif %}
+
 <div class="card">
     <h2>Foreslåede ændringer</h2>
 
-    <table class="project-table">
-        <thead>
-            <tr>
-                <th>Installation</th>
-                <th>Adresse</th>
-                <th>Stik</th>
-                <th>Opmåling</th>
-                <th>Forarbejde</th>
-                <th>Stikopmåling</th>
-                <th>Hovedledning</th>
-                <th>Stikåbning</th>
-                <th>Bemærkninger</th>
-            </tr>
-        </thead>
-        <tbody>
-            {% for update in updates %}
-            <tr>
-                <td>{{ update.id }}</td>
-                <td>{{ update.address }}</td>
-                <td>{{ update.active_stik }}</td>
-                <td>{{ update.progress.opmaaling }}%</td>
-                <td>{{ update.progress.forarbejde }}%</td>
-                <td>{{ update.progress.stikopmaaling }}%</td>
-                <td>{{ update.progress.hovedledning }}%</td>
-                <td>{{ update.progress.stikaabning }}%</td>
-                <td>{{ update.notes|join(" | ") }}</td>
-            </tr>
-            {% endfor %}
-        </tbody>
-    </table>
+    {% if import_type == "deviation_overview" %}
+
+        <p>
+            Afvigelser fundet:
+            {{ preview_result.created
+               + preview_result.updated
+               + preview_result.unchanged }}
+        </p>
+
+        <table class="project-table">
+            <thead>
+                <tr>
+                    <th>Afvigelse</th>
+                    <th>Handling</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for action in preview_result.actions %}
+                <tr>
+                    <td>{{ action.key }}</td>
+                    <td>
+                        {% if action.action == "created" %}
+                            Oprettes
+                        {% elif action.action == "updated" %}
+                            Opdateres
+                        {% elif action.action == "unchanged" %}
+                            Uændret
+                        {% else %}
+                            {{ action.action }}
+                        {% endif %}
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+
+        <p>
+            Nye: {{ preview_result.created }} |
+            Opdateres: {{ preview_result.updated }} |
+            Uændrede: {{ preview_result.unchanged }}
+        </p>
+
+        {% if preview_result.conflicts %}
+            <h3>Bemærkninger</h3>
+
+            <table class="project-table">
+                <thead>
+                    <tr>
+                        <th>Afvigelse</th>
+                        <th>Felt</th>
+                        <th>Bemærkning</th>
+                        <th>Blokerer import</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for conflict in preview_result.conflicts %}
+                    <tr>
+                        <td>{{ conflict.key }}</td>
+                        <td>{{ conflict.field }}</td>
+                        <td>{{ conflict.message }}</td>
+                        <td>
+                            {% if conflict.blocks_import %}
+                                Ja
+                            {% else %}
+                                Nej
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        {% endif %}
+
+    {% else %}
+
+        <table class="project-table">
+            <thead>
+                <tr>
+                    <th>Installation</th>
+                    <th>Adresse</th>
+                    <th>Stik</th>
+                    <th>Opmåling</th>
+                    <th>Forarbejde</th>
+                    <th>Stikopmåling</th>
+                    <th>Hovedledning</th>
+                    <th>Stikåbning</th>
+                    <th>Bemærkninger</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for update in updates %}
+                <tr>
+                    <td>{{ update.id }}</td>
+                    <td>{{ update.address }}</td>
+                    <td>{{ update.active_stik }}</td>
+                    <td>{{ update.progress.opmaaling }}%</td>
+                    <td>{{ update.progress.forarbejde }}%</td>
+                    <td>{{ update.progress.stikopmaaling }}%</td>
+                    <td>{{ update.progress.hovedledning }}%</td>
+                    <td>{{ update.progress.stikaabning }}%</td>
+                    <td>{{ update.notes|join(" | ") }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+
+        {% set changes = preview_result.actions
+            | rejectattr("action", "equalto", "unchanged")
+            | list
+        %}
+
+        {% if changes %}
+        <details style="margin-top: 1rem;">
+            <summary>
+                <strong>Vis foreslåede ændringer</strong>
+                ({{ changes | length }})
+            </summary>
+
+            <table class="project-table">
+                <thead>
+                    <tr>
+                        <th>Type</th>
+                        <th>Nøgle</th>
+                        <th>Handling</th>
+                        <th>Felter</th>
+                        <th>Før</th>
+                        <th>Efter</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for action in changes %}
+                    <tr>
+                        <td>
+                            {% if action.entity_type == "installation" %}
+                                Installation
+                            {% elif action.entity_type == "manhole" %}
+                                Brønd
+                            {% elif action.entity_type == "stretch" %}
+                                Stræk
+                            {% elif action.entity_type == "service_connection" %}
+                                Stik
+                            {% elif action.entity_type == "manhole_work" %}
+                                Brøndarbejde
+                            {% elif action.entity_type == "service_connection_work" %}
+                                Stikarbejde
+                            {% elif action.entity_type == "project_constraint" %}
+                                Projektbegrænsning
+                            {% else %}
+                                {{ action.entity_type }}
+                            {% endif %}
+                        </td>
+
+                        <td>{{ action.key }}</td>
+
+                        <td>
+                            {% if action.action in ["create", "created"] %}
+                                Oprettes
+                            {% elif action.action in ["update", "updated"] %}
+                                Opdateres
+                            {% else %}
+                                {{ action.action }}
+                            {% endif %}
+                        </td>
+
+                        <td>
+                            {% if action.fields %}
+                                {{ action.fields | join(", ") }}
+                            {% else %}
+                                -
+                            {% endif %}
+                        </td>
+
+                        <td>
+                            {% if action.existing_values %}
+                                {% for field, value in action.existing_values.items() %}
+                                    <div>
+                                        <strong>{{ field }}:</strong>
+                                        {{ value }}
+                                    </div>
+                                {% endfor %}
+                            {% else %}
+                                -
+                            {% endif %}
+                        </td>
+
+                        <td>
+                            {% if action.incoming_values %}
+                                {% for field, value in action.incoming_values.items() %}
+                                    <div>
+                                        <strong>{{ field }}:</strong>
+                                        {{ value }}
+                                    </div>
+                                {% endfor %}
+                            {% else %}
+                                -
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </details>
+        {% endif %}
+
+    {% endif %}
 
     <form
+        id="c5ApplyForm"
         method="post"
         action="/projects/{{ project.id }}/c5-import/apply"
     >
@@ -81,11 +282,20 @@
             style="display: none;"
         >{{ csv_text }}</textarea>
 
-        <button type="submit" class="btn">
+        <button
+            type="submit"
+            class="btn"
+            {% if roerbot_import_report
+                  and not roerbot_import_report.can_import %}
+                disabled
+                title="Importen indeholder blokerende konflikter"
+            {% endif %}
+        >
             Godkend import
         </button>
     </form>
 </div>
+
 {% endif %}
 
 {% endblock %}

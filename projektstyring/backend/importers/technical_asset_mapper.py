@@ -6,12 +6,12 @@ from typing import Any
 from projektstyring.backend.importers.technical_asset_import import (
     ImportedManhole,
     ImportedManholeWork,
+    ImportedProjectConstraint,
     ImportedServiceConnection,
     ImportedServiceConnectionWork,
     ImportedStretch,
     TechnicalAssetImport,
 )
-
 
 @dataclass(slots=True, frozen=True)
 class ManholeKey:
@@ -52,6 +52,9 @@ class MappedServiceConnection:
     stretch_key: StretchKey
     source: ImportedServiceConnection
 
+@dataclass(slots=True)
+class MappedProjectConstraint:
+    source: ImportedProjectConstraint
 
 @dataclass(slots=True)
 class MappedManholeWork:
@@ -101,6 +104,11 @@ class TechnicalAssetImportPlan:
         default_factory=dict
     )
 
+    project_constraints: list[
+        MappedProjectConstraint
+    ] = field(
+        default_factory=list
+    )
 
 class TechnicalAssetMapper:
     """
@@ -154,7 +162,24 @@ class TechnicalAssetMapper:
             plan,
         )
 
+        self._map_project_constraints(
+            import_data,
+            plan,
+        )
+
         return plan
+
+    @staticmethod
+    def _map_project_constraints(
+        import_data: TechnicalAssetImport,
+        plan: TechnicalAssetImportPlan,
+    ) -> None:
+        for constraint in import_data.project_constraints:
+            plan.project_constraints.append(
+                MappedProjectConstraint(
+                    source=constraint,
+                )
+            )
 
     @staticmethod
     def _map_manholes(

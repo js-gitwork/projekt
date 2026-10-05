@@ -64,6 +64,7 @@ class ScenarioChangeResolver:
             technical_asset_repository
             or TechnicalAssetRepository()
         )
+
     # ------------------------------------------------------------
     # Offentlig indgang
     # ------------------------------------------------------------
@@ -74,6 +75,11 @@ class ScenarioChangeResolver:
     ) -> list[dict[str, Any]]:
         """
         Returnerer et valideret ændringssæt med kanoniske id'er.
+
+        Semantiske selections, eksempelvis "alle installationer",
+        ekspanderes først til konkrete ændringer baseret på de
+        faktiske projektdata. Resten af systemet arbejder dermed
+        fortsat kun med konkrete target-id'er.
         """
 
         if not isinstance(changes, list):
@@ -89,10 +95,20 @@ class ScenarioChangeResolver:
         projects = self._load_projects()
         teams = self._load_teams()
 
+        expanded_changes = []
+
+        for change in changes:
+            expanded_changes.extend(
+                self._expand_change_selection(
+                    change=change,
+                    projects=projects,
+                )
+            )
+
         resolved = []
 
         for sequence, change in enumerate(
-            changes,
+            expanded_changes,
             start=1,
         ):
             resolved.append(
@@ -105,6 +121,117 @@ class ScenarioChangeResolver:
             )
 
         return resolved
+
+    def _expand_change_selection(
+        self,
+        *,
+        change: dict[str, Any],
+        projects: dict[str, dict[str, Any]],
+    ) -> list[dict[str, Any]]:
+        """
+        Omsætter en semantisk selection til konkrete ændringer.
+
+        Selection er kun et fortolkningsformat mellem AI-interpreteren
+        og resolveren. Efter denne funktion består ændringssættet kun
+        af konkrete ændringer, som resten af scenariesystemet allerede
+        forstår.
+        """
+
+        if not isinstance(change, dict):
+            return [change]
+
+        change_type = str(
+            change.get("change_type") or ""
+        ).strip()
+
+        selection = change.get("selection")
+
+        if not isinstance(selection, dict):
+            return [change]
+
+        selection_type = str(
+            selection.get("type") or ""
+        ).strip()
+
+        if selection_type != "all":
+            raise ValueError(
+                f"Ukendt selection-type "
+                f"'{selection_type}'."
+            )
+
+        if change_type != "installation_field_change":
+            raise ValueError(
+                "selection.type='all' understøttes "
+                "kun for installationsændringer."
+            )
+
+        project_id = self._resolve_project_id(
+            change.get("project_id"),
+            projects,
+        )
+
+        project = projects[project_id]
+
+        installations = project.get(
+            "installations",
+            [],
+        )
+
+        if not isinstance(installations, list):
+            raise ValueError(
+                f"Projekt {project_id} har ugyldige "
+                "installationsdata."
+            )
+
+        installation_ids = []
+
+        for installation in installations:
+            if not isinstance(
+                installation,
+                dict,
+            ):
+                continue
+
+            installation_id = str(
+                installation.get("id") or ""
+            ).strip()
+
+            if installation_id:
+                installation_ids.append(
+                    installation_id
+                )
+
+        if not installation_ids:
+            raise ValueError(
+                f"Projekt {project_id} har ingen "
+                "installationer at anvende ændringen på."
+            )
+
+        expanded = []
+
+        for installation_id in installation_ids:
+            concrete_change = deepcopy(change)
+
+            # Selection har nu gjort sit arbejde og må ikke sendes
+            # videre som en del af den konkrete ændringskontrakt.
+            concrete_change.pop(
+                "selection",
+                None,
+            )
+
+            concrete_change["project_id"] = (
+                project_id
+            )
+
+            concrete_change["installation_id"] = (
+                installation_id
+            )
+
+            expanded.append(
+                concrete_change
+            )
+
+        return expanded
 
     # ------------------------------------------------------------
     # Routing

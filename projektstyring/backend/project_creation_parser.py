@@ -8,6 +8,8 @@ ALLOWED_FIELDS = {
     "project_id",
     "name",
     "customer",
+    "project_manager",
+    "site_manager",
     "city",
     "start_date",
     "installation_count",
@@ -98,6 +100,8 @@ Felter:
 - project_id
 - name
 - customer
+- project_manager
+- site_manager
 - city
 - start_date
 - installation_count
@@ -107,6 +111,8 @@ Regler:
 - project_id er et V-nummer, fx V165930.
 - name er projektnavn/sagsnavn.
 - customer er kunden/bygherren.
+- project_manager er projektlederen.
+- site_manager er entrepriselederen.
 - city er by, område eller lokation.
 - Hvis city ikke er tydeligt angivet, brug null.
 - Hvis name og city ikke tydeligt er det samme, må du ikke kopiere name til city.
@@ -117,7 +123,8 @@ Regler:
 - installation_count skal være et heltal.
 - preparation_team må kun udfyldes, hvis et konkret hold er nævnt.
 - Tekst om opmåling er ikke et holdnavn.
-- Tekst om opmåling kan godt være årsagen til start_date, men skal ikke bruges som city.
+- Oplysninger om en kommende CSV-import er ikke surveyresultater.
+- Du må ikke opfinde installationer eller surveydata.
 
 Brugerens tekst:
 {text}
@@ -127,6 +134,8 @@ Returnér præcis dette JSON-format:
   "project_id": null,
   "name": null,
   "customer": null,
+  "project_manager": null,
+  "site_manager": null,
   "city": null,
   "start_date": null,
   "installation_count": null,
@@ -142,13 +151,31 @@ Returnér præcis dette JSON-format:
         return {}
 
     return {
-        "project_id": normalize_project_id(ai_data.get("project_id")),
-        "name": clean_ai_value(ai_data.get("name")),
-        "customer": clean_ai_value(ai_data.get("customer")),
-        "city": clean_ai_value(ai_data.get("city")),
-        "start_date": normalize_start_date(ai_data.get("start_date")),
+        "project_id": normalize_project_id(
+            ai_data.get("project_id")
+        ),
+        "name": clean_ai_value(
+            ai_data.get("name")
+        ),
+        "customer": clean_ai_value(
+            ai_data.get("customer")
+        ),
+        "project_manager": clean_ai_value(
+            ai_data.get("project_manager")
+        ),
+        "site_manager": clean_ai_value(
+            ai_data.get("site_manager")
+        ),
+        "city": clean_ai_value(
+            ai_data.get("city")
+        ),
+        "start_date": normalize_start_date(
+            ai_data.get("start_date")
+        ),
         "installation_count": normalize_installation_count(
             ai_data.get("installation_count")
         ),
-        "preparation_team": clean_ai_value(ai_data.get("preparation_team")),
+        "preparation_team": clean_ai_value(
+            ai_data.get("preparation_team")
+        ),
     }

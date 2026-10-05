@@ -21,7 +21,10 @@ from projektstyring.backend.planning_scenario_service import (
 from projektstyring.backend.project_planner import (
     generate_plan_for_project,
 )
-
+from projektstyring.backend.project_constraint_watchdog_service import (
+    ProjectConstraintWatchdogService,
+)
+from types import SimpleNamespace
 
 class ScenarioChangeApplier:
     """
@@ -84,6 +87,7 @@ class ScenarioChangeApplier:
         *,
         scenario_service: PlanningScenarioService | None = None,
         technical_asset_repository: TechnicalAssetRepository | None = None,
+        constraint_watchdog_service: ProjectConstraintWatchdogService | None = None,
     ):
         self.scenario_service = (
             scenario_service
@@ -93,6 +97,11 @@ class ScenarioChangeApplier:
         self.technical_asset_repository = (
             technical_asset_repository
             or TechnicalAssetRepository()
+        )
+
+        self.constraint_watchdog_service = (
+            constraint_watchdog_service
+            or ProjectConstraintWatchdogService()
         )
 
     # ------------------------------------------------------------
@@ -182,6 +191,18 @@ class ScenarioChangeApplier:
             )
         )
 
+        portfolio_before = build_portfolio_plan(
+            overrides={
+                project_id: project
+                for project_id, project
+                in before_projects.items()
+            }
+        )
+
+        before_conflicts = find_team_conflicts(
+            portfolio_before
+        )
+
         portfolio_after = build_portfolio_plan(
             overrides={
                 project_id: project
@@ -194,8 +215,31 @@ class ScenarioChangeApplier:
             portfolio_after
         )
 
+        conflict_delta = self._build_conflict_delta(
+            before_conflicts=before_conflicts,
+            after_conflicts=conflicts,
+        )
+
+        before_warnings = self._collect_warnings(
+            before_projects
+        )
+
         warnings = self._collect_warnings(
             after_projects
+        )
+
+        warning_delta = self._build_plan_warning_delta(
+            before_warnings=before_warnings,
+            after_warnings=warnings,
+        )
+        constraint_evaluations = (
+            self._build_constraint_evaluations(
+                before_projects=before_projects,
+                after_projects=after_projects,
+                before_plans=before_plans,
+                after_plans=after_plans,
+                as_of_date=date.today(),
+            )
         )
 
         calculated_result = self._make_json_safe(
@@ -230,7 +274,9 @@ class ScenarioChangeApplier:
             changes=normalized_changes,
             conflicts=conflicts,
             warnings=warnings,
-            constraints=[],
+            constraints=self._make_json_safe(
+                constraint_evaluations
+            ),
             metadata={
                 **deepcopy(metadata or {}),
                 "change_count": len(
@@ -240,6 +286,12 @@ class ScenarioChangeApplier:
                     active_revision.get(
                         "revision_number"
                     )
+                ),
+                "consequence_deltas": self._make_json_safe(
+                    {
+                        "conflicts": conflict_delta,
+                        "warnings": warning_delta,
+                    }
                 ),
             },
         )
@@ -1005,6 +1057,506 @@ class ScenarioChangeApplier:
                 )
 
         return warnings
+
+    def _build_conflict_delta(
+        self,
+        *,
+        before_conflicts: list[dict[str, Any]],
+        after_conflicts: list[dict[str, Any]],
+    ) -> dict[str, list[dict[str, Any]]]:
+        """
+        Sammenligner holdkonflikter før og efter ændringen.
+
+        En konflikt identificeres stabilt ved:
+        - hold
+        - dato
+        - de berørte projekter
+
+        Aktivitetsdetaljerne er ikke en del af identiteten.
+        """
+
+        return self._build_list_delta(
+            before_items=before_conflicts,
+            after_items=after_conflicts,
+            identity_builder=self._conflict_identity,
+        )
+
+    def _conflict_identity(
+        self,
+        conflict: dict[str, Any],
+    ) -> tuple[str, ...]:
+        team = str(
+            conflict.get("team")
+            or ""
+        ).strip()
+
+        conflict_date = self._parse_optional_date(
+            conflict.get("date")
+        )
+
+        date_key = (
+            conflict_date.isoformat()
+            if conflict_date is not None
+            else str(
+                conflict.get("date")
+                or ""
+            ).strip()
+        )
+
+        projects = tuple(
+            sorted(
+                str(project_id).strip()
+                for project_id in (
+                    conflict.get("projects")
+                    or []
+                )
+                if str(project_id).strip()
+            )
+        )
+
+        return (
+            team,
+            date_key,
+            ",".join(projects),
+        )
+
+    def _build_plan_warning_delta(
+        self,
+        *,
+        before_warnings: list[dict[str, Any]],
+        after_warnings: list[dict[str, Any]],
+    ) -> dict[str, list[dict[str, Any]]]:
+        """
+        Sammenligner planmotorens advarsler og restarbejde
+        før og efter ændringen.
+        """
+
+        return self._build_list_delta(
+            before_items=before_warnings,
+            after_items=after_warnings,
+            identity_builder=self._plan_warning_identity,
+        )
+
+    def _plan_warning_identity(
+        self,
+        warning: dict[str, Any],
+    ) -> tuple[str, ...]:
+        """
+        Stabil identitet for den nuværende plan-warning-kontrakt.
+
+        Planmotorens warning-format har endnu ikke et særskilt
+        warning_code, så message indgår som sidste identitetsled.
+        Hvis warning-kontrakten senere får et stabilt kodefelt,
+        bør det erstatte message her.
+        """
+
+        return (
+            str(
+                warning.get("project_id")
+                or ""
+            ).strip(),
+            str(
+                warning.get("type")
+                or ""
+            ).strip(),
+            str(
+                warning.get("installation_id")
+                or ""
+            ).strip(),
+            str(
+                warning.get("task_type")
+                or ""
+            ).strip(),
+            str(
+                warning.get("message")
+                or ""
+            ).strip(),
+        )
+
+    def _build_list_delta(
+        self,
+        *,
+        before_items: list[dict[str, Any]],
+        after_items: list[dict[str, Any]],
+        identity_builder: Any,
+    ) -> dict[str, list[dict[str, Any]]]:
+        """
+        Generisk before/after-sammenligning for scenariekonsekvenser.
+        """
+
+        before_index = {
+            identity_builder(item): item
+            for item in before_items
+        }
+
+        after_index = {
+            identity_builder(item): item
+            for item in after_items
+        }
+
+        before_keys = set(
+            before_index
+        )
+
+        after_keys = set(
+            after_index
+        )
+
+        return {
+            "introduced": [
+                after_index[key]
+                for key in sorted(
+                    after_keys - before_keys
+                )
+            ],
+            "persisting": [
+                after_index[key]
+                for key in sorted(
+                    after_keys & before_keys
+                )
+            ],
+            "resolved": [
+                before_index[key]
+                for key in sorted(
+                    before_keys - after_keys
+                )
+            ],
+        }
+
+    def _build_constraint_evaluations(
+        self,
+        *,
+        before_projects: dict[
+            str,
+            dict[str, Any],
+        ],
+        after_projects: dict[
+            str,
+            dict[str, Any],
+        ],
+        before_plans: dict[
+            str,
+            list[dict[str, Any]],
+        ],
+        after_plans: dict[
+            str,
+            list[dict[str, Any]],
+        ],
+        as_of_date: date,
+    ) -> list[dict[str, Any]]:
+        """
+        Evaluerer deterministiske projektconstraints før og efter
+        scenarieændringen.
+
+        De faktuelle inputs hentes én gang pr. projekt og anvendes
+        identisk på både before- og after-state. Dermed er det selve
+        scenarieændringen, der skaber forskellen mellem evalueringerne.
+
+        En kopi af de faktuelle inputs gemmes sammen med resultatet,
+        så scenarierevisionen senere kan analyseres uden at være
+        afhængig af, hvordan live-data ser ud på det tidspunkt.
+        """
+
+        evaluations = []
+
+        project_ids = sorted(
+            set(before_projects)
+            | set(after_projects)
+        )
+
+        for project_id in project_ids:
+            before_project = before_projects.get(
+                project_id
+            )
+
+            after_project = after_projects.get(
+                project_id
+            )
+
+            if (
+                before_project is None
+                or after_project is None
+            ):
+                continue
+
+            factual_inputs = (
+                self.constraint_watchdog_service
+                .load_project_factual_inputs(
+                    project_id
+                )
+            )
+
+            constraints = deepcopy(
+                factual_inputs.get(
+                    "constraints",
+                    [],
+                )
+            )
+
+            remaining_work = deepcopy(
+                factual_inputs.get(
+                    "remaining_work",
+                    {},
+                )
+            )
+
+            before_result = (
+                self.constraint_watchdog_service
+                .evaluate_project_state(
+                    project_id=project_id,
+                    project=deepcopy(
+                        before_project
+                    ),
+                    constraints=deepcopy(
+                        constraints
+                    ),
+                    remaining_work=deepcopy(
+                        remaining_work
+                    ),
+                    activities=(
+                        self._watchdog_activities_from_plan(
+                            before_plans.get(
+                                project_id,
+                                [],
+                            )
+                        )
+                    ),
+                    as_of_date=as_of_date,
+                )
+            )
+
+            after_result = (
+                self.constraint_watchdog_service
+                .evaluate_project_state(
+                    project_id=project_id,
+                    project=deepcopy(
+                        after_project
+                    ),
+                    constraints=deepcopy(
+                        constraints
+                    ),
+                    remaining_work=deepcopy(
+                        remaining_work
+                    ),
+                    activities=(
+                        self._watchdog_activities_from_plan(
+                            after_plans.get(
+                                project_id,
+                                [],
+                            )
+                        )
+                    ),
+                    as_of_date=as_of_date,
+                )
+            )
+
+            delta = self._build_constraint_delta(
+                before_result=before_result,
+                after_result=after_result,
+            )
+
+            evaluations.append(
+                {
+                    "project_id": project_id,
+                    "as_of_date": as_of_date,
+                    "before": before_result,
+                    "after": after_result,
+                    **delta,
+                    "factual_snapshot": {
+                        "constraints": constraints,
+                        "remaining_work": (
+                            remaining_work
+                        ),
+                    },
+                }
+            )
+
+        return evaluations
+
+    def _watchdog_activities_from_plan(
+        self,
+        plan: list[dict[str, Any]],
+    ) -> list[Any]:
+        """
+        Adapter mellem scenarioets summariserede plan og watchdoggens
+        aktivitet-kontrakt.
+
+        Watchdoggen bruger aktuelt kun installation_id og slut_dato
+        fra planaktiviteterne.
+        """
+
+        activities = []
+
+        for activity in plan:
+            activities.append(
+                SimpleNamespace(
+                    installation_id=str(
+                        activity.get(
+                            "installation_id",
+                            "",
+                        )
+                    ),
+                    slut_dato=(
+                        self._parse_optional_date(
+                            activity.get("end")
+                        )
+                    ),
+                )
+            )
+
+        return activities
+
+    def _build_constraint_delta(
+        self,
+        *,
+        before_result: dict[str, Any],
+        after_result: dict[str, Any],
+    ) -> dict[str, list[dict[str, Any]]]:
+        """
+        Sammenligner watchdog-advarsler ud fra stabil identitet.
+
+        Introduced:
+            findes kun efter ændringen.
+
+        Persisting:
+            findes både før og efter ændringen.
+
+        Resolved:
+            fandtes før ændringen, men ikke efter.
+        """
+
+        before_warnings = list(
+            before_result.get(
+                "warnings",
+                [],
+            )
+        )
+
+        after_warnings = list(
+            after_result.get(
+                "warnings",
+                [],
+            )
+        )
+
+        before_index = {
+            self._constraint_warning_identity(
+                warning
+            ): warning
+            for warning in before_warnings
+        }
+
+        after_index = {
+            self._constraint_warning_identity(
+                warning
+            ): warning
+            for warning in after_warnings
+        }
+
+        before_keys = set(
+            before_index
+        )
+
+        after_keys = set(
+            after_index
+        )
+
+        introduced = [
+            after_index[key]
+            for key in sorted(
+                after_keys - before_keys
+            )
+        ]
+
+        persisting = [
+            after_index[key]
+            for key in sorted(
+                after_keys & before_keys
+            )
+        ]
+
+        resolved = [
+            before_index[key]
+            for key in sorted(
+                before_keys - after_keys
+            )
+        ]
+
+        return {
+            "introduced": introduced,
+            "persisting": persisting,
+            "resolved": resolved,
+        }
+
+    def _constraint_warning_identity(
+        self,
+        warning: dict[str, Any],
+    ) -> tuple[str, ...]:
+        """
+        Stabil identitet for én deterministisk watchdog-advarsel.
+
+        Beskedtekst og beregnede dato-forskelle bruges ikke som
+        identitet, fordi de kan ændre sig uden at selve problemet er
+        et nyt problem.
+        """
+
+        installation_no = str(
+            warning.get(
+                "installation_no",
+                "",
+            )
+            or ""
+        )
+
+        installation_nos = tuple(
+            sorted(
+                str(value)
+                for value in warning.get(
+                    "installation_nos",
+                    [],
+                )
+                if str(value)
+            )
+        )
+
+        deadline = (
+            self._parse_optional_date(
+                warning.get("deadline")
+            )
+        )
+
+        deadline_key = (
+            deadline.isoformat()
+            if deadline is not None
+            else ""
+        )
+
+        return (
+            str(
+                warning.get(
+                    "warning_type",
+                    "",
+                )
+            ),
+            str(
+                warning.get(
+                    "constraint_type",
+                    "",
+                )
+            ),
+            str(
+                warning.get(
+                    "reference",
+                    "",
+                )
+                or ""
+            ),
+            installation_no,
+            ",".join(
+                installation_nos
+            ),
+            deadline_key,
+        )
 
     # ------------------------------------------------------------
     # Scenarietilstand

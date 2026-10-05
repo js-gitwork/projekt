@@ -1,10 +1,12 @@
+from __future__ import annotations
+
 from sqlalchemy import create_engine
 from sqlalchemy.orm import DeclarativeBase, sessionmaker
 
+from projektstyring.backend.config import require_env
 
-DATABASE_URL = (
-    "postgresql+psycopg://projektstyring:4547@localhost:5432/projektstyring"
-)
+
+DATABASE_URL = require_env("PROJEKTSTYRING_DATABASE_URL")
 
 
 engine = create_engine(
@@ -12,7 +14,6 @@ engine = create_engine(
     echo=False,
     future=True,
 )
-
 
 SessionLocal = sessionmaker(
     bind=engine,

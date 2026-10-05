@@ -9,6 +9,12 @@ from projektstyring.backend.importers.installation_importer import (
 from projektstyring.backend.importers.import_result import (
     ImportExecutionResult,
 )
+from projektstyring.backend.importers.project_constraint_importer import (
+    ProjectConstraintImporter,
+)
+from projektstyring.backend.repositories.project_constraint_repository import (
+    ProjectConstraintRepository,
+)
 from projektstyring.backend.importers.manhole_importer import (
     ManholeImporter,
 )
@@ -47,7 +53,10 @@ class TechnicalAssetImportExecutor:
         work_importer: WorkImporter | None = None,
         installation_importer:
             InstallationImporter | None = None,
+        project_constraint_importer:
+            ProjectConstraintImporter | None = None,
     ) -> None:
+
         self.manhole_importer = (
             manhole_importer
             if manhole_importer is not None
@@ -76,6 +85,12 @@ class TechnicalAssetImportExecutor:
             installation_importer
             if installation_importer is not None
             else InstallationImporter()
+        )
+
+        self.project_constraint_importer = (
+            project_constraint_importer
+            if project_constraint_importer is not None
+            else ProjectConstraintImporter()
         )
 
     def execute(
@@ -118,6 +133,16 @@ class TechnicalAssetImportExecutor:
 
         self.work_importer.execute(
             repo=repo,
+            plan=plan,
+            result=result,
+        )
+
+        constraint_repo = ProjectConstraintRepository(
+            session
+        )
+
+        self.project_constraint_importer.execute(
+            repo=constraint_repo,
             plan=plan,
             result=result,
         )

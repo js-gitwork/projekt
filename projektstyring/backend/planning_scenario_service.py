@@ -336,6 +336,56 @@ class PlanningScenarioService:
             scenario_id
         )
 
+        # ------------------------------------------------------------
+    # Kassering
+    # ------------------------------------------------------------
+
+    def discard_scenario(
+        self,
+        scenario_id: str,
+    ) -> bool:
+        """
+        Kasserer et ikke-godkendt planlægningsscenarie permanent.
+
+        Et kladdescenarie er kun et midlertidigt arbejdsområde.
+        Hvis brugeren afviser forslaget, skal scenariet og dets
+        revisioner derfor ikke bevares som beslutningshistorik.
+
+        Committede eller på anden måde afsluttede scenarier må
+        ikke slettes gennem denne funktion.
+        """
+
+        with SessionLocal() as session:
+            try:
+                scenario = (
+                    self.scenario_repository.require_scenario(
+                        scenario_id,
+                        include_projects=False,
+                        session=session,
+                    )
+                )
+
+                if scenario.status != "draft":
+                    raise ValueError(
+                        "Kun et aktivt kladdescenarie "
+                        "kan kasseres."
+                    )
+
+                deleted = (
+                    self.scenario_repository.delete_scenario(
+                        scenario_id,
+                        session=session,
+                    )
+                )
+
+                session.commit()
+
+                return deleted
+
+            except Exception:
+                session.rollback()
+                raise
+
     # ------------------------------------------------------------
     # Læsning
     # ------------------------------------------------------------

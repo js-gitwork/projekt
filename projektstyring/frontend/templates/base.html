@@ -48,6 +48,27 @@
             >
         </div>
 
+                <!-- Rørbots kompakte situationsbestemte taleboble -->
+        <div
+            class="roerbot-bubble"
+            id="roerbotBubble"
+            role="status"
+            aria-live="polite"
+            hidden
+        >
+            <div class="roerbot-bubble-heading">
+                <strong>Rørbot</strong>
+                <button
+                    type="button"
+                    id="roerbotBubbleClose"
+                    aria-label="Luk Rørbots taleboble"
+                >×</button>
+            </div>
+
+            <div id="roerbotBubbleContent"></div>
+            <div class="roerbot-bubble-actions" id="roerbotBubbleActions"></div>
+        </div>
+
     </div>
 
     <script>
@@ -130,6 +151,246 @@
 
         return div;
     }
+
+        // ------------------------------------------------------------
+    // Rørbot – fælles Clippy-effekt og handlingsbobler
+    // ------------------------------------------------------------
+
+    const roerbotBubble = document.getElementById("roerbotBubble");
+    const roerbotBubbleContent = document.getElementById("roerbotBubbleContent");
+    const roerbotBubbleActions = document.getElementById("roerbotBubbleActions");
+    const roerbotBubbleClose = document.getElementById("roerbotBubbleClose");
+
+    const roerbotAnimations = {
+        ok: ["roerbot-hop", "roerbot-spin", "roerbot-dance"],
+        warning: ["roerbot-tilt", "roerbot-hop"],
+        blocked: ["roerbot-tilt"]
+    };
+
+    let lastRoerbotAnimation = null;
+    let roerbotAnimationTimer = null;
+
+    function closeRoerbotBubble() {
+        clearTimeout(roerbotAnimationTimer);
+        roerbotBubble.hidden = true;
+        roerbotBubble.classList.remove("visible");
+    }
+
+    roerbotBubbleClose.addEventListener("click", closeRoerbotBubble);
+
+    function chooseRoerbotAnimation(status) {
+        const choices = roerbotAnimations[status] || roerbotAnimations.ok;
+
+        const available = choices.filter(
+            animation => animation !== lastRoerbotAnimation
+        );
+
+        const pool = available.length ? available : choices;
+
+        const selected = pool[Math.floor(Math.random() * pool.length)];
+
+        lastRoerbotAnimation = selected;
+
+        return selected;
+    }
+
+    function animateRoerbot(status, callback) {
+        const image = roerbotAvatar.querySelector("img");
+
+        image.classList.remove(
+            "roerbot-hop",
+            "roerbot-spin",
+            "roerbot-dance",
+            "roerbot-tilt"
+        );
+
+        void image.offsetWidth;
+
+        const reducedMotion = window.matchMedia(
+            "(prefers-reduced-motion: reduce)"
+        ).matches;
+
+        if (reducedMotion) {
+            callback();
+            return;
+        }
+
+        image.classList.add(chooseRoerbotAnimation(status));
+
+        clearTimeout(roerbotAnimationTimer);
+
+        roerbotAnimationTimer = setTimeout(() => {
+            image.classList.remove(
+                "roerbot-hop",
+                "roerbot-spin",
+                "roerbot-dance",
+                "roerbot-tilt"
+            );
+
+            callback();
+        }, 850);
+    }
+
+    function createRoerbotButton(label, callback, primary = false) {
+        const button = document.createElement("button");
+
+        button.type = "button";
+        button.textContent = label;
+
+        button.className = primary
+            ? "roerbot-action primary"
+            : "roerbot-action";
+
+        button.addEventListener("click", callback);
+
+        return button;
+    }
+
+    function showRoerbotBubble(options) {
+        closeRoerbotBubble();
+
+        roerbotPanel.classList.remove("open");
+
+        roerbotBubbleContent.replaceChildren();
+        roerbotBubbleActions.replaceChildren();
+
+        const message = document.createElement("p");
+        message.textContent = options.message;
+
+        roerbotBubbleContent.appendChild(message);
+
+        if (options.details) {
+            const details = document.createElement("details");
+
+            const summary = document.createElement("summary");
+            summary.textContent = "Vis konflikter";
+
+            const list = document.createElement("div");
+            list.className = "roerbot-conflict-list";
+
+            options.details.forEach(conflict => {
+                const item = document.createElement("div");
+                item.className = "roerbot-conflict-item";
+
+                const heading = document.createElement("strong");
+                heading.textContent = conflict.key;
+
+                const description = document.createElement("p");
+                description.textContent = conflict.message;
+
+                item.append(heading, description);
+                list.appendChild(item);
+            });
+
+            details.append(summary, list);
+            roerbotBubbleContent.appendChild(details);
+        }
+
+        (options.actions || []).forEach(action => {
+            roerbotBubbleActions.appendChild(
+                createRoerbotButton(
+                    action.label,
+                    action.callback,
+                    action.primary
+                )
+            );
+        });
+
+        animateRoerbot(options.status || "ok", () => {
+            roerbotBubble.hidden = false;
+
+            requestAnimationFrame(() => {
+                roerbotBubble.classList.add("visible");
+            });
+        });
+    }
+
+    function showRoerbotImportReport(report) {
+        const applyForm = document.getElementById("c5ApplyForm");
+
+        if (!applyForm) {
+            return;
+        }
+
+        let message;
+
+        if (report.status === "ok") {
+            message =
+                "Jeg har kontrolleret din C5-fil. Ingen konflikter fundet! " +
+                "Skal jeg godkende importen?";
+        } else if (report.status === "warning") {
+            message =
+                `Jeg har fundet ${report.conflicts.length} konflikt(er). ` +
+                "De konfliktramte oplysninger håndteres efter importmotorens " +
+                "sikkerhedsregler. Skal jeg godkende importen med disse undtagelser?";
+        } else {
+            message =
+                "Jeg har fundet blokerende konflikter. " +
+                "Importen kan ikke godkendes, før de er håndteret.";
+        }
+        message +=
+            `\n\nNye: ${report.created} · ` +
+            `Opdateres: ${report.updated} · ` +
+            `Uændrede: ${report.unchanged} · ` +
+            `Arbejdsregistreringer: ${report.work_entries_created}`;
+
+        if (
+            Array.isArray(report.work_entries) &&
+            report.work_entries.length > 0
+        ) {
+            message +=
+                "\n\nArbejdsregistreringer der oprettes:\n" +
+                report.work_entries
+                    .map(key => `• ${key}`)
+                    .join("\n");
+        }
+
+        const actions = [];
+
+        if (report.can_import) {
+            actions.push({
+                label: "Ja, godkend import",
+                primary: true,
+                callback: () => {
+                    closeRoerbotBubble();
+
+                    // Den eksisterende formular og serverkontrol bruges.
+                    applyForm.requestSubmit();
+                }
+            });
+        }
+
+        actions.push({
+            label: "Ikke endnu",
+            callback: closeRoerbotBubble
+        });
+
+        showRoerbotBubble({
+            status: report.status,
+            message,
+            details: report.conflicts,
+            actions
+        });
+    }
+
+    // Gør den fælles widget tilgængelig for andre sider.
+    window.roerbotShowBubble = showRoerbotBubble;
+    window.roerbotShowImportReport = showRoerbotImportReport;
+
+    // C5-importens forhåndsvisning kan levere en rapport.
+    const importReportElement = document.getElementById(
+        "roerbotImportReportData"
+    );
+
+    if (importReportElement) {
+        try {
+            const report = JSON.parse(importReportElement.textContent);
+            showRoerbotImportReport(report);
+        } catch (error) {
+            console.error("Kunne ikke vise Rørbots importrapport:", error);
+        }
+    }
+
     </script>
 </body>
 </html>

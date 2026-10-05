@@ -1,9 +1,13 @@
 from projektstyring.backend.db_models.conversation import ConversationState
+from projektstyring.backend.db_models.deviation import Deviation
 from projektstyring.backend.db_models.decision_history import (
     Decision,
     DecisionChange,
     ProjectSnapshot,
     SnapshotPlanActivity,
+)
+from projektstyring.backend.db_models.project_constraint import (
+    ProjectConstraint,
 )
 from projektstyring.backend.db_models.installation import Installation
 from projektstyring.backend.db_models.installation_detail import (
@@ -49,6 +53,7 @@ __all__ = [
     "ConversationState",
     "Decision",
     "DecisionChange",
+    "Deviation",
     "Installation",
     "InstallationProgress",
     "Manhole",

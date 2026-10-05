@@ -257,6 +257,62 @@ class PlanningScenarioRepository:
             if owns_session:
                 db.close()
 
+    def delete_scenario(
+        self,
+        scenario_id: str,
+        *,
+        session: Session | None = None,
+    ) -> bool:
+        """
+        Sletter et planlægningsscenarie permanent.
+
+        SQLAlchemy-relationerne og databasens foreign keys sørger for
+        cascade-sletning af:
+        - scenario_projects
+        - scenario_revisions
+        - scenario_activities
+        - scenario_changes
+
+        Gældende projektdata berøres ikke.
+        """
+
+        owns_session = session is None
+        db = session or SessionLocal()
+
+        try:
+            scenario = db.scalar(
+                select(
+                    PlanningScenario
+                ).where(
+                    PlanningScenario.id
+                    == scenario_id
+                )
+            )
+
+            if scenario is None:
+                return False
+
+            db.delete(
+                scenario
+            )
+
+            db.flush()
+
+            if owns_session:
+                db.commit()
+
+            return True
+
+        except Exception:
+            if owns_session:
+                db.rollback()
+
+            raise
+
+        finally:
+            if owns_session:
+                db.close()
+
     # ------------------------------------------------------------
     # Projekter i scenariet
     # ------------------------------------------------------------
