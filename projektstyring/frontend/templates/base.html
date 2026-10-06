@@ -8,10 +8,19 @@
     <link rel="stylesheet" href="/static/style.css">
 </head>
 <body>
-    <div class="header">
-        <h1>Projektstyring</h1>
-    </div>
+<div class="header">
+    <h1>Projektstyring</h1>
 
+    <div class="header-user">
+        <span>{{ request.state.user.display_name }}</span>
+
+        <form method="post" action="/logout">
+            <button type="submit" class="logout-button">
+                Log ud
+            </button>
+        </form>
+    </div>
+</div>
     <main class="container">
         {% block content %}{% endblock %}
     </main>

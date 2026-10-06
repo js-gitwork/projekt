@@ -118,7 +118,10 @@ async def require_login(request: Request, call_next):
 
         if (
             user.must_change_password
-            and path != "/change-password"
+            and path not in {
+                "/change-password",
+                "/logout",
+            }
         ):
             if request.method == "GET":
                 return RedirectResponse(
@@ -136,9 +139,9 @@ async def require_login(request: Request, call_next):
                 },
             )
 
-        role = user.role
-
-        if path.startswith("/vpmanhole"):
+        if path == "/logout":
+            allowed = True
+        elif path.startswith("/vpmanhole"):
             allowed = role in {
                 "felt",
                 "kontor",
@@ -205,8 +208,15 @@ deviation_import_service = (
 @app.get("/login")
 def login_page(request: Request):
     if request.session.get("user_id"):
+        if request.session.get("must_change_password"):
+            redirect_url = "/change-password"
+        elif request.session.get("role") == "felt":
+            redirect_url = "/vpmanhole/"
+        else:
+            redirect_url = "/"
+
         return RedirectResponse(
-            url="/",
+            url=redirect_url,
             status_code=303,
         )
 
@@ -252,11 +262,17 @@ def login(
             user.must_change_password
         )
 
+        if user.must_change_password:
+            redirect_url = "/change-password"
+        elif user.role == "felt":
+            redirect_url = "/vpmanhole/"
+        else:
+            redirect_url = "/"
+
     return RedirectResponse(
-        url="/",
+        url=redirect_url,
         status_code=303,
     )
-
 
 @app.post("/logout")
 def logout(request: Request):
