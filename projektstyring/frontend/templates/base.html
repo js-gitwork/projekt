@@ -1,95 +1,391 @@
 <!doctype html>
+
 <html lang="da">
+
 <head>
+
     <meta charset="utf-8">
+
     <meta name="viewport" content="width=device-width, initial-scale=1">
+
     <title>{% block title %}Projektstyring{% endblock %}</title>
+
     <link rel="icon" type="image/png" href="/static/images/roerbot.png">
+
     <link rel="stylesheet" href="/static/style.css">
+
 </head>
+
 <body>
+
 <div class="header">
+
     <h1>Projektstyring</h1>
 
+
+
     <div class="header-user">
+
         <span>{{ request.state.user.display_name }}</span>
 
+
+
         <form method="post" action="/logout">
+
             <button type="submit" class="logout-button">
+
                 Log ud
+
             </button>
+
         </form>
+
     </div>
+
 </div>
+
     <main class="container">
+
         {% block content %}{% endblock %}
+
     </main>
 
+
+
     <!-- Roerbot AI-assistent -->
+
     <div class="roerbot-widget" id="roerbotWidget">
+
         <div class="roerbot-panel" id="roerbotPanel">
+
             <div class="roerbot-header">
+
                 <strong>Roerbot</strong>
+
                 <button type="button" id="roerbotClose">×</button>
+
+            </div>
+
+
+
+            <div class="roerbot-tabs" id="roerbotTabs">
+                <div class="roerbot-tab-list" id="roerbotTabList"></div>
+                <button
+                    type="button"
+                    class="roerbot-tab-add"
+                    id="roerbotTabAdd"
+                    title="Ny samtale"
+                    aria-label="Opret ny Rørbot-samtale"
+                >+</button>
             </div>
 
             <div class="roerbot-messages" id="roerbotMessages">
+
                 <div class="roerbot-message bot">
+
                     Hej, jeg er Roerbot. Spørg mig om projekter, hold og planlægning.
+
                 </div>
+
             </div>
+
+
 
             <form class="roerbot-form" id="roerbotForm">
+
                 <input
+
                     type="text"
+
                     id="roerbotInput"
+
                     placeholder="Skriv dit spørgsmål..."
+
                     autocomplete="off"
+
                 >
+
                 <button type="submit">➤</button>
+
             </form>
+
         </div>
+
+
 
         <div class="roerbot-avatar" id="roerbotAvatar">
+
             <img
+
                 src="/static/images/roerbot.png"
+
                 alt="Roerbot"
+
             >
+
         </div>
+
+
 
                 <!-- Rørbots kompakte situationsbestemte taleboble -->
+
         <div
+
             class="roerbot-bubble"
+
             id="roerbotBubble"
+
             role="status"
+
             aria-live="polite"
+
             hidden
+
         >
+
             <div class="roerbot-bubble-heading">
+
                 <strong>Rørbot</strong>
+
                 <button
+
                     type="button"
+
                     id="roerbotBubbleClose"
+
                     aria-label="Luk Rørbots taleboble"
+
                 >×</button>
+
             </div>
 
+
+
             <div id="roerbotBubbleContent"></div>
+
             <div class="roerbot-bubble-actions" id="roerbotBubbleActions"></div>
+
         </div>
+
+
 
     </div>
 
+
+
     <script>
+
     const roerbotAvatar = document.getElementById("roerbotAvatar");
     const roerbotPanel = document.getElementById("roerbotPanel");
     const roerbotClose = document.getElementById("roerbotClose");
     const roerbotForm = document.getElementById("roerbotForm");
     const roerbotInput = document.getElementById("roerbotInput");
     const roerbotMessages = document.getElementById("roerbotMessages");
+    const roerbotTabList = document.getElementById("roerbotTabList");
+    const roerbotTabAdd = document.getElementById("roerbotTabAdd");
 
-    roerbotAvatar.addEventListener("click", () => {
+    const roerbotConversationMessages = new Map();
+    let roerbotConversations = [];
+    let activeRoerbotConversationKey = null;
+    let roerbotConversationsLoaded = false;
+    let roerbotConversationsLoading = null;
+
+    function roerbotWelcomeMessage() {
+        return {
+            text: "Hej, jeg er Roerbot. Spørg mig om projekter, hold og planlægning.",
+            sender: "bot"
+        };
+    }
+
+    function getRoerbotMessageHistory(conversationKey) {
+        if (!roerbotConversationMessages.has(conversationKey)) {
+            roerbotConversationMessages.set(
+                conversationKey,
+                [roerbotWelcomeMessage()]
+            );
+        }
+        return roerbotConversationMessages.get(conversationKey);
+    }
+
+    function renderRoerbotMessages() {
+        roerbotMessages.replaceChildren();
+        if (!activeRoerbotConversationKey) return;
+
+        getRoerbotMessageHistory(activeRoerbotConversationKey).forEach(message => {
+            const div = document.createElement("div");
+            div.className = "roerbot-message " + message.sender;
+            div.innerText = message.text;
+            roerbotMessages.appendChild(div);
+        });
+
+        roerbotMessages.scrollTop = roerbotMessages.scrollHeight;
+    }
+
+    function renderRoerbotTabs() {
+        roerbotTabList.replaceChildren();
+
+        roerbotConversations.forEach(conversation => {
+            const tab = document.createElement("div");
+            tab.className = "roerbot-tab";
+
+            if (conversation.conversation_key === activeRoerbotConversationKey) {
+                tab.classList.add("active");
+            }
+
+            const selectButton = document.createElement("button");
+            selectButton.type = "button";
+            selectButton.className = "roerbot-tab-select";
+            selectButton.textContent = conversation.title;
+            selectButton.title = conversation.title;
+            selectButton.addEventListener("click", () => {
+                selectRoerbotConversation(conversation.conversation_key);
+            });
+
+            const closeButton = document.createElement("button");
+            closeButton.type = "button";
+            closeButton.className = "roerbot-tab-close";
+            closeButton.textContent = "×";
+            closeButton.title = "Luk samtale";
+            closeButton.setAttribute("aria-label", `Luk ${conversation.title}`);
+            closeButton.addEventListener("click", async event => {
+                event.stopPropagation();
+                await closeRoerbotConversation(conversation.conversation_key);
+            });
+
+            tab.append(selectButton, closeButton);
+            roerbotTabList.appendChild(tab);
+        });
+    }
+
+    function selectRoerbotConversation(conversationKey) {
+        const exists = roerbotConversations.some(
+            conversation => conversation.conversation_key === conversationKey
+        );
+        if (!exists) return;
+
+        activeRoerbotConversationKey = conversationKey;
+        getRoerbotMessageHistory(conversationKey);
+        renderRoerbotTabs();
+        renderRoerbotMessages();
+        roerbotInput.focus();
+    }
+
+    async function createRoerbotConversation() {
+        const response = await fetch("/assistant/conversations", {
+            method: "POST"
+        });
+
+        if (!response.ok) {
+            throw new Error("Kunne ikke oprette Rørbot-samtale.");
+        }
+
+        const conversation = await response.json();
+        roerbotConversations.push(conversation);
+        activeRoerbotConversationKey = conversation.conversation_key;
+        getRoerbotMessageHistory(conversation.conversation_key);
+        renderRoerbotTabs();
+        renderRoerbotMessages();
+        roerbotInput.focus();
+        return conversation;
+    }
+
+    async function loadRoerbotConversations() {
+        if (roerbotConversationsLoaded) return;
+        if (roerbotConversationsLoading) return roerbotConversationsLoading;
+
+        roerbotConversationsLoading = (async () => {
+            const response = await fetch("/assistant/conversations");
+
+            if (!response.ok) {
+                throw new Error("Kunne ikke hente Rørbot-samtaler.");
+            }
+
+            const data = await response.json();
+            roerbotConversations = Array.isArray(data.conversations)
+                ? data.conversations
+                : [];
+
+            if (roerbotConversations.length === 0) {
+                await createRoerbotConversation();
+            } else {
+                activeRoerbotConversationKey =
+                    roerbotConversations[0].conversation_key;
+                getRoerbotMessageHistory(activeRoerbotConversationKey);
+                renderRoerbotTabs();
+                renderRoerbotMessages();
+            }
+
+            roerbotConversationsLoaded = true;
+        })();
+
+        try {
+            await roerbotConversationsLoading;
+        } finally {
+            roerbotConversationsLoading = null;
+        }
+    }
+
+    async function closeRoerbotConversation(conversationKey) {
+        const closedIndex = roerbotConversations.findIndex(
+            item => item.conversation_key === conversationKey
+        );
+        if (closedIndex < 0) return;
+
+        const formData = new FormData();
+        formData.append("conversation_key", conversationKey);
+
+        const response = await fetch("/assistant/conversations/close", {
+            method: "POST",
+            body: formData
+        });
+
+        if (!response.ok) {
+            addRoerbotMessage("Jeg kunne ikke lukke samtalen.", "bot");
+            return;
+        }
+
+        roerbotConversations = roerbotConversations.filter(
+            item => item.conversation_key !== conversationKey
+        );
+        roerbotConversationMessages.delete(conversationKey);
+
+        if (activeRoerbotConversationKey === conversationKey) {
+            if (roerbotConversations.length > 0) {
+                const nextIndex = Math.min(
+                    closedIndex,
+                    roerbotConversations.length - 1
+                );
+                activeRoerbotConversationKey =
+                    roerbotConversations[Math.max(nextIndex, 0)].conversation_key;
+            } else {
+                activeRoerbotConversationKey = null;
+                await createRoerbotConversation();
+                return;
+            }
+        }
+
+        renderRoerbotTabs();
+        renderRoerbotMessages();
+    }
+
+    roerbotAvatar.addEventListener("click", async () => {
+        const willOpen = !roerbotPanel.classList.contains("open");
         roerbotPanel.classList.toggle("open");
+
+        if (!willOpen) return;
+
+        try {
+            await loadRoerbotConversations();
+        } catch (error) {
+            console.error(error);
+            roerbotMessages.replaceChildren();
+
+            const message = document.createElement("div");
+            message.className = "roerbot-message bot";
+            message.innerText = "Jeg kunne ikke hente dine samtaler.";
+            roerbotMessages.appendChild(message);
+        }
+
         roerbotInput.focus();
     });
 
@@ -97,309 +393,614 @@
         roerbotPanel.classList.remove("open");
     });
 
-    roerbotForm.addEventListener("submit", async (event) => {
+    roerbotTabAdd.addEventListener("click", async () => {
+        try {
+            await loadRoerbotConversations();
+            await createRoerbotConversation();
+            roerbotInput.focus();
+        } catch (error) {
+            console.error(error);
+        }
+    });
+
+    roerbotForm.addEventListener("submit", async event => {
         event.preventDefault();
 
         const question = roerbotInput.value.trim();
+        if (!question) return;
 
-        if (!question) {
+        try {
+            await loadRoerbotConversations();
+        } catch (error) {
+            console.error(error);
             return;
         }
 
-        addRoerbotMessage(question, "user");
+        if (!activeRoerbotConversationKey) return;
+
+        const conversationKey = activeRoerbotConversationKey;
+
+        addRoerbotMessage(question, "user", conversationKey);
         roerbotInput.value = "";
 
         const thinkingMessage = addRoerbotMessage(
             "Jeg tænker...",
-            "bot"
+            "bot",
+            conversationKey,
+            false
         );
 
         try {
             const formData = new FormData();
             formData.append("question", question);
+            formData.append("conversation_key", conversationKey);
 
-            const response = await fetch(
-                "/assistant/ask",
-                {
-                    method: "POST",
-                    body: formData
-                }
-            );
+            const response = await fetch("/assistant/ask", {
+                method: "POST",
+                body: formData
+            });
 
             if (!response.ok) {
-                thinkingMessage.textContent =
-                    "Backend svarede med en fejl.";
+                updateRoerbotMessage(
+                    thinkingMessage,
+                    "Backend svarede med en fejl.",
+                    conversationKey
+                );
                 return;
             }
 
             const data = await response.json();
 
-            thinkingMessage.textContent =
-                data.answer || "Jeg fik ikke noget svar.";
+            if (data.conversation_title) {
+                const conversation = roerbotConversations.find(
+                    item => item.conversation_key === conversationKey
+                );
 
+                if (conversation) {
+                    conversation.title = data.conversation_title;
+                    renderRoerbotTabs();
+                }
+            }
+
+            updateRoerbotMessage(
+                thinkingMessage,
+                data.answer || "Jeg fik ikke noget svar.",
+                conversationKey
+            );
         } catch (error) {
-            thinkingMessage.textContent =
-                "Der opstod en fejl ved AI-kaldet.";
-
+            updateRoerbotMessage(
+                thinkingMessage,
+                "Der opstod en fejl ved AI-kaldet.",
+                conversationKey
+            );
             console.error(error);
         }
     });
 
-    function addRoerbotMessage(text, sender) {
+    function addRoerbotMessage(
+        text,
+        sender,
+        conversationKey = activeRoerbotConversationKey,
+        persist = true
+    ) {
+        if (!conversationKey) return null;
+
+        const message = {text, sender};
+
+        if (persist) {
+            getRoerbotMessageHistory(conversationKey).push(message);
+        }
+
+        if (conversationKey !== activeRoerbotConversationKey) {
+            return {element: null, message, persisted: persist};
+        }
+
         const div = document.createElement("div");
-
-        div.className =
-            "roerbot-message " + sender;
-
+        div.className = "roerbot-message " + sender;
         div.innerText = text;
-
         roerbotMessages.appendChild(div);
+        roerbotMessages.scrollTop = roerbotMessages.scrollHeight;
 
-        roerbotMessages.scrollTop =
-            roerbotMessages.scrollHeight;
+        return {element: div, message, persisted: persist};
+    }
 
-        return div;
+    function updateRoerbotMessage(messageReference, text, conversationKey) {
+        if (!messageReference) return;
+
+        messageReference.message.text = text;
+
+        if (!messageReference.persisted) {
+            getRoerbotMessageHistory(conversationKey).push(
+                messageReference.message
+            );
+            messageReference.persisted = true;
+        }
+
+        if (conversationKey === activeRoerbotConversationKey) {
+            renderRoerbotMessages();
+        }
     }
 
         // ------------------------------------------------------------
+
     // Rørbot – fælles Clippy-effekt og handlingsbobler
+
     // ------------------------------------------------------------
 
+
+
     const roerbotBubble = document.getElementById("roerbotBubble");
+
     const roerbotBubbleContent = document.getElementById("roerbotBubbleContent");
+
     const roerbotBubbleActions = document.getElementById("roerbotBubbleActions");
+
     const roerbotBubbleClose = document.getElementById("roerbotBubbleClose");
 
+
+
     const roerbotAnimations = {
+
         ok: ["roerbot-hop", "roerbot-spin", "roerbot-dance"],
+
         warning: ["roerbot-tilt", "roerbot-hop"],
+
         blocked: ["roerbot-tilt"]
+
     };
 
+
+
     let lastRoerbotAnimation = null;
+
     let roerbotAnimationTimer = null;
 
+
+
     function closeRoerbotBubble() {
+
         clearTimeout(roerbotAnimationTimer);
+
         roerbotBubble.hidden = true;
+
         roerbotBubble.classList.remove("visible");
+
     }
+
+
 
     roerbotBubbleClose.addEventListener("click", closeRoerbotBubble);
 
+
+
     function chooseRoerbotAnimation(status) {
+
         const choices = roerbotAnimations[status] || roerbotAnimations.ok;
 
+
+
         const available = choices.filter(
+
             animation => animation !== lastRoerbotAnimation
+
         );
+
+
 
         const pool = available.length ? available : choices;
 
+
+
         const selected = pool[Math.floor(Math.random() * pool.length)];
+
+
 
         lastRoerbotAnimation = selected;
 
+
+
         return selected;
+
     }
 
+
+
     function animateRoerbot(status, callback) {
+
         const image = roerbotAvatar.querySelector("img");
 
+
+
         image.classList.remove(
+
             "roerbot-hop",
+
             "roerbot-spin",
+
             "roerbot-dance",
+
             "roerbot-tilt"
+
         );
+
+
 
         void image.offsetWidth;
 
+
+
         const reducedMotion = window.matchMedia(
+
             "(prefers-reduced-motion: reduce)"
+
         ).matches;
 
+
+
         if (reducedMotion) {
+
             callback();
+
             return;
+
         }
+
+
 
         image.classList.add(chooseRoerbotAnimation(status));
 
+
+
         clearTimeout(roerbotAnimationTimer);
 
+
+
         roerbotAnimationTimer = setTimeout(() => {
+
             image.classList.remove(
+
                 "roerbot-hop",
+
                 "roerbot-spin",
+
                 "roerbot-dance",
+
                 "roerbot-tilt"
+
             );
 
+
+
             callback();
+
         }, 850);
+
     }
 
+
+
     function createRoerbotButton(label, callback, primary = false) {
+
         const button = document.createElement("button");
 
+
+
         button.type = "button";
+
         button.textContent = label;
 
+
+
         button.className = primary
+
             ? "roerbot-action primary"
+
             : "roerbot-action";
+
+
 
         button.addEventListener("click", callback);
 
+
+
         return button;
+
     }
 
+
+
     function showRoerbotBubble(options) {
+
         closeRoerbotBubble();
+
+
 
         roerbotPanel.classList.remove("open");
 
+
+
         roerbotBubbleContent.replaceChildren();
+
         roerbotBubbleActions.replaceChildren();
 
+
+
         const message = document.createElement("p");
+
         message.textContent = options.message;
+
+
 
         roerbotBubbleContent.appendChild(message);
 
+
+
         if (options.details) {
+
             const details = document.createElement("details");
 
+
+
             const summary = document.createElement("summary");
+
             summary.textContent = "Vis konflikter";
 
+
+
             const list = document.createElement("div");
+
             list.className = "roerbot-conflict-list";
 
+
+
             options.details.forEach(conflict => {
+
                 const item = document.createElement("div");
+
                 item.className = "roerbot-conflict-item";
 
+
+
                 const heading = document.createElement("strong");
+
                 heading.textContent = conflict.key;
 
+
+
                 const description = document.createElement("p");
+
                 description.textContent = conflict.message;
 
+
+
                 item.append(heading, description);
+
                 list.appendChild(item);
+
             });
+
+
 
             details.append(summary, list);
+
             roerbotBubbleContent.appendChild(details);
+
         }
+
+
 
         (options.actions || []).forEach(action => {
+
             roerbotBubbleActions.appendChild(
+
                 createRoerbotButton(
+
                     action.label,
+
                     action.callback,
+
                     action.primary
+
                 )
+
             );
+
         });
+
+
 
         animateRoerbot(options.status || "ok", () => {
+
             roerbotBubble.hidden = false;
 
+
+
             requestAnimationFrame(() => {
+
                 roerbotBubble.classList.add("visible");
+
             });
+
         });
+
     }
 
+
+
     function showRoerbotImportReport(report) {
+
         const applyForm = document.getElementById("c5ApplyForm");
 
+
+
         if (!applyForm) {
+
             return;
+
         }
+
+
 
         let message;
 
+
+
         if (report.status === "ok") {
+
             message =
+
                 "Jeg har kontrolleret din C5-fil. Ingen konflikter fundet! " +
+
                 "Skal jeg godkende importen?";
+
         } else if (report.status === "warning") {
+
             message =
+
                 `Jeg har fundet ${report.conflicts.length} konflikt(er). ` +
+
                 "De konfliktramte oplysninger håndteres efter importmotorens " +
+
                 "sikkerhedsregler. Skal jeg godkende importen med disse undtagelser?";
+
         } else {
+
             message =
+
                 "Jeg har fundet blokerende konflikter. " +
+
                 "Importen kan ikke godkendes, før de er håndteret.";
+
         }
+
         message +=
+
             `\n\nNye: ${report.created} · ` +
+
             `Opdateres: ${report.updated} · ` +
+
             `Uændrede: ${report.unchanged} · ` +
+
             `Arbejdsregistreringer: ${report.work_entries_created}`;
 
+
+
         if (
+
             Array.isArray(report.work_entries) &&
+
             report.work_entries.length > 0
+
         ) {
+
             message +=
+
                 "\n\nArbejdsregistreringer der oprettes:\n" +
+
                 report.work_entries
+
                     .map(key => `• ${key}`)
+
                     .join("\n");
+
         }
+
+
 
         const actions = [];
 
+
+
         if (report.can_import) {
+
             actions.push({
+
                 label: "Ja, godkend import",
+
                 primary: true,
+
                 callback: () => {
+
                     closeRoerbotBubble();
 
+
+
                     // Den eksisterende formular og serverkontrol bruges.
+
                     applyForm.requestSubmit();
+
                 }
+
             });
+
         }
+
+
 
         actions.push({
+
             label: "Ikke endnu",
+
             callback: closeRoerbotBubble
+
         });
+
+
 
         showRoerbotBubble({
+
             status: report.status,
+
             message,
+
             details: report.conflicts,
+
             actions
+
         });
+
     }
+
+
 
     // Gør den fælles widget tilgængelig for andre sider.
+
     window.roerbotShowBubble = showRoerbotBubble;
+
     window.roerbotShowImportReport = showRoerbotImportReport;
 
+
+
     // C5-importens forhåndsvisning kan levere en rapport.
+
     const importReportElement = document.getElementById(
+
         "roerbotImportReportData"
+
     );
 
+
+
     if (importReportElement) {
+
         try {
+
             const report = JSON.parse(importReportElement.textContent);
+
             showRoerbotImportReport(report);
+
         } catch (error) {
+
             console.error("Kunne ikke vise Rørbots importrapport:", error);
+
         }
+
     }
 
+
+
     </script>
+
 </body>
+
 </html>

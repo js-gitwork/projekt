@@ -13,6 +13,7 @@ from projektstyring.backend.repositories.conversation_state_repository import (
     clear_active_conversation,
     get_active_conversation,
     save_active_conversation,
+    rename_conversation,
 )
 from projektstyring.backend.planning_scenario_service import (
     PlanningScenarioService,
@@ -99,6 +100,141 @@ def build_report_context_summary(
         ),
     }
 
+def build_conversation_title(
+    interpretation: dict[str, Any],
+) -> str:
+    """
+    Laver en kort, stabil titel til en ny Rørbot-samtale.
+
+    Titlen bygger på interpreterens allerede opløste kontekst.
+    Den bruges kun til at navngive en hidtil unavngivet samtale.
+    """
+    scope = interpretation.get("scope")
+
+    if not isinstance(scope, dict):
+        scope = {}
+
+    project_ids = [
+        str(project_id).strip()
+        for project_id in scope.get("project_ids", [])
+        if str(project_id).strip()
+    ]
+
+    project_label = ""
+
+    if len(project_ids) == 1:
+        project_label = project_ids[0]
+    elif len(project_ids) > 1:
+        project_label = "Flere projekter"
+
+    intent = str(
+        interpretation.get("intent") or ""
+    ).strip()
+
+    analysis = interpretation.get("analysis")
+
+    if not isinstance(analysis, dict):
+        analysis = {}
+
+    analysis_type = str(
+        analysis.get("type") or ""
+    ).strip()
+
+    data_requests = interpretation.get("data_requests")
+
+    if not isinstance(data_requests, list):
+        data_requests = []
+
+    resources = {
+        str(request.get("resource") or "").strip()
+        for request in data_requests
+        if isinstance(request, dict)
+    }
+
+    subject = ""
+
+    if intent == "project_creation":
+        subject = "Opret projekt"
+
+    elif intent == "change":
+        subject = "Ændringer"
+
+    elif intent == "scenario_decision":
+        subject = "Scenarie"
+
+    elif (
+        "remaining_work_summary" in resources
+        or "remaining_work" in resources
+        or "rest_work" in resources
+    ):
+        subject = "Manglende arbejde"
+
+    elif "production_status" in resources:
+        subject = "Produktionsstatus"
+
+    elif "conflicts" in resources:
+        subject = "Konflikter"
+
+    elif "project_constraints" in resources:
+        subject = "Tilladelser og deadlines"
+
+    elif analysis_type in {
+        "summary",
+        "list",
+        "overview",
+        "status",
+    }:
+        subject = "Projektstatus"
+
+    elif intent == "report":
+        subject = "Projektstatus"
+
+    elif analysis_type:
+        subject = "Samtale"
+
+    elif intent == "clarification":
+        subject = "Afklaring"
+
+    else:
+        subject = "Samtale"
+
+    if project_label:
+        return f"{project_label} – {subject}"[:150]
+
+    return subject[:150]
+
+
+def ensure_conversation_title(
+    *,
+    active_state: Any,
+    interpretation: dict[str, Any],
+    user_key: str,
+    conversation_key: str,
+) -> str | None:
+    """
+    Navngiver kun en helt ny samtale.
+
+    Når samtalen først har fået en konteksttitel, beholder den
+    titlen gennem resten af arbejdet i fanen.
+    """
+    if str(active_state.title or "").strip() != "Ny samtale":
+        return None
+
+    title = build_conversation_title(
+        interpretation
+    )
+
+    renamed = rename_conversation(
+        user_key=user_key,
+        conversation_key=conversation_key,
+        title=title,
+    )
+
+    if renamed is None:
+        return None
+
+    return renamed.title
+
 planning_scenario_service = (
     PlanningScenarioService()
 )
@@ -121,6 +257,8 @@ def save_active_context(
     original_question: str,
     context_data: Any,
     answer: str,
+    user_key: str,
+    conversation_key: str,
     context_summary: dict[str, Any] | None = None,
 ) -> None:
     save_active_conversation(
@@ -136,9 +274,9 @@ def save_active_context(
             ),
             "answer": answer,
         },
-        user_key="default",
+        user_key=user_key,
+        conversation_key=conversation_key,
     )
-
 
 def get_active_ai_context(
     active_state: Any,
@@ -247,6 +385,8 @@ def answer_from_existing_context(
     question: str,
     active_state: Any,
     interpretation: dict[str, Any],
+    user_key: str,
+    conversation_key: str,
 ) -> dict[str, str] | None:
     """
     Besvarer et opfølgende rapportspørgsmål ud fra det
@@ -297,6 +437,8 @@ def answer_from_existing_context(
         ),
         context_data=context_data,
         answer=answer,
+        user_key=user_key,
+        conversation_key=conversation_key,
         context_summary=(
             data.get("context_summary")
             or {}
@@ -313,6 +455,8 @@ def handle_report(
     question: str,
     interpretation: dict[str, Any],
     active_state: Any,
+    user_key: str,
+    conversation_key: str,
 ) -> dict[str, str]:
     """
     Behandler rapportspørgsmål ud fra Interpreterens
@@ -350,6 +494,8 @@ def handle_report(
             question=question,
             active_state=active_state,
             interpretation=interpretation,
+            user_key=user_key,
+            conversation_key=conversation_key,
         )
 
         if continued is not None:
@@ -369,6 +515,8 @@ def handle_report(
             question=question,
             active_state=active_state,
             interpretation=interpretation,
+            user_key=user_key,
+            conversation_key=conversation_key,
         )
 
         if continued is not None:
@@ -391,6 +539,8 @@ def handle_report(
         original_question=question,
         context_data=context,
         answer=answer,
+        user_key=user_key,
+        conversation_key=conversation_key,
         context_summary=(
             build_report_context_summary(
                 interpretation
@@ -406,11 +556,14 @@ def handle_project_creation(
     question: str,
     *,
     interpretation: dict[str, Any],
+    user_key: str,
+    conversation_key: str,
 ) -> dict[str, str]:
     result = handle_project_creation_message(
         question,
         interpretation=interpretation,
-        user_key="default",
+        user_key=user_key,
+        conversation_key=conversation_key,
     )
 
     return {
@@ -702,6 +855,8 @@ def handle_scenario_change(
     question: str,
     interpretation: dict[str, Any],
     active_state: Any,
+    user_key: str,
+    conversation_key: str,
     conversation_context: dict[str, Any] | None = None,
 ) -> dict[str, str]:
     """
@@ -889,7 +1044,8 @@ def handle_scenario_change(
     save_active_conversation(
         workflow=workflow,
         data=merged_data,
-        user_key="default",
+        user_key=user_key,
+        conversation_key=conversation_key,
     )
 
     if len(changes) == 1:
@@ -984,6 +1140,9 @@ def handle_scenario_decision(
     *,
     interpretation: dict[str, Any],
     active_state: Any,
+    user_key: str,
+    conversation_key: str,
+    actor_name: str,
 ) -> dict[str, str]:
     """
     Udfører en allerede fortolket beslutning om det aktive
@@ -1027,12 +1186,13 @@ def handle_scenario_decision(
     if decision == "approve":
         result = approve_scenario_revision(
             scenario_id=scenario_id,
-            approved_by="Jacob",
+            approved_by=actor_name,
         )
 
         if result.get("ok"):
             clear_active_conversation(
-                "default"
+                user_key=user_key,
+                conversation_key=conversation_key,
             )
 
         return {
@@ -1048,7 +1208,8 @@ def handle_scenario_decision(
         )
 
         clear_active_conversation(
-            "default"
+            user_key=user_key,
+            conversation_key=conversation_key,
         )
 
         return {
@@ -1067,6 +1228,10 @@ def handle_scenario_decision(
 
 def ask_roerbot(
     question: str,
+    *,
+    user_key: str,
+    conversation_key: str,
+    actor_name: str,
 ) -> dict[str, str]:
     """
     Roerbots hovedindgang.
@@ -1090,8 +1255,17 @@ def ask_roerbot(
         }
 
     active_state = get_active_conversation(
-        "default"
+        user_key=user_key,
+        conversation_key=conversation_key,
     )
+
+    if active_state is None:
+        return {
+            "answer": (
+                "Samtalen findes ikke længere. "
+                "Opret en ny Rørbot-samtale og prøv igen."
+            )
+        }
 
     conversation_context = build_agent_context(
         question=normalized_question,
@@ -1105,6 +1279,13 @@ def ask_roerbot(
 
     interpretation = resolve_project_references(
         interpretation
+    )
+
+    conversation_title = ensure_conversation_title(
+        active_state=active_state,
+        interpretation=interpretation,
+        user_key=user_key,
+        conversation_key=conversation_key,
     )
 
     intent = interpretation.get(
@@ -1127,23 +1308,30 @@ def ask_roerbot(
         interpretation["project_creation_action"] = "cancel"
         interpretation["project_creation_fields"] = {}
         intent = "project_creation"
+
     if intent == "scenario_decision":
         return handle_scenario_decision(
             interpretation=interpretation,
             active_state=active_state,
+            user_key=user_key,
+            conversation_key=conversation_key,
+            actor_name=actor_name,
         )
-
     if intent == "report":
         return handle_report(
             question=normalized_question,
             interpretation=interpretation,
             active_state=active_state,
+            user_key=user_key,
+            conversation_key=conversation_key,
         )
 
     if intent == "project_creation":
         return handle_project_creation(
             normalized_question,
             interpretation=interpretation,
+            user_key=user_key,
+            conversation_key=conversation_key,
         )
 
     if intent == "change":
@@ -1151,6 +1339,8 @@ def ask_roerbot(
             question=normalized_question,
             interpretation=interpretation,
             active_state=active_state,
+            user_key=user_key,
+            conversation_key=conversation_key,
             conversation_context=conversation_context,
         )
 

@@ -256,7 +256,8 @@ def handle_project_creation_message(
     text: str,
     *,
     interpretation: dict[str, Any],
-    user_key: str = "default",
+    user_key: str,
+    conversation_key: str,
 ) -> dict[str, Any]:
     """
     Behandler interpreterens strukturerede projektbeslutning.
@@ -274,7 +275,8 @@ def handle_project_creation_message(
     )
 
     active_state = get_active_conversation(
-        user_key
+        user_key=user_key,
+        conversation_key=conversation_key,
     )
 
     has_active_draft = (
@@ -335,7 +337,8 @@ def handle_project_creation_message(
         )
 
         clear_active_conversation(
-            user_key
+            user_key=user_key,
+            conversation_key=conversation_key,
         )
 
         return {
@@ -349,11 +352,14 @@ def handle_project_creation_message(
             ),
         }
 
-    # Annullering afslutter den midlertidige projektoprettelse.
-    # Der er endnu ikke oprettet noget projekt i databasen.
+    # Annullering rydder projektoprettelsen i den aktuelle
+    # samtale. Selve Rørbot-fanen bevares.
     if action == "cancel":
         if has_active_draft:
-            clear_active_conversation(user_key)
+            clear_active_conversation(
+                user_key=user_key,
+                conversation_key=conversation_key,
+            )
 
         return {
             "analysis": existing_analysis,
@@ -416,6 +422,7 @@ def handle_project_creation_message(
         workflow=PROJECT_CREATION_WORKFLOW,
         data=merged_data,
         user_key=user_key,
+        conversation_key=conversation_key,
     )
 
     return {
@@ -426,7 +433,6 @@ def handle_project_creation_message(
             updated_fields=list(fields.keys()),
         ),
     }
-
 
 def format_project_creation_analysis(
     analysis: dict[str, Any],

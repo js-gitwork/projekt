@@ -1,86 +1,145 @@
 from sqlalchemy import select
-from sqlalchemy.orm import Session
 
 from projektstyring.backend.database.connection import SessionLocal
 from projektstyring.backend.db_models.conversation import ConversationState
 
 
-DEFAULT_USER_KEY = "default"
-
-
-def _get_active_conversations(
-    session: Session,
+def list_conversations(
+    *,
     user_key: str,
 ) -> list[ConversationState]:
-    statement = (
-        select(ConversationState)
-        .where(ConversationState.user_key == user_key)
-        .where(ConversationState.status == "active")
-        .order_by(
-            ConversationState.updated_at.desc(),
-            ConversationState.id.desc(),
+    with SessionLocal() as session:
+        statement = (
+            select(ConversationState)
+            .where(
+                ConversationState.user_key == user_key
+            )
+            .where(
+                ConversationState.status == "active"
+            )
+            .order_by(
+                ConversationState.updated_at.desc(),
+                ConversationState.id.desc(),
+            )
         )
-    )
 
-    return list(session.scalars(statement).all())
-
-
-def _get_active_conversation(
-    session: Session,
-    user_key: str,
-) -> ConversationState | None:
-    active_states = _get_active_conversations(
-        session=session,
-        user_key=user_key,
-    )
-
-    if not active_states:
-        return None
-
-    return active_states[0]
+        return list(
+            session.scalars(statement).all()
+        )
 
 
 def get_active_conversation(
-    user_key: str = DEFAULT_USER_KEY,
+    *,
+    user_key: str,
+    conversation_key: str,
 ) -> ConversationState | None:
     with SessionLocal() as session:
-        return _get_active_conversation(
-            session=session,
-            user_key=user_key,
+        statement = (
+            select(ConversationState)
+            .where(
+                ConversationState.user_key == user_key
+            )
+            .where(
+                ConversationState.conversation_key
+                == conversation_key
+            )
+            .where(
+                ConversationState.status == "active"
+            )
         )
 
+        return session.scalar(statement)
 
-def save_active_conversation(
-    workflow: str,
-    data: dict,
-    user_key: str = DEFAULT_USER_KEY,
+
+def create_conversation(
+    *,
+    user_key: str,
+    title: str | None = None,
+    kind: str = "normal",
+    workflow: str = "conversation",
+    data: dict | None = None,
 ) -> ConversationState:
     with SessionLocal() as session:
-        active_states = _get_active_conversations(
-            session=session,
+        state = ConversationState(
             user_key=user_key,
+            title=title or "Ny samtale",
+            kind=kind,
+            workflow=workflow,
+            data=data or {},
+            status="active",
         )
 
-        if active_states:
-            state = active_states[0]
+        session.add(state)
+        session.commit()
+        session.refresh(state)
 
-            state.workflow = workflow
-            state.data = data
-            state.status = "active"
+        return state
 
-            # Hvis der ved tidligere kørsel er blevet oprettet flere
-            # aktive samtaler for samme bruger, lukkes de ældre.
-            for stale_state in active_states[1:]:
-                stale_state.status = "closed"
-
-        else:
-            state = ConversationState(
-                user_key=user_key,
-                workflow=workflow,
-                data=data,
-                status="active",
+def rename_conversation(
+    *,
+    user_key: str,
+    conversation_key: str,
+    title: str,
+) -> ConversationState | None:
+    with SessionLocal() as session:
+        statement = (
+            select(ConversationState)
+            .where(
+                ConversationState.user_key == user_key
             )
-            session.add(state)
+            .where(
+                ConversationState.conversation_key
+                == conversation_key
+            )
+            .where(
+                ConversationState.status == "active"
+            )
+        )
+
+        state = session.scalar(statement)
+
+        if state is None:
+            return None
+
+        state.title = title.strip()[:150]
+
+        session.commit()
+        session.refresh(state)
+
+        return state
+
+def save_active_conversation(
+    *,
+    workflow: str,
+    data: dict,
+    user_key: str,
+    conversation_key: str,
+) -> ConversationState:
+    with SessionLocal() as session:
+        statement = (
+            select(ConversationState)
+            .where(
+                ConversationState.user_key == user_key
+            )
+            .where(
+                ConversationState.conversation_key
+                == conversation_key
+            )
+            .where(
+                ConversationState.status == "active"
+            )
+        )
+
+        state = session.scalar(statement)
+
+        if state is None:
+            raise ValueError(
+                "Samtalen findes ikke eller tilhører "
+                "ikke den aktuelle bruger."
+            )
+
+        state.workflow = workflow
+        state.data = data
 
         session.commit()
         session.refresh(state)
@@ -89,23 +148,73 @@ def save_active_conversation(
 
 
 def clear_active_conversation(
-    user_key: str = DEFAULT_USER_KEY,
+    *,
+    user_key: str,
+    conversation_key: str,
 ) -> ConversationState | None:
+    """
+    Rydder workflow-konteksten i en eksisterende fane.
+
+    Samtalen slettes ikke. Fanen kan derfor fortsætte efter
+    eksempelvis godkendelse eller kassering af et scenarie.
+    """
     with SessionLocal() as session:
-        active_states = _get_active_conversations(
-            session=session,
-            user_key=user_key,
+        statement = (
+            select(ConversationState)
+            .where(
+                ConversationState.user_key == user_key
+            )
+            .where(
+                ConversationState.conversation_key
+                == conversation_key
+            )
+            .where(
+                ConversationState.status == "active"
+            )
         )
 
-        if not active_states:
+        state = session.scalar(statement)
+
+        if state is None:
             return None
 
-        latest_state = active_states[0]
-
-        for state in active_states:
-            state.status = "closed"
+        state.workflow = "conversation"
+        state.data = {}
 
         session.commit()
-        session.refresh(latest_state)
+        session.refresh(state)
 
-        return latest_state
+        return state
+
+
+def delete_conversation(
+    *,
+    user_key: str,
+    conversation_key: str,
+) -> bool:
+    """
+    Sletter en midlertidig Rørbot-samtale.
+
+    Permanente beslutninger, ændringer og snapshots påvirkes ikke.
+    """
+    with SessionLocal() as session:
+        statement = (
+            select(ConversationState)
+            .where(
+                ConversationState.user_key == user_key
+            )
+            .where(
+                ConversationState.conversation_key
+                == conversation_key
+            )
+        )
+
+        state = session.scalar(statement)
+
+        if state is None:
+            return False
+
+        session.delete(state)
+        session.commit()
+
+        return True

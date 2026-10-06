@@ -342,13 +342,25 @@ def normalize_scope(
 
 def normalize_data_requests(
     value: Any,
+    *,
+    scope: dict[str, list[str]] | None = None,
 ) -> list[dict[str, Any]]:
     """
     Validerer AI'ens ønsker til rapportdata.
+
+    Retter også den kendte semantisk ugyldige kombination,
+    hvor AI'en forsøger at hente installationer som et felt
+    på projects-resource'en. Installationer er en selvstændig
+    resource og skal hentes inden for projektets scope.
     """
 
     if not isinstance(value, list):
         return []
+
+    scope = scope or {}
+    project_ids = list(
+        scope.get("project_ids") or []
+    )
 
     result = []
 
@@ -363,18 +375,51 @@ def normalize_data_requests(
         if resource not in ALLOWED_RESOURCES:
             continue
 
+        fields = normalize_string_list(
+            request.get("fields")
+        )
+
         filters = request.get("filters")
 
         if not isinstance(filters, list):
             filters = []
 
+        #
+        # Installationer er ikke et felt på projects.
+        #
+        # Hvis AI'en laver denne ugyldige kombination,
+        # omsættes ønsket til installations-resource'en
+        # inden for det allerede opløste projektscope.
+        #
+        if (
+            resource == "projects"
+            and "installations" in fields
+            and project_ids
+        ):
+            for project_id in project_ids:
+                result.append(
+                    {
+                        "resource": "installations",
+                        "filters": [
+                            {
+                                "field": "project_id",
+                                "operator": "equals",
+                                "value": project_id,
+                            }
+                        ],
+                        "fields": [],
+                        "sort": None,
+                        "limit": request.get("limit"),
+                    }
+                )
+
+            continue
+
         result.append(
             {
                 "resource": resource,
                 "filters": filters,
-                "fields": normalize_string_list(
-                    request.get("fields")
-                ),
+                "fields": fields,
                 "sort": (
                     request.get("sort")
                     if isinstance(
@@ -388,8 +433,6 @@ def normalize_data_requests(
         )
 
     return result
-
-
 
 def normalize_change(
     value: Any,
@@ -704,8 +747,13 @@ def normalize_interpretation(
         ):
             project_creation_action = "question"
 
+    scope = normalize_scope(
+        value.get("scope")
+    )
+
     data_requests = normalize_data_requests(
-        value.get("data_requests")
+        value.get("data_requests"),
+        scope=scope,
     )
 
     data_strategy = str(
@@ -756,9 +804,7 @@ def normalize_interpretation(
         "summary": str(
             value.get("summary") or question
         ).strip(),
-        "scope": normalize_scope(
-            value.get("scope")
-        ),
+        "scope": scope,
         "data_strategy": data_strategy,
         "data_requests": data_requests,
         "scenario_decision": scenario_decision,

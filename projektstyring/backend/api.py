@@ -29,6 +29,12 @@ from projektstyring.backend.project_repository import ProjectRepository
 from projektstyring.backend.repositories.team_repository import (
     TeamRepository,
 )
+from projektstyring.backend.repositories.conversation_state_repository import (
+    create_conversation,
+    delete_conversation,
+    get_active_conversation,
+    list_conversations,
+)
 from projektstyring.backend.roerbot_service import ask_roerbot
 from projektstyring.backend.project_factory import create_project as make_project
 from projektstyring.backend.survey_model import default_survey
@@ -1299,8 +1305,103 @@ async def c5_import_apply(
         status_code=303,
     )
 
+def roerbot_user_key(request: Request) -> str:
+    return f"user:{request.state.user.id}"
+
+
+@app.get("/assistant/conversations")
+def roerbot_list_conversations(
+    request: Request,
+):
+    user_key = roerbot_user_key(request)
+
+    conversations = list_conversations(
+        user_key=user_key,
+    )
+
+    return {
+        "conversations": [
+            {
+                "conversation_key": (
+                    conversation.conversation_key
+                ),
+                "title": conversation.title,
+                "kind": conversation.kind,
+                "updated_at": (
+                    conversation.updated_at.isoformat()
+                ),
+            }
+            for conversation in conversations
+        ]
+    }
+
+
+@app.post("/assistant/conversations")
+def roerbot_create_conversation(
+    request: Request,
+):
+    user_key = roerbot_user_key(request)
+
+    conversation = create_conversation(
+        user_key=user_key,
+        kind="normal",
+    )
+
+    return {
+        "conversation_key": conversation.conversation_key,
+        "title": conversation.title,
+        "kind": conversation.kind,
+    }
+
+
+@app.post("/assistant/conversations/close")
+def roerbot_close_conversation(
+    request: Request,
+    conversation_key: str = Form(...),
+):
+    deleted = delete_conversation(
+        user_key=roerbot_user_key(request),
+        conversation_key=conversation_key,
+    )
+
+    if not deleted:
+        return JSONResponse(
+            status_code=404,
+            content={
+                "detail": "Samtalen findes ikke.",
+            },
+        )
+
+    return {
+        "ok": True,
+    }
+
+
 @app.post("/assistant/ask")
 def roerbot_global_ask(
+    request: Request,
     question: str = Form(...),
+    conversation_key: str = Form(...),
 ):
-    return ask_roerbot(question)
+    user = request.state.user
+    user_key = f"user:{user.id}"
+
+    result = ask_roerbot(
+        question,
+        user_key=user_key,
+        conversation_key=conversation_key,
+        actor_name=(
+            user.display_name
+            or user.username
+        ),
+    )
+
+    conversation = get_active_conversation(
+        user_key=user_key,
+        conversation_key=conversation_key,
+    )
+
+    if conversation is not None:
+        result["conversation_title"] = conversation.title
+
+    return result

@@ -463,6 +463,94 @@ body {
     cursor: pointer;
 }
 
+/* Rørbot – samtalefaner */
+
+.roerbot-tabs {
+    display: flex;
+    align-items: stretch;
+    gap: 6px;
+    padding: 8px 10px 0;
+    background: #fff7ed;
+    border-bottom: 1px solid #fed7aa;
+}
+
+.roerbot-tab-list {
+    display: flex;
+    flex: 1;
+    gap: 6px;
+    min-width: 0;
+    overflow-x: auto;
+    scrollbar-width: thin;
+}
+
+.roerbot-tab {
+    display: flex;
+    align-items: center;
+    flex: 0 0 auto;
+    max-width: 180px;
+    border: 1px solid #fed7aa;
+    border-bottom: none;
+    border-radius: 8px 8px 0 0;
+    background: #ffedd5;
+}
+
+.roerbot-tab.active {
+    background: white;
+    border-color: #f97316;
+}
+
+.roerbot-tab-select {
+    min-width: 0;
+    max-width: 145px;
+    padding: 8px 6px 8px 10px;
+    border: none;
+    background: transparent;
+    color: #7c2d12;
+    cursor: pointer;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.roerbot-tab.active .roerbot-tab-select {
+    font-weight: 600;
+    color: #c2410c;
+}
+
+.roerbot-tab-close {
+    padding: 6px 8px 6px 4px;
+    border: none;
+    background: transparent;
+    color: #9a3412;
+    cursor: pointer;
+    font-size: 1rem;
+    line-height: 1;
+}
+
+.roerbot-tab-close:hover {
+    color: #dc2626;
+}
+
+.roerbot-tab-add {
+    flex: 0 0 auto;
+    align-self: center;
+    width: 30px;
+    height: 30px;
+    margin-bottom: 4px;
+    padding: 0;
+    border: 1px solid #f97316;
+    border-radius: 8px;
+    background: white;
+    color: #f97316;
+    font-size: 1.25rem;
+    line-height: 1;
+    cursor: pointer;
+}
+
+.roerbot-tab-add:hover {
+    background: #ffedd5;
+}
+
 .roerbot-messages {
     height: 360px;
     overflow-y: auto;
