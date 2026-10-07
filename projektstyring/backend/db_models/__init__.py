@@ -13,6 +13,7 @@ from projektstyring.backend.db_models.installation import Installation
 from projektstyring.backend.db_models.installation_detail import (
     InstallationProgress,
     Stretch,
+    StretchSurvey,
 )
 from projektstyring.backend.db_models.planning_scenario import (
     PlanningScenario,
@@ -71,6 +72,7 @@ __all__ = [
     "ServiceConnectionWork",
     "SnapshotPlanActivity",
     "Stretch",
+    "StretchSurvey",
     "TaskAssignment",
     "TaskQuantity",
     "TaskType",

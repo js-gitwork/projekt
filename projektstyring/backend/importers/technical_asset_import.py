@@ -87,6 +87,44 @@ class ImportedServiceConnectionWork:
         default_factory=dict
     )
 
+@dataclass(slots=True)
+class ImportedStretchSurvey:
+    """
+    Tekniske opmålingsdata for ét stræk.
+
+    Opmålingsskemaet er den autoritative kilde.
+    A er lodret rørmål.
+    B er vandret rørmål.
+    """
+
+    existing_profile: str = ""
+    existing_dimension: str = ""
+    existing_material: str = ""
+    existing_length_m: Decimal | None = None
+
+    planned_dimension: str = ""
+    planned_length_m: Decimal | None = None
+
+    traffic: str = ""
+
+    bottom_cannot_open: bool = False
+    bottom_profile: str = ""
+    bottom_dimension_a_mm: Decimal | None = None
+    bottom_dimension_b_mm: Decimal | None = None
+    bottom_material: str = ""
+
+    top_cannot_open: bool = False
+    top_profile: str = ""
+    top_dimension_a_mm: Decimal | None = None
+    top_dimension_b_mm: Decimal | None = None
+    top_material: str = ""
+
+    measured_by: str = ""
+    notes: str = ""
+
+    raw_data: dict[str, Any] = field(
+        default_factory=dict
+    )
 
 @dataclass(slots=True)
 class ImportedStretch:
@@ -105,12 +143,13 @@ class ImportedStretch:
         default_factory=dict
     )
 
+    survey: ImportedStretchSurvey | None = None
+
     service_connections: list[
         ImportedServiceConnection
     ] = field(
         default_factory=list
     )
-
 
 @dataclass(slots=True)
 class ImportedInstallationAssets:

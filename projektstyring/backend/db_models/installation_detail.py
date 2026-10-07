@@ -9,6 +9,7 @@ from sqlalchemy import (
     String,
     Text,
     UniqueConstraint,
+    Boolean,
 )
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column, relationship
@@ -229,4 +230,174 @@ class Stretch(Base):
         back_populates="stretch",
         cascade="all, delete-orphan",
         order_by="ServiceConnection.sequence",
+    )
+
+    survey = relationship(
+        "StretchSurvey",
+        back_populates="stretch",
+        cascade="all, delete-orphan",
+        uselist=False,
+    )
+
+
+class StretchSurvey(Base):
+    """
+    Tekniske opmålingsdata for ét stræk.
+
+    Opmålingsskemaet er den autoritative kilde til disse data.
+    A er det lodrette rørmål.
+    B er det vandrette rørmål.
+
+    Et stræk kan have mål ved begge ender. Målingerne tilhører
+    strækket og må derfor ikke gemmes på selve brøndene.
+    """
+
+    __tablename__ = "stretch_surveys"
+
+    id: Mapped[int] = mapped_column(
+        Integer,
+        primary_key=True,
+        autoincrement=True,
+    )
+
+    stretch_id: Mapped[int] = mapped_column(
+        ForeignKey(
+            "stretches.id",
+            ondelete="CASCADE",
+        ),
+        nullable=False,
+        unique=True,
+        index=True,
+    )
+
+    existing_profile: Mapped[str] = mapped_column(
+        String(50),
+        nullable=False,
+        default="",
+    )
+
+    existing_dimension: Mapped[str] = mapped_column(
+        String(50),
+        nullable=False,
+        default="",
+    )
+
+    existing_material: Mapped[str] = mapped_column(
+        String(50),
+        nullable=False,
+        default="",
+    )
+
+    existing_length_m: Mapped[float | None] = mapped_column(
+        Float,
+        nullable=True,
+    )
+
+    planned_dimension: Mapped[str] = mapped_column(
+        String(50),
+        nullable=False,
+        default="",
+    )
+
+    planned_length_m: Mapped[float | None] = mapped_column(
+        Float,
+        nullable=True,
+    )
+
+    traffic: Mapped[str] = mapped_column(
+        String(50),
+        nullable=False,
+        default="",
+    )
+
+    bottom_cannot_open: Mapped[bool] = mapped_column(
+        Boolean,
+        nullable=False,
+        default=False,
+    )
+
+    bottom_profile: Mapped[str] = mapped_column(
+        String(50),
+        nullable=False,
+        default="",
+    )
+
+    bottom_dimension_a_mm: Mapped[float | None] = mapped_column(
+        Float,
+        nullable=True,
+    )
+
+    bottom_dimension_b_mm: Mapped[float | None] = mapped_column(
+        Float,
+        nullable=True,
+    )
+
+    bottom_material: Mapped[str] = mapped_column(
+        String(50),
+        nullable=False,
+        default="",
+    )
+
+    top_cannot_open: Mapped[bool] = mapped_column(
+        Boolean,
+        nullable=False,
+        default=False,
+    )
+
+    top_profile: Mapped[str] = mapped_column(
+        String(50),
+        nullable=False,
+        default="",
+    )
+
+    top_dimension_a_mm: Mapped[float | None] = mapped_column(
+        Float,
+        nullable=True,
+    )
+
+    top_dimension_b_mm: Mapped[float | None] = mapped_column(
+        Float,
+        nullable=True,
+    )
+
+    top_material: Mapped[str] = mapped_column(
+        String(50),
+        nullable=False,
+        default="",
+    )
+
+    measured_by: Mapped[str] = mapped_column(
+        String(100),
+        nullable=False,
+        default="",
+    )
+
+    notes: Mapped[str] = mapped_column(
+        Text,
+        nullable=False,
+        default="",
+    )
+
+    raw_data: Mapped[dict] = mapped_column(
+        JSONB,
+        nullable=False,
+        default=dict,
+    )
+
+    imported_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        nullable=False,
+        default=utc_now,
+    )
+
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        nullable=False,
+        default=utc_now,
+        onupdate=utc_now,
+    )
+
+    stretch = relationship(
+        "Stretch",
+        back_populates="survey",
     )

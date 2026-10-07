@@ -18,6 +18,7 @@ from projektstyring.backend.db_models import (
     ServiceConnection,
     ServiceConnectionWork,
     Stretch,
+    StretchSurvey,
 )
 
 
@@ -786,6 +787,263 @@ class TechnicalAssetRepository:
             return self._stretch_to_dict(
                 stretch
             )
+
+    def get_stretch_survey(
+        self,
+        stretch_id: int,
+    ) -> dict[str, Any]:
+        """
+        Henter opmålingsdata for ét stræk.
+        """
+        with self._session_scope() as session:
+            survey = session.scalar(
+                select(StretchSurvey).where(
+                    StretchSurvey.stretch_id
+                    == stretch_id
+                )
+            )
+
+            if survey is None:
+                raise FileNotFoundError(
+                    "Der findes ingen opmåling for "
+                    f"stræk {stretch_id}."
+                )
+
+            return self._stretch_survey_to_dict(
+                survey
+            )
+
+    def upsert_stretch_survey(
+        self,
+        stretch_id: int,
+        *,
+        existing_profile: str = "",
+        existing_dimension: str = "",
+        existing_material: str = "",
+        existing_length_m: (
+            Decimal | float | int | str | None
+        ) = None,
+        planned_dimension: str = "",
+        planned_length_m: (
+            Decimal | float | int | str | None
+        ) = None,
+        traffic: str = "",
+        bottom_cannot_open: bool = False,
+        bottom_profile: str = "",
+        bottom_dimension_a_mm: (
+            Decimal | float | int | str | None
+        ) = None,
+        bottom_dimension_b_mm: (
+            Decimal | float | int | str | None
+        ) = None,
+        bottom_material: str = "",
+        top_cannot_open: bool = False,
+        top_profile: str = "",
+        top_dimension_a_mm: (
+            Decimal | float | int | str | None
+        ) = None,
+        top_dimension_b_mm: (
+            Decimal | float | int | str | None
+        ) = None,
+        top_material: str = "",
+        measured_by: str = "",
+        notes: str = "",
+        raw_data: dict[str, Any] | None = None,
+    ) -> dict[str, Any]:
+        """
+        Opretter eller erstatter opmålingsdata for ét stræk.
+
+        None bevares som manglende kildeværdi.
+        Numerisk 0 bevares som C5's markering af,
+        at dimensionen ikke er opmålt.
+        """
+        with self._session_scope() as session:
+            stretch = session.get(
+                Stretch,
+                stretch_id,
+            )
+
+            if stretch is None:
+                raise FileNotFoundError(
+                    f"Stræk {stretch_id} findes ikke."
+                )
+
+            survey = session.scalar(
+                select(StretchSurvey).where(
+                    StretchSurvey.stretch_id
+                    == stretch_id
+                )
+            )
+
+            values = {
+                "existing_profile": str(
+                    existing_profile or ""
+                ).strip(),
+                "existing_dimension": str(
+                    existing_dimension or ""
+                ).strip(),
+                "existing_material": str(
+                    existing_material or ""
+                ).strip(),
+                "existing_length_m": (
+                    float(value)
+                    if (
+                        value := decimal_or_none(
+                            existing_length_m
+                        )
+                    ) is not None
+                    else None
+                ),
+                "planned_dimension": str(
+                    planned_dimension or ""
+                ).strip(),
+                "planned_length_m": (
+                    float(value)
+                    if (
+                        value := decimal_or_none(
+                            planned_length_m
+                        )
+                    ) is not None
+                    else None
+                ),
+                "traffic": str(
+                    traffic or ""
+                ).strip(),
+                "bottom_cannot_open": bool(
+                    bottom_cannot_open
+                ),
+                "bottom_profile": str(
+                    bottom_profile or ""
+                ).strip(),
+                "bottom_dimension_a_mm": (
+                    float(value)
+                    if (
+                        value := decimal_or_none(
+                            bottom_dimension_a_mm
+                        )
+                    ) is not None
+                    else None
+                ),
+                "bottom_dimension_b_mm": (
+                    float(value)
+                    if (
+                        value := decimal_or_none(
+                            bottom_dimension_b_mm
+                        )
+                    ) is not None
+                    else None
+                ),
+                "bottom_material": str(
+                    bottom_material or ""
+                ).strip(),
+                "top_cannot_open": bool(
+                    top_cannot_open
+                ),
+                "top_profile": str(
+                    top_profile or ""
+                ).strip(),
+                "top_dimension_a_mm": (
+                    float(value)
+                    if (
+                        value := decimal_or_none(
+                            top_dimension_a_mm
+                        )
+                    ) is not None
+                    else None
+                ),
+                "top_dimension_b_mm": (
+                    float(value)
+                    if (
+                        value := decimal_or_none(
+                            top_dimension_b_mm
+                        )
+                    ) is not None
+                    else None
+                ),
+                "top_material": str(
+                    top_material or ""
+                ).strip(),
+                "measured_by": str(
+                    measured_by or ""
+                ).strip(),
+                "notes": str(
+                    notes or ""
+                ).strip(),
+                "raw_data": dict(
+                    raw_data or {}
+                ),
+            }
+
+            if survey is None:
+                survey = StretchSurvey(
+                    stretch_id=stretch_id,
+                    **values,
+                )
+                session.add(survey)
+            else:
+                for field, value in values.items():
+                    setattr(
+                        survey,
+                        field,
+                        value,
+                    )
+
+            try:
+                self._save_changes(session)
+                session.refresh(survey)
+
+            except Exception:
+                self._rollback(session)
+                raise
+
+            return self._stretch_survey_to_dict(
+                survey
+            )
+
+    @staticmethod
+    def _stretch_survey_to_dict(
+        survey: StretchSurvey,
+    ) -> dict[str, Any]:
+        return {
+            "id": survey.id,
+            "stretch_id": survey.stretch_id,
+            "existing_profile": survey.existing_profile,
+            "existing_dimension": survey.existing_dimension,
+            "existing_material": survey.existing_material,
+            "existing_length_m": survey.existing_length_m,
+            "planned_dimension": survey.planned_dimension,
+            "planned_length_m": survey.planned_length_m,
+            "traffic": survey.traffic,
+            "bottom_cannot_open": (
+                survey.bottom_cannot_open
+            ),
+            "bottom_profile": survey.bottom_profile,
+            "bottom_dimension_a_mm": (
+                survey.bottom_dimension_a_mm
+            ),
+            "bottom_dimension_b_mm": (
+                survey.bottom_dimension_b_mm
+            ),
+            "bottom_material": survey.bottom_material,
+            "top_cannot_open": (
+                survey.top_cannot_open
+            ),
+            "top_profile": survey.top_profile,
+            "top_dimension_a_mm": (
+                survey.top_dimension_a_mm
+            ),
+            "top_dimension_b_mm": (
+                survey.top_dimension_b_mm
+            ),
+            "top_material": survey.top_material,
+            "measured_by": survey.measured_by,
+            "notes": survey.notes,
+            "raw_data": dict(
+                survey.raw_data or {}
+            ),
+            "imported_at": survey.imported_at,
+            "updated_at": survey.updated_at,
+        }
 
     def link_stretch_manholes(
         self,

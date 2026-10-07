@@ -16,7 +16,7 @@ from projektstyring.backend.repositories.technical_asset_repository import (
 
 class StretchImporter:
     """
-    Opretter eller opdaterer stræk.
+    Opretter eller opdaterer stræk og tilhørende opmålingsdata.
     """
 
     def execute(
@@ -27,6 +27,12 @@ class StretchImporter:
         result: ImportExecutionResult,
     ) -> None:
         for item in plan.stretches:
+            stretch_key = (
+                f"{item.key.installation_no}:"
+                f"{item.key.bottom_manhole_no}-"
+                f"{item.key.top_manhole_no}"
+            )
+
             try:
                 existing = repo.get_stretch_by_manholes(
                     item.key.project_id,
@@ -36,7 +42,7 @@ class StretchImporter:
                 )
 
             except FileNotFoundError:
-                repo.create_stretch(
+                created = repo.create_stretch(
                     item.key.project_id,
                     item.key.installation_no,
                     sequence=item.sequence,
@@ -56,17 +62,19 @@ class StretchImporter:
                     metadata=item.source.metadata,
                 )
 
+                self._save_survey(
+                    repo=repo,
+                    stretch_id=created["id"],
+                    survey=item.source.survey,
+                )
+
                 result.created += 1
 
                 result.actions.append(
                     ImportAction(
                         entity_type="stretch",
                         action="create",
-                        key=(
-                            f"{item.key.installation_no}:"
-                            f"{item.key.bottom_manhole_no}-"
-                            f"{item.key.top_manhole_no}"
-                        ),
+                        key=stretch_key,
                     )
                 )
 
@@ -182,11 +190,7 @@ class StretchImporter:
                     ImportAction(
                         entity_type="stretch",
                         action="update",
-                        key=(
-                            f"{item.key.installation_no}:"
-                            f"{item.key.bottom_manhole_no}-"
-                            f"{item.key.top_manhole_no}"
-                        ),
+                        key=stretch_key,
                         fields=[
                             (
                                 "metadata:" + ",".join(
@@ -209,10 +213,65 @@ class StretchImporter:
                     ImportAction(
                         entity_type="stretch",
                         action="unchanged",
-                        key=(
-                            f"{item.key.installation_no}:"
-                            f"{item.key.bottom_manhole_no}-"
-                            f"{item.key.top_manhole_no}"
-                        ),
+                        key=stretch_key,
                     )
                 )
+
+            self._save_survey(
+                repo=repo,
+                stretch_id=existing["id"],
+                survey=item.source.survey,
+            )
+
+    @staticmethod
+    def _save_survey(
+        *,
+        repo: TechnicalAssetRepository,
+        stretch_id: int,
+        survey: Any,
+    ) -> None:
+        """
+        Gemmer opmålingen, hvis importkilden indeholder en.
+
+        survey=None betyder, at importen ikke er en
+        opmålingsimport. Eksisterende opmålingsdata røres
+        derfor ikke.
+        """
+        if survey is None:
+            return
+
+        repo.upsert_stretch_survey(
+            stretch_id,
+            existing_profile=survey.existing_profile,
+            existing_dimension=survey.existing_dimension,
+            existing_material=survey.existing_material,
+            existing_length_m=survey.existing_length_m,
+            planned_dimension=survey.planned_dimension,
+            planned_length_m=survey.planned_length_m,
+            traffic=survey.traffic,
+            bottom_cannot_open=(
+                survey.bottom_cannot_open
+            ),
+            bottom_profile=survey.bottom_profile,
+            bottom_dimension_a_mm=(
+                survey.bottom_dimension_a_mm
+            ),
+            bottom_dimension_b_mm=(
+                survey.bottom_dimension_b_mm
+            ),
+            bottom_material=survey.bottom_material,
+            top_cannot_open=(
+                survey.top_cannot_open
+            ),
+            top_profile=survey.top_profile,
+            top_dimension_a_mm=(
+                survey.top_dimension_a_mm
+            ),
+            top_dimension_b_mm=(
+                survey.top_dimension_b_mm
+            ),
+            top_material=survey.top_material,
+            measured_by=survey.measured_by,
+            notes=survey.notes,
+            raw_data=survey.raw_data,
+        )

@@ -11,6 +11,7 @@ from projektstyring.backend.importers.technical_asset_import import (
     ImportedManholeWork,
     ImportedProjectConstraint,
     ImportedStretch,
+    ImportedStretchSurvey,
     TechnicalAssetImport,
 )
 from projektstyring.backend.importers.deviation_import import (
@@ -545,6 +546,7 @@ def create_installation_item(
         "id": installation_id,
         "address": address,
         "stretches": [],
+        "_manhole_numbers": set(),
         "expected_stik": 0,
         "main_length_m": 0.0,
         "hovedledning_meter": 0.0,
@@ -617,7 +619,9 @@ def finalize_progress(
 def finalize_bronds_and_lengths(
     item: dict[str, Any],
 ) -> None:
-    bronde = set()
+    bronde = set(
+        item.get("_manhole_numbers", set())
+    )
 
     for stretch in item.get("stretches", []):
         from_brond = stretch.get("from_brond")
@@ -641,13 +645,12 @@ def finalize_bronds_and_lengths(
         2,
     )
 
-
 def remove_internal_fields(
     item: dict[str, Any],
 ) -> None:
     item.pop("_progress_totals", None)
     item.pop("_progress_weights", None)
-
+    item.pop("_manhole_numbers", None)
 
 def parse_c5_csv(
     csv_text: str,
@@ -726,6 +729,12 @@ def parse_c5_csv(
             row.get("Brønd 2")
         )
 
+        if from_brond:
+            item["_manhole_numbers"].add(from_brond)
+
+        if to_brond:
+            item["_manhole_numbers"].add(to_brond)
+
         expected_stik = to_int(
             row.get("Stik antal")
         )
@@ -754,7 +763,7 @@ def parse_c5_csv(
                     value
                 )
 
-        if from_brond or to_brond or length_m:
+        if from_brond and to_brond:
             item["stretches"].append(
                 {
                     "from_brond": from_brond,
@@ -1294,6 +1303,602 @@ def parse_c5_missing_permit_references(
         )
 
     return observations
+
+def parse_c5_survey_import(
+    csv_text: str,
+    project_id: str,
+) -> TechnicalAssetImport:
+    """
+    Parser C5-opmålingsskemaet til TechnicalAssetImport.
+
+    Opmålingsskemaet er autoritativ kilde for:
+    - stræk og brøndnumre
+    - eksisterende profil, dimension, materiale og længde
+    - planlagt dimension og længde
+    - målte A/B-dimensioner ved begge ender af strækket
+    - profil og materiale ved begge ender
+    - trafik, udførende og bemærkning
+
+    Numerisk 0 i A/B-dimensioner bevares. I C5 betyder 0,
+    at dimensionen ikke er opmålt.
+
+    En række med kun én brønd opretter ikke et kunstigt stræk.
+    """
+
+    normalized_project_id = normalize_project_id(
+        project_id
+    )
+
+    reader = csv.reader(
+        io.StringIO(csv_text),
+        delimiter=";",
+    )
+
+    rows = list(reader)
+
+    if not rows:
+        raise ValueError(
+            "Opmålingsskemaet er tomt."
+        )
+
+    header = [
+        normalize_column_name(value)
+        for value in rows[0]
+    ]
+
+    def indexes(
+        name: str,
+    ) -> list[int]:
+        return _find_column_indexes(
+            header,
+            name,
+        )
+
+    def required_index(
+        name: str,
+        occurrence: int = 0,
+    ) -> int:
+        found = indexes(name)
+
+        if len(found) <= occurrence:
+            raise ValueError(
+                "Opmålingsskemaet mangler kolonnen "
+                f"'{name}'."
+            )
+
+        return found[occurrence]
+
+    def optional_index(
+        name: str,
+        occurrence: int = 0,
+    ) -> int | None:
+        found = indexes(name)
+
+        if len(found) <= occurrence:
+            return None
+
+        return found[occurrence]
+
+    def value_at(
+        row: list[str],
+        index: int | None,
+    ) -> str:
+        if index is None:
+            return ""
+
+        if index >= len(row):
+            return ""
+
+        return str(
+            row[index] or ""
+        ).strip()
+
+    project_index = required_index(
+        "Projekt"
+    )
+    installation_index = required_index(
+        "Inst.nr"
+    )
+    address_index = optional_index(
+        "Inst.adresse"
+    )
+
+    first_manhole_index = required_index(
+        "Brønd 1"
+    )
+    second_manhole_index = required_index(
+        "Brønd 2"
+    )
+
+    first_cannot_open_index = optional_index(
+        "Brønd 1 ej åbnes"
+    )
+    second_cannot_open_index = optional_index(
+        "Brønd 2 ej åbnes"
+    )
+
+    existing_profile_index = optional_index(
+        "Eks. profil"
+    )
+    existing_dimension_index = optional_index(
+        "Eks. dim."
+    )
+    existing_material_index = optional_index(
+        "Eks. mat."
+    )
+    existing_length_index = optional_index(
+        "Eks. længde"
+    )
+
+    planned_dimension_index = optional_index(
+        "Ny dim."
+    )
+    planned_length_index = optional_index(
+        "Ny længde"
+    )
+    traffic_index = optional_index(
+        "Trafik"
+    )
+
+    first_diameter_index = optional_index(
+        "Brønd 1 dia."
+    )
+    second_diameter_index = optional_index(
+        "Brønd 2 dia."
+    )
+
+    first_depth_indexes = indexes(
+        "Brønd 1 dybde"
+    )
+    second_depth_indexes = indexes(
+        "Brønd 2 dybde"
+    )
+
+    # Opmålingsskemaet indeholder normalt dybdekolonnen
+    # to gange. Den sidste forekomst hører til den målte
+    # brøndinformation sammen med diameteren.
+    first_depth_index = (
+        first_depth_indexes[-1]
+        if first_depth_indexes
+        else None
+    )
+    second_depth_index = (
+        second_depth_indexes[-1]
+        if second_depth_indexes
+        else None
+    )
+
+    new_profile_indexes = indexes(
+        "Ny profil"
+    )
+    new_dimension_a_indexes = indexes(
+        "Ny dim. A"
+    )
+    new_dimension_b_indexes = indexes(
+        "Ny dim. B"
+    )
+    new_material_indexes = indexes(
+        "Ny mat."
+    )
+
+    first_profile_index = (
+        new_profile_indexes[0]
+        if len(new_profile_indexes) >= 1
+        else None
+    )
+    second_profile_index = (
+        new_profile_indexes[1]
+        if len(new_profile_indexes) >= 2
+        else None
+    )
+
+    first_dimension_a_index = (
+        new_dimension_a_indexes[0]
+        if len(new_dimension_a_indexes) >= 1
+        else None
+    )
+    second_dimension_a_index = (
+        new_dimension_a_indexes[1]
+        if len(new_dimension_a_indexes) >= 2
+        else None
+    )
+
+    first_dimension_b_index = (
+        new_dimension_b_indexes[0]
+        if len(new_dimension_b_indexes) >= 1
+        else None
+    )
+    second_dimension_b_index = (
+        new_dimension_b_indexes[1]
+        if len(new_dimension_b_indexes) >= 2
+        else None
+    )
+
+    first_material_index = (
+        new_material_indexes[0]
+        if len(new_material_indexes) >= 1
+        else None
+    )
+    second_material_index = (
+        new_material_indexes[1]
+        if len(new_material_indexes) >= 2
+        else None
+    )
+
+    measured_by_index = optional_index(
+        "Opmåling udført"
+    )
+    notes_index = optional_index(
+        "Bemærkning"
+    )
+
+    installations: dict[
+        str,
+        ImportedInstallationAssets,
+    ] = {}
+
+    manholes: dict[
+        str,
+        ImportedManhole,
+    ] = {}
+
+    sequence_by_installation: dict[
+        str,
+        int,
+    ] = {}
+
+    matched_rows = 0
+
+    def is_true(
+        value: str,
+    ) -> bool:
+        normalized = value.strip().lower()
+
+        return normalized in {
+            "1",
+            "ja",
+            "j",
+            "x",
+            "true",
+        }
+
+    def register_manhole(
+        manhole_no: str,
+        diameter_value: str,
+        depth_value: str,
+    ) -> None:
+        if not manhole_no:
+            return
+
+        diameter = to_decimal_or_none(
+            diameter_value
+        )
+        depth = to_decimal_or_none(
+            depth_value
+        )
+
+        existing = manholes.get(
+            manhole_no
+        )
+
+        if existing is None:
+            manholes[manhole_no] = ImportedManhole(
+                manhole_no=manhole_no,
+                diameter_m=diameter,
+                depth_m=depth,
+                metadata={
+                    "source": "c5_csv",
+                    "import_type": "survey",
+                },
+            )
+            return
+
+        # En brønd kan forekomme på flere stræk.
+        # Vi overskriver derfor ikke en allerede registreret
+        # måling her. Konflikter skal senere valideres og
+        # rapporteres i stedet for at blive skjult.
+
+        if (
+            existing.diameter_m is None
+            and diameter is not None
+        ):
+            existing.diameter_m = diameter
+
+        if (
+            existing.depth_m is None
+            and depth is not None
+        ):
+            existing.depth_m = depth
+
+    for row in rows[1:]:
+        row_project_id = normalize_project_id(
+            value_at(
+                row,
+                project_index,
+            )
+        )
+
+        if (
+            row_project_id
+            != normalized_project_id
+        ):
+            continue
+
+        installation_no = normalize_installation_id(
+            value_at(
+                row,
+                installation_index,
+            )
+        )
+
+        if not installation_no:
+            continue
+
+        matched_rows += 1
+
+        first_manhole_no = normalize_c5_manhole_no(
+            value_at(
+                row,
+                first_manhole_index,
+            )
+        )
+        second_manhole_no = normalize_c5_manhole_no(
+            value_at(
+                row,
+                second_manhole_index,
+            )
+        )
+
+        register_manhole(
+            first_manhole_no,
+            value_at(
+                row,
+                first_diameter_index,
+            ),
+            value_at(
+                row,
+                first_depth_index,
+            ),
+        )
+
+        register_manhole(
+            second_manhole_no,
+            value_at(
+                row,
+                second_diameter_index,
+            ),
+            value_at(
+                row,
+                second_depth_index,
+            ),
+        )
+
+        installation = installations.get(
+            installation_no
+        )
+
+        if installation is None:
+            installation = ImportedInstallationAssets(
+                installation_no=installation_no,
+                stretches=[],
+            )
+            installations[
+                installation_no
+            ] = installation
+
+        # En enkelt brønd er en gyldig installation,
+        # men der findes ikke et stræk uden to ender.
+        if (
+            not first_manhole_no
+            or not second_manhole_no
+        ):
+            continue
+
+        sequence = (
+            sequence_by_installation.get(
+                installation_no,
+                0,
+            )
+            + 1
+        )
+
+        sequence_by_installation[
+            installation_no
+        ] = sequence
+
+        existing_length = to_decimal_or_none(
+            value_at(
+                row,
+                existing_length_index,
+            )
+        )
+
+        planned_length = to_decimal_or_none(
+            value_at(
+                row,
+                planned_length_index,
+            )
+        )
+
+        existing_dimension = value_at(
+            row,
+            existing_dimension_index,
+        )
+        planned_dimension = value_at(
+            row,
+            planned_dimension_index,
+        )
+
+        existing_material = value_at(
+            row,
+            existing_material_index,
+        )
+
+        notes = value_at(
+            row,
+            notes_index,
+        )
+
+        survey = ImportedStretchSurvey(
+            existing_profile=value_at(
+                row,
+                existing_profile_index,
+            ),
+            existing_dimension=(
+                existing_dimension
+            ),
+            existing_material=(
+                existing_material
+            ),
+            existing_length_m=(
+                existing_length
+            ),
+            planned_dimension=(
+                planned_dimension
+            ),
+            planned_length_m=(
+                planned_length
+            ),
+            traffic=value_at(
+                row,
+                traffic_index,
+            ),
+            bottom_cannot_open=is_true(
+                value_at(
+                    row,
+                    first_cannot_open_index,
+                )
+            ),
+            bottom_profile=value_at(
+                row,
+                first_profile_index,
+            ),
+            bottom_dimension_a_mm=(
+                to_decimal_or_none(
+                    value_at(
+                        row,
+                        first_dimension_a_index,
+                    )
+                )
+            ),
+            bottom_dimension_b_mm=(
+                to_decimal_or_none(
+                    value_at(
+                        row,
+                        first_dimension_b_index,
+                    )
+                )
+            ),
+            bottom_material=value_at(
+                row,
+                first_material_index,
+            ),
+            top_cannot_open=is_true(
+                value_at(
+                    row,
+                    second_cannot_open_index,
+                )
+            ),
+            top_profile=value_at(
+                row,
+                second_profile_index,
+            ),
+            top_dimension_a_mm=(
+                to_decimal_or_none(
+                    value_at(
+                        row,
+                        second_dimension_a_index,
+                    )
+                )
+            ),
+            top_dimension_b_mm=(
+                to_decimal_or_none(
+                    value_at(
+                        row,
+                        second_dimension_b_index,
+                    )
+                )
+            ),
+            top_material=value_at(
+                row,
+                second_material_index,
+            ),
+            measured_by=value_at(
+                row,
+                measured_by_index,
+            ),
+            notes=notes,
+            raw_data={
+                "address": value_at(
+                    row,
+                    address_index,
+                ),
+                "first_manhole_no": (
+                    first_manhole_no
+                ),
+                "second_manhole_no": (
+                    second_manhole_no
+                ),
+            },
+        )
+
+        installation.stretches.append(
+            ImportedStretch(
+                sequence=sequence,
+                bottom_manhole_no=(
+                    first_manhole_no
+                ),
+                top_manhole_no=(
+                    second_manhole_no
+                ),
+                length_m=(
+                    planned_length
+                    if planned_length is not None
+                    else existing_length
+                    if existing_length is not None
+                    else Decimal("0")
+                ),
+                dimension=(
+                    planned_dimension
+                    or existing_dimension
+                ),
+                material=existing_material,
+                notes=notes,
+                survey=survey,
+            )
+        )
+
+    if not matched_rows:
+        raise ValueError(
+            "Opmålingsskemaet indeholder ingen data "
+            f"for projekt '{normalized_project_id}'."
+        )
+
+    return TechnicalAssetImport(
+        project_id=normalized_project_id,
+        source="c5_csv",
+        import_type="survey",
+        installations=list(
+            installations.values()
+        ),
+        manholes=list(
+            manholes.values()
+        ),
+        metadata={
+            "source_format": "c5_csv",
+            "installation_count": len(
+                installations
+            ),
+            "manhole_count": len(
+                manholes
+            ),
+            "survey_row_count": (
+                matched_rows
+            ),
+        },
+    )
+
+
 
 def parse_c5_project_overview_import(
     csv_text: str,
