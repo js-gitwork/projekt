@@ -32,6 +32,12 @@
 
         <form method="post" action="/logout">
 
+            <input
+                type="hidden"
+                name="csrf_token"
+                value="{{ csrf_token(request) }}"
+            >
+
             <button type="submit" class="logout-button">
 
                 Log ud
@@ -183,6 +189,7 @@
     const roerbotMessages = document.getElementById("roerbotMessages");
     const roerbotTabList = document.getElementById("roerbotTabList");
     const roerbotTabAdd = document.getElementById("roerbotTabAdd");
+    const csrfToken = "{{ csrf_token(request) }}";
 
     const roerbotConversationMessages = new Map();
     let roerbotConversations = [];
@@ -192,7 +199,7 @@
 
     function roerbotWelcomeMessage() {
         return {
-            text: "Hej, jeg er Roerbot. Spørg mig om projekter, hold og planlægning.",
+            text: "Hej, jeg er Rørbot. Du kan spørge mig, så kontrollerer jeg projekterne",
             sender: "bot"
         };
     }
@@ -272,7 +279,10 @@
 
     async function createRoerbotConversation() {
         const response = await fetch("/assistant/conversations", {
-            method: "POST"
+            method: "POST",
+            headers: {
+                "X-CSRF-Token": csrfToken
+            }
         });
 
         if (!response.ok) {
@@ -336,6 +346,9 @@
 
         const response = await fetch("/assistant/conversations/close", {
             method: "POST",
+            headers: {
+                "X-CSRF-Token": csrfToken
+            },
             body: formData
         });
 
@@ -437,6 +450,9 @@
 
             const response = await fetch("/assistant/ask", {
                 method: "POST",
+                headers: {
+                    "X-CSRF-Token": csrfToken
+                },
                 body: formData
             });
 

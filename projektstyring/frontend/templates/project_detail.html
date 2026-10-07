@@ -32,6 +32,11 @@
 
         {% if project.status == "survey" %}
         <form method="post" action="/projects/{{ project.id }}/complete-survey" class="installation-add-form">
+            <input
+                type="hidden"
+                name="csrf_token"
+                value="{{ csrf_token(request) }}"
+            >
             <label for="complete_survey_installation_count">
                 Antal installationer efter survey
             </label>
@@ -47,6 +52,11 @@
 
         {% if project.status == "upcoming" %}
         <form method="post" action="/projects/{{ project.id }}/start">
+            <input
+                type="hidden"
+                name="csrf_token"
+                value="{{ csrf_token(request) }}"
+            >
             <button type="submit" class="btn">
                 Start projekt
             </button>
@@ -59,6 +69,11 @@
 
         {% if project.status != "survey" %}
         <form method="post" action="/projects/{{ project.id }}/installations/add" class="installation-add-form">
+            <input
+                type="hidden"
+                name="csrf_token"
+                value="{{ csrf_token(request) }}"
+            >
             <label for="installation_count_add">
                 Antal installationer
             </label>
@@ -75,6 +90,11 @@
 
     <div class="project-main">
         <form id="project-save-form" method="post" action="/projects/{{ project.id }}/save">
+            <input
+                type="hidden"
+                name="csrf_token"
+                value="{{ csrf_token(request) }}"
+            >
 
             <div class="card">
                 <h2>{{ project.name }}</h2>

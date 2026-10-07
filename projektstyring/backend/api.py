@@ -1,12 +1,17 @@
 from datetime import date
 
-from fastapi import FastAPI, Form, Request
+from fastapi import FastAPI, Form, HTTPException, Request
 from fastapi.responses import RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from starlette.middleware.sessions import SessionMiddleware
 
 from projektstyring.backend.config import require_env
+from projektstyring.backend.csrf import (
+    csrf_header_is_valid,
+    get_csrf_token,
+    validate_csrf_token,
+)
 from projektstyring.backend.auth import (
     authenticate_user,
     hash_password,
@@ -199,6 +204,8 @@ templates = Jinja2Templates(
     directory="projektstyring/frontend/templates"
 )
 
+templates.env.globals["csrf_token"] = get_csrf_token
+
 repo = ProjectRepository()
 team_repo = TeamRepository()
 technical_asset_import_service = (
@@ -240,7 +247,12 @@ def login(
     request: Request,
     username: str = Form(...),
     password: str = Form(...),
+    csrf_token: str = Form(...),
 ):
+    validate_csrf_token(
+        request,
+        csrf_token,
+    )
     with SessionLocal() as session:
         user = authenticate_user(
             session,
@@ -281,7 +293,15 @@ def login(
     )
 
 @app.post("/logout")
-def logout(request: Request):
+def logout(
+    request: Request,
+    csrf_token: str = Form(...),
+):
+    validate_csrf_token(
+        request,
+        csrf_token,
+    )
+
     request.session.clear()
 
     return RedirectResponse(
@@ -314,7 +334,13 @@ def change_password(
     current_password: str = Form(...),
     new_password: str = Form(...),
     confirm_password: str = Form(...),
+    csrf_token: str = Form(...),
 ):
+    validate_csrf_token(
+        request,
+        csrf_token,
+    )
+
     user_id = request.session.get("user_id")
 
     if user_id is None:
@@ -693,13 +719,19 @@ def new_project_form(request: Request):
 
 @app.post("/projects/new")
 def create_project(
+    request: Request,
     project_id: str = Form(...),
     name: str = Form(...),
     customer: str = Form(""),
     city: str = Form(""),
     start_date: str = Form(...),
     installation_count: int = Form(0),
+    csrf_token: str = Form(...),
 ):
+    validate_csrf_token(
+        request,
+        csrf_token,
+    )
     project = make_project(
         project_id=project_id,
         name=name,
@@ -795,7 +827,16 @@ def project_detail(request: Request, project_id: str):
     )
 
 @app.post("/projects/{project_id}/start")
-def start_project_route(project_id: str):
+def start_project_route(
+    request: Request,
+    project_id: str,
+    csrf_token: str = Form(...),
+):
+    validate_csrf_token(
+        request,
+        csrf_token,
+    )
+
     project = repo.load_project(project_id)
 
     baseline = get_latest_snapshot(
@@ -828,6 +869,11 @@ def start_project_route(project_id: str):
 async def save_project_detail(request: Request, project_id: str):
     project = repo.load_project(project_id)
     form = await request.form()
+
+    validate_csrf_token(
+        request,
+        str(form.get("csrf_token", "")),
+    )
 
     if project.get("status") == "active":
         create_snapshot(
@@ -945,9 +991,16 @@ async def save_project_detail(request: Request, project_id: str):
 
 @app.post("/projects/{project_id}/complete-survey")
 def complete_project_survey(
+    request: Request,
     project_id: str,
     installation_count: int = Form(...),
+    csrf_token: str = Form(...),
 ):
+    validate_csrf_token(
+        request,
+        csrf_token,
+    )
+
     project = repo.load_project(project_id)
 
     project = complete_survey(
@@ -965,9 +1018,16 @@ def complete_project_survey(
 
 @app.post("/projects/{project_id}/installations/add")
 def add_project_installations(
+    request: Request,
     project_id: str,
     installation_count: int = Form(...),
+    csrf_token: str = Form(...),
 ):
+    validate_csrf_token(
+        request,
+        csrf_token,
+    )
+
     project = repo.load_project(project_id)
 
     project = add_installations(
@@ -1207,6 +1267,11 @@ async def c5_import_preview(
     project = repo.load_project(project_id)
     form = await request.form()
 
+    validate_csrf_token(
+        request,
+        str(form.get("csrf_token", "")),
+    )
+
     csv_text = str(
         form.get("csv_text", "")
     )
@@ -1278,6 +1343,11 @@ async def c5_import_apply(
 ):
     form = await request.form()
 
+    validate_csrf_token(
+        request,
+        str(form.get("csrf_token", "")),
+    )
+
     csv_text = str(
         form.get("csv_text", "")
     )
@@ -1340,6 +1410,13 @@ def roerbot_list_conversations(
 def roerbot_create_conversation(
     request: Request,
 ):
+
+    if not csrf_header_is_valid(request):
+        raise HTTPException(
+            status_code=403,
+            detail="Ugyldigt eller manglende CSRF-token.",
+        )
+
     user_key = roerbot_user_key(request)
 
     conversation = create_conversation(
@@ -1359,6 +1436,13 @@ def roerbot_close_conversation(
     request: Request,
     conversation_key: str = Form(...),
 ):
+
+    if not csrf_header_is_valid(request):
+        raise HTTPException(
+            status_code=403,
+            detail="Ugyldigt eller manglende CSRF-token.",
+        )
+
     deleted = delete_conversation(
         user_key=roerbot_user_key(request),
         conversation_key=conversation_key,
@@ -1383,6 +1467,13 @@ def roerbot_global_ask(
     question: str = Form(...),
     conversation_key: str = Form(...),
 ):
+
+    if not csrf_header_is_valid(request):
+        raise HTTPException(
+            status_code=403,
+            detail="Ugyldigt eller manglende CSRF-token.",
+        )
+
     user = request.state.user
     user_key = f"user:{user.id}"
 

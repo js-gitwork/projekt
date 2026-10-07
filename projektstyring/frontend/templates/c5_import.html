@@ -22,6 +22,11 @@
         method="post"
         action="/projects/{{ project.id }}/c5-import/preview"
     >
+    <input
+        type="hidden"
+        name="csrf_token"
+        value="{{ csrf_token(request) }}"
+    >
         <label for="csv_text">C5 CSV</label>
 
         <textarea
@@ -277,6 +282,11 @@
         method="post"
         action="/projects/{{ project.id }}/c5-import/apply"
     >
+        <input
+            type="hidden"
+            name="csrf_token"
+            value="{{ csrf_token(request) }}"
+        >
         <textarea
             name="csv_text"
             style="display: none;"
