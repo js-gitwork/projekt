@@ -1,0 +1,210 @@
+<!DOCTYPE html>
+<html lang="da">
+<head>
+    <meta charset="UTF-8">
+    <meta
+        name="viewport"
+        content="width=device-width, initial-scale=1.0"
+    >
+    <title>Overfør billeder · VPManhole</title>
+
+    <link
+        rel="icon"
+        type="image/png"
+        href="/static/images/roerbot.png"
+    >
+    <link
+        rel="stylesheet"
+        href="/static/style.css"
+    >
+
+    <style>
+        body {
+            margin: 0;
+            background: #f4f6f8;
+            font-family: Arial, sans-serif;
+        }
+
+        .transfer-page {
+            max-width: 1100px;
+            margin: 0 auto;
+            padding: 32px 20px 60px;
+        }
+
+        .transfer-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 24px;
+            margin-bottom: 32px;
+        }
+
+        .transfer-header h1 {
+            margin: 0 0 6px;
+            font-size: 32px;
+        }
+
+        .transfer-header p {
+            margin: 0;
+            color: #5f6873;
+        }
+
+        .logout-form {
+            margin: 0;
+        }
+
+        .logout-button {
+            border: 1px solid #c8ced6;
+            border-radius: 10px;
+            background: white;
+            padding: 10px 18px;
+            font-size: 15px;
+            cursor: pointer;
+        }
+
+        .transfer-card {
+            background: white;
+            border-radius: 16px;
+            padding: 26px;
+            box-shadow:
+                0 2px 10px rgba(0, 0, 0, 0.08);
+        }
+
+        .transfer-card h2 {
+            margin-top: 0;
+        }
+
+        .project-list {
+            display: grid;
+            gap: 12px;
+            margin-top: 22px;
+        }
+
+        .project-button {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 20px;
+
+            width: 100%;
+            padding: 18px 20px;
+
+            border: 1px solid #d9dee5;
+            border-radius: 12px;
+            background: white;
+
+            text-align: left;
+            cursor: pointer;
+        }
+
+        .project-button:hover {
+            background: #f7f9fb;
+            border-color: #aeb7c2;
+        }
+
+        .project-id {
+            display: block;
+            margin-bottom: 4px;
+            font-size: 18px;
+            font-weight: 700;
+        }
+
+        .project-name {
+            color: #5f6873;
+        }
+
+        .project-arrow {
+            font-size: 24px;
+            color: #69727d;
+        }
+
+        .empty-message {
+            padding: 30px 0;
+            color: #69727d;
+        }
+
+        @media (max-width: 650px) {
+            .transfer-header {
+                align-items: flex-start;
+                flex-direction: column;
+            }
+
+            .transfer-page {
+                padding: 20px 12px 40px;
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <main class="transfer-page">
+        <header class="transfer-header">
+            <div>
+                <h1>Overfør brøndbilleder</h1>
+
+                <p>
+                    Vælg projekt, installationer eller enkelte
+                    brønde, som skal overføres.
+                </p>
+            </div>
+
+            <form
+                class="logout-form"
+                method="post"
+                action="/logout"
+            >
+                <input
+                    type="hidden"
+                    name="csrf_token"
+                    value="{{ csrf_token(request) }}"
+                >
+
+                <button
+                    class="logout-button"
+                    type="submit"
+                >
+                    Log ud
+                </button>
+            </form>
+        </header>
+
+        <section class="transfer-card">
+            <h2>Vælg projekt</h2>
+
+            {% if projects %}
+                <div class="project-list">
+                    {% for project in projects %}
+                        <button
+                            class="project-button"
+                            type="button"
+                            data-project-id="{{ project.id }}"
+                        >
+                            <span>
+                                <span class="project-id">
+                                    {{ project.id }}
+                                </span>
+
+                                <span class="project-name">
+                                    {{ project.name or '' }}
+
+                                    {% if project.city %}
+                                        · {{ project.city }}
+                                    {% endif %}
+                                </span>
+                            </span>
+
+                            <span class="project-arrow">
+                                ›
+                            </span>
+                        </button>
+                    {% endfor %}
+                </div>
+            {% else %}
+                <div class="empty-message">
+                    Der er ingen åbne projekter.
+                </div>
+            {% endif %}
+        </section>
+    </main>
+</body>
+</html>

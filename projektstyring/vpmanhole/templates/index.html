@@ -1,1344 +1,1497 @@
 <!doctype html>
 <html lang="da">
-<head>
-    <meta charset="utf-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1">
+  <head>
+    <link rel="icon" type="image/png" href="/vpmanhole-static/images/vpmanhole.png" />
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
 
     <title>VPManhole</title>
 
-    <link
-        rel="icon"
-        type="image/png"
-        href="/static/images/roerbot.png"
-    >
-    <link
-        rel="stylesheet"
-        href="/static/style.css"
-    >
+    <link rel="icon" type="image/png" href="/static/images/roerbot.png" />
+    <link rel="stylesheet" href="/static/style.css" />
 
     <style>
-        * {
-            box-sizing: border-box;
-        }
+      * {
+        box-sizing: border-box;
+      }
 
+      .vp-header {
+        background-color: #003366;
+        color: #ffeb3b;
+        margin-bottom: 16px;
+        padding: 15px 20px;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+      }
+
+      .vp-header-inner {
+        width: 94%;
+        max-width: 900px;
+        margin: 0 auto;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 20px;
+      }
+
+      .vp-header h1 {
+        margin: 0;
+        font-size: 1.4rem;
+      }
+
+      .languages {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+      }
+
+      .language-button {
+        width: 64px;
+        height: 46px;
+        padding: 4px;
+        border: 2px solid transparent;
+        border-radius: 7px;
+        background-color: #003366;
+        cursor: pointer;
+      }
+
+      .language-button.active {
+        border-color: #ffeb3b;
+      }
+
+      .language-button img {
+        display: block;
+        width: 100%;
+        height: 100%;
+        object-fit: contain;
+      }
+
+      .vp-page {
+        width: 94%;
+        max-width: 900px;
+        margin: 0 auto 30px;
+      }
+
+      .step-navigation {
+        display: flex;
+        align-items: stretch;
+        gap: 6px;
+        margin-bottom: 16px;
+        overflow-x: auto;
+      }
+
+      .step-button {
+        flex: 1 1 0;
+        min-width: 120px;
+        min-height: 54px;
+        padding: 8px 10px;
+        border: 2px solid #003366;
+        border-radius: 6px;
+        background-color: white;
+        color: #003366;
+        font-weight: bold;
+        cursor: pointer;
+      }
+
+      .step-button:disabled {
+        border-color: #aab4be;
+        color: #8a949e;
+        background-color: #f1f3f5;
+        cursor: default;
+      }
+
+      .step-button.active {
+        background-color: #003366;
+        color: #ffeb3b;
+      }
+
+      .step-button.completed:not(.active) {
+        background-color: #e6f2ff;
+      }
+
+      .step-number {
+        display: block;
+        font-size: 0.75rem;
+        font-weight: normal;
+      }
+
+      .step-value {
+        display: block;
+        margin-top: 2px;
+        font-size: 0.82rem;
+        font-weight: normal;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
+
+      .vp-card {
+        min-height: 420px;
+      }
+
+      .vp-card h2 {
+        margin-top: 0;
+        color: #003366;
+      }
+
+      .step-toolbar {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 15px;
+        margin-bottom: 18px;
+      }
+
+      .step-toolbar h2 {
+        margin: 0;
+      }
+
+      .back-button {
+        min-height: 46px;
+        padding: 9px 14px;
+        border: 2px solid #003366;
+        border-radius: 5px;
+        background-color: white;
+        color: #003366;
+        font-size: 1rem;
+        font-weight: bold;
+        cursor: pointer;
+      }
+
+      .back-button:hover,
+      .back-button:active {
+        background-color: #e6f2ff;
+      }
+
+      .search-input {
+        width: 100%;
+        padding: 14px;
+        margin-bottom: 20px;
+        border: 2px solid #003366;
+        border-radius: 5px;
+        font-size: 1.1rem;
+      }
+
+      .search-input:focus {
+        outline: none;
+        box-shadow: 0 0 0 3px rgba(0, 51, 102, 0.15);
+      }
+
+      .selection-list {
+        display: grid;
+        gap: 10px;
+        max-height: 58vh;
+        overflow-y: auto;
+        padding-right: 3px;
+      }
+
+      .selection-button {
+        width: 100%;
+        min-height: 64px;
+        padding: 14px 16px;
+        border: 2px solid #003366;
+        border-radius: 5px;
+        background-color: white;
+        color: #003366;
+        text-align: left;
+        font-size: 1.1rem;
+        font-weight: bold;
+        cursor: pointer;
+      }
+
+      .selection-button:hover,
+      .selection-button:active {
+        background-color: #f5faff;
+      }
+
+      .selection-button.selected {
+        background-color: #003366;
+        color: #ffeb3b;
+      }
+
+      .manhole-list-item {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+      }
+
+      .manhole-photo-status {
+        flex-shrink: 0;
+        padding: 6px 10px;
+        border-radius: 6px;
+        background-color: #e9ecef;
+        color: #495057;
+        font-size: 0.9rem;
+        font-weight: bold;
+        white-space: nowrap;
+      }
+
+      .manhole-photo-status.complete {
+        background-color: #d1e7dd;
+        color: #0f5132;
+      }
+
+      .manhole-photo-status.incomplete {
+        background-color: #fff3cd;
+        color: #664d03;
+      }
+
+      .selection-button.selected .manhole-photo-status {
+        background-color: #ffffff;
+        color: #003366;
+      }
+
+      .project-id {
+        display: block;
+      }
+
+      .project-name {
+        display: block;
+        margin-top: 3px;
+        color: #555;
+        font-size: 0.95rem;
+        font-weight: normal;
+      }
+
+      .selection-button.selected .project-name {
+        color: white;
+      }
+
+      .status {
+        padding: 14px;
+        border-radius: 5px;
+        background-color: #e6f2ff;
+        color: #003366;
+        font-size: 1.05rem;
+        font-weight: bold;
+      }
+
+      .photo-location {
+        margin-bottom: 18px;
+        padding: 12px 14px;
+        border-radius: 5px;
+        background-color: #e6f2ff;
+        color: #003366;
+        font-weight: bold;
+      }
+
+      .photo-grid {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 16px;
+      }
+
+      .photo-slot {
+        min-height: 220px;
+        padding: 18px;
+        border: 3px solid #003366;
+        border-radius: 10px;
+        background-color: #f5faff;
+        color: #003366;
+        cursor: pointer;
+
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 10px;
+      }
+
+      .photo-slot:hover,
+      .photo-slot:active {
+        background-color: #e6f2ff;
+      }
+
+      .photo-slot.optional {
+        border-style: dashed;
+      }
+
+      .photo-label {
+        font-size: 1.35rem;
+        font-weight: bold;
+      }
+
+      .optional-label {
+        display: inline-block;
+        margin-left: 8px;
+        padding: 3px 7px;
+        border-radius: 5px;
+        background-color: #e6f2ff;
+        font-size: 0.8rem;
+        font-weight: normal;
+      }
+
+      .photo-placeholder {
+        font-size: 4rem;
+        line-height: 1;
+      }
+
+      .photo-preview {
+        width: 100%;
+        height: 160px;
+        object-fit: cover;
+        border-radius: 8px;
+        display: block;
+      }
+
+      .during-gallery {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 8px;
+        width: 100%;
+      }
+
+      .during-gallery img {
+        width: 100%;
+        height: 105px;
+        object-fit: cover;
+        border-radius: 7px;
+        border: 1px solid #b7c8d8;
+      }
+
+      .during-photo-count {
+        font-size: 0.9rem;
+        font-weight: bold;
+      }
+
+      .photo-help {
+        font-size: 1rem;
+        font-weight: bold;
+      }
+
+      .hidden {
+        display: none !important;
+      }
+
+      @media (max-width: 600px) {
         .vp-header {
-            background-color: #003366;
-            color: #ffeb3b;
-            margin-bottom: 16px;
-            padding: 15px 20px;
-            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+          padding: 12px;
         }
 
         .vp-header-inner {
-            width: 94%;
-            max-width: 900px;
-            margin: 0 auto;
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            gap: 20px;
-        }
-
-        .vp-header h1 {
-            margin: 0;
-            font-size: 1.4rem;
-        }
-
-        .languages {
-            display: flex;
-            align-items: center;
-            gap: 10px;
-        }
-
-        .language-button {
-            width: 64px;
-            height: 46px;
-            padding: 4px;
-            border: 2px solid transparent;
-            border-radius: 7px;
-            background-color: #003366;
-            cursor: pointer;
-        }
-
-        .language-button.active {
-            border-color: #ffeb3b;
-        }
-
-        .language-button img {
-            display: block;
-            width: 100%;
-            height: 100%;
-            object-fit: contain;
+          width: 100%;
+          align-items: flex-start;
+          flex-direction: column;
+          gap: 10px;
         }
 
         .vp-page {
-            width: 94%;
-            max-width: 900px;
-            margin: 0 auto 30px;
+          width: 100%;
+          padding: 0 12px;
+        }
+
+        .languages {
+          width: 100%;
+          justify-content: space-between;
+        }
+
+        .language-button {
+          width: 66px;
+          height: 48px;
         }
 
         .step-navigation {
-            display: flex;
-            align-items: stretch;
-            gap: 6px;
-            margin-bottom: 16px;
-            overflow-x: auto;
+          gap: 4px;
         }
 
         .step-button {
-            flex: 1 1 0;
-            min-width: 120px;
-            min-height: 54px;
-            padding: 8px 10px;
-            border: 2px solid #003366;
-            border-radius: 6px;
-            background-color: white;
-            color: #003366;
-            font-weight: bold;
-            cursor: pointer;
-        }
-
-        .step-button:disabled {
-            border-color: #aab4be;
-            color: #8a949e;
-            background-color: #f1f3f5;
-            cursor: default;
-        }
-
-        .step-button.active {
-            background-color: #003366;
-            color: #ffeb3b;
-        }
-
-        .step-button.completed:not(.active) {
-            background-color: #e6f2ff;
-        }
-
-        .step-number {
-            display: block;
-            font-size: 0.75rem;
-            font-weight: normal;
-        }
-
-        .step-value {
-            display: block;
-            margin-top: 2px;
-            font-size: 0.82rem;
-            font-weight: normal;
-            white-space: nowrap;
-            overflow: hidden;
-            text-overflow: ellipsis;
-        }
-
-        .vp-card {
-            min-height: 420px;
-        }
-
-        .vp-card h2 {
-            margin-top: 0;
-            color: #003366;
+          min-width: 105px;
+          min-height: 58px;
+          padding: 6px;
         }
 
         .step-toolbar {
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            gap: 15px;
-            margin-bottom: 18px;
-        }
-
-        .step-toolbar h2 {
-            margin: 0;
-        }
-
-        .back-button {
-            min-height: 46px;
-            padding: 9px 14px;
-            border: 2px solid #003366;
-            border-radius: 5px;
-            background-color: white;
-            color: #003366;
-            font-size: 1rem;
-            font-weight: bold;
-            cursor: pointer;
-        }
-
-        .back-button:hover,
-        .back-button:active {
-            background-color: #e6f2ff;
-        }
-
-        .search-input {
-            width: 100%;
-            padding: 14px;
-            margin-bottom: 20px;
-            border: 2px solid #003366;
-            border-radius: 5px;
-            font-size: 1.1rem;
-        }
-
-        .search-input:focus {
-            outline: none;
-            box-shadow:
-                0 0 0 3px rgba(0, 51, 102, 0.15);
+          align-items: flex-start;
         }
 
         .selection-list {
-            display: grid;
-            gap: 10px;
-            max-height: 58vh;
-            overflow-y: auto;
-            padding-right: 3px;
-        }
-
-        .selection-button {
-            width: 100%;
-            min-height: 64px;
-            padding: 14px 16px;
-            border: 2px solid #003366;
-            border-radius: 5px;
-            background-color: white;
-            color: #003366;
-            text-align: left;
-            font-size: 1.1rem;
-            font-weight: bold;
-            cursor: pointer;
-        }
-
-        .selection-button:hover,
-        .selection-button:active {
-            background-color: #f5faff;
-        }
-
-        .selection-button.selected {
-            background-color: #003366;
-            color: #ffeb3b;
-        }
-
-        .project-id {
-            display: block;
-        }
-
-        .project-name {
-            display: block;
-            margin-top: 3px;
-            color: #555;
-            font-size: 0.95rem;
-            font-weight: normal;
-        }
-
-        .selection-button.selected .project-name {
-            color: white;
-        }
-
-        .status {
-            padding: 14px;
-            border-radius: 5px;
-            background-color: #e6f2ff;
-            color: #003366;
-            font-size: 1.05rem;
-            font-weight: bold;
-        }
-
-        .photo-location {
-            margin-bottom: 18px;
-            padding: 12px 14px;
-            border-radius: 5px;
-            background-color: #e6f2ff;
-            color: #003366;
-            font-weight: bold;
+          max-height: 62vh;
         }
 
         .photo-grid {
-            display: grid;
-            grid-template-columns:
-                repeat(2, minmax(0, 1fr));
-            gap: 16px;
+          grid-template-columns: 1fr;
         }
 
         .photo-slot {
-            min-height: 220px;
-            padding: 18px;
-            border: 3px solid #003366;
-            border-radius: 10px;
-            background-color: #f5faff;
-            color: #003366;
-            cursor: pointer;
-
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            gap: 10px;
+          min-height: 170px;
         }
-
-        .photo-slot:hover,
-        .photo-slot:active {
-            background-color: #e6f2ff;
-        }
-
-        .photo-slot.optional {
-            border-style: dashed;
-        }
-
-        .photo-label {
-            font-size: 1.35rem;
-            font-weight: bold;
-        }
-
-        .optional-label {
-            display: inline-block;
-            margin-left: 8px;
-            padding: 3px 7px;
-            border-radius: 5px;
-            background-color: #e6f2ff;
-            font-size: 0.8rem;
-            font-weight: normal;
-        }
-
-        .photo-placeholder {
-            font-size: 4rem;
-            line-height: 1;
-        }
-
-        .photo-help {
-            font-size: 1rem;
-            font-weight: bold;
-        }
-
-        .hidden {
-            display: none !important;
-        }
-
-        @media (max-width: 600px) {
-            .vp-header {
-                padding: 12px;
-            }
-
-            .vp-header-inner {
-                width: 100%;
-                align-items: flex-start;
-                flex-direction: column;
-                gap: 10px;
-            }
-
-            .vp-page {
-                width: 100%;
-                padding: 0 12px;
-            }
-
-            .languages {
-                width: 100%;
-                justify-content: space-between;
-            }
-
-            .language-button {
-                width: 66px;
-                height: 48px;
-            }
-
-            .step-navigation {
-                gap: 4px;
-            }
-
-            .step-button {
-                min-width: 105px;
-                min-height: 58px;
-                padding: 6px;
-            }
-
-            .step-toolbar {
-                align-items: flex-start;
-            }
-
-            .selection-list {
-                max-height: 62vh;
-            }
-
-            .photo-grid {
-                grid-template-columns: 1fr;
-            }
-
-            .photo-slot {
-                min-height: 170px;
-            }
-        }
+      }
     </style>
-</head>
+  </head>
 
-<body>
-
-<header class="vp-header">
-    <div class="vp-header-inner">
+  <body>
+    <header class="vp-header">
+      <div class="vp-header-inner">
         <h1>VPManhole</h1>
 
         <div class="languages">
-            <button
-                class="language-button active"
-                type="button"
-                data-language="da"
-                aria-label="Dansk"
-            >
-                <img
-                    src="/static/images/flags/dk.png"
-                    alt="Dansk"
-                >
-            </button>
+          <button
+            class="language-button active"
+            type="button"
+            data-language="da"
+            aria-label="Dansk"
+          >
+            <img src="/static/images/flags/dk.png" alt="Dansk" />
+          </button>
 
-            <button
-                class="language-button"
-                type="button"
-                data-language="pl"
-                aria-label="Polski"
-            >
-                <img
-                    src="/static/images/flags/pl.png"
-                    alt="Polski"
-                >
-            </button>
+          <button
+            class="language-button"
+            type="button"
+            data-language="pl"
+            aria-label="Polski"
+          >
+            <img src="/static/images/flags/pl.png" alt="Polski" />
+          </button>
 
-            <button
-                class="language-button"
-                type="button"
-                data-language="de"
-                aria-label="Deutsch"
-            >
-                <img
-                    src="/static/images/flags/de.png"
-                    alt="Deutsch"
-                >
-            </button>
+          <button
+            class="language-button"
+            type="button"
+            data-language="de"
+            aria-label="Deutsch"
+          >
+            <img src="/static/images/flags/de.png" alt="Deutsch" />
+          </button>
 
-            <button
-                class="language-button"
-                type="button"
-                data-language="en"
-                aria-label="English"
-            >
-                <img
-                    src="/static/images/flags/uk.png"
-                    alt="English"
-                >
-            </button>
+          <button
+            class="language-button"
+            type="button"
+            data-language="en"
+            aria-label="English"
+          >
+            <img src="/static/images/flags/uk.png" alt="English" />
+          </button>
         </div>
-    </div>
-</header>
+      </div>
+    </header>
 
-<main class="vp-page">
-
-    <nav
-        class="step-navigation"
-        aria-label="VPManhole navigation"
-    >
+    <main class="vp-page">
+      <nav class="step-navigation" aria-label="VPManhole navigation">
         <button
-            id="nav-project"
-            class="step-button active"
-            type="button"
-            data-step="project"
+          id="nav-project"
+          class="step-button active"
+          type="button"
+          data-step="project"
         >
-            <span class="step-number">
-                1
-            </span>
-            <span data-text="project">
-                Projekt
-            </span>
-            <span
-                id="nav-project-value"
-                class="step-value"
-            ></span>
+          <span class="step-number"> 1 </span>
+          <span data-text="project"> Projekt </span>
+          <span id="nav-project-value" class="step-value"></span>
         </button>
 
         <button
-            id="nav-installation"
-            class="step-button"
-            type="button"
-            data-step="installation"
-            disabled
+          id="nav-installation"
+          class="step-button"
+          type="button"
+          data-step="installation"
+          disabled
         >
-            <span class="step-number">
-                2
-            </span>
-            <span data-text="installation">
-                Installation
-            </span>
-            <span
-                id="nav-installation-value"
-                class="step-value"
-            ></span>
+          <span class="step-number"> 2 </span>
+          <span data-text="installation"> Installation </span>
+          <span id="nav-installation-value" class="step-value"></span>
         </button>
 
         <button
-            id="nav-manhole"
-            class="step-button"
-            type="button"
-            data-step="manhole"
-            disabled
+          id="nav-manhole"
+          class="step-button"
+          type="button"
+          data-step="manhole"
+          disabled
         >
-            <span class="step-number">
-                3
-            </span>
-            <span data-text="manhole">
-                Brønd
-            </span>
-            <span
-                id="nav-manhole-value"
-                class="step-value"
-            ></span>
+          <span class="step-number"> 3 </span>
+          <span data-text="manhole"> Brønd </span>
+          <span id="nav-manhole-value" class="step-value"></span>
         </button>
 
         <button
-            id="nav-photos"
-            class="step-button"
-            type="button"
-            data-step="photos"
-            disabled
+          id="nav-photos"
+          class="step-button"
+          type="button"
+          data-step="photos"
+          disabled
         >
-            <span class="step-number">
-                4
-            </span>
-            <span data-text="photos">
-                Billeder
-            </span>
+          <span class="step-number"> 4 </span>
+          <span data-text="photos"> Billeder </span>
         </button>
-    </nav>
+      </nav>
 
-    <section
-        id="project-step"
-        class="card vp-card"
-    >
-        <h2 data-text="chooseProject">
-            Vælg projekt
-        </h2>
+      <section id="project-step" class="card vp-card">
+        <h2 data-text="chooseProject">Vælg projekt</h2>
 
         <input
-            id="project-search"
-            class="search-input"
-            type="search"
-            placeholder="Søg V-nummer eller projektnavn"
-            autocomplete="off"
-            data-placeholder="searchProject"
+          id="project-search"
+          class="search-input"
+          type="search"
+          placeholder="Søg V-nummer eller projektnavn"
+          autocomplete="off"
+          data-placeholder="searchProject"
+        />
+
+        <div id="project-list" class="selection-list">
+          {% for project in projects %}
+          <button
+            class="selection-button project-button"
+            type="button"
+            data-project-id="{{ project.id }}"
+            data-search="{{ project.id }} {{ project.name or '' }} {{ project.city or '' }}"
+          >
+            <span class="project-id"> {{ project.id }} </span>
+
+            <span class="project-name">
+              {{ project.name or '' }} {% if project.city %} · {{ project.city
+              }} {% endif %}
+            </span>
+          </button>
+          {% endfor %}
+        </div>
+      </section>
+
+      <section id="installation-step" class="card vp-card hidden">
+        <div class="step-toolbar">
+          <h2 data-text="chooseInstallation">Vælg installation</h2>
+
+          <button class="back-button" type="button" data-go-step="project">
+            ←
+            <span data-text="backProject"> Projekter </span>
+          </button>
+        </div>
+
+        <div id="installation-list" class="selection-list"></div>
+      </section>
+
+      <section id="manhole-step" class="card vp-card hidden">
+        <div class="step-toolbar">
+          <h2 data-text="chooseManhole">Vælg brønd</h2>
+
+          <button class="back-button" type="button" data-go-step="installation">
+            ←
+            <span data-text="backInstallation"> Installationer </span>
+          </button>
+        </div>
+
+        <button
+          id="sort-manhole-status"
+          type="button"
+          class="back-button"
+          style="margin-bottom: 14px"
         >
+          Vis manglende billeder først
+        </button>
 
-        <div
-            id="project-list"
-            class="selection-list"
-        >
-            {% for project in projects %}
-            <button
-                class="selection-button project-button"
-                type="button"
-                data-project-id="{{ project.id }}"
-                data-search="{{ project.id }} {{ project.name or '' }} {{ project.city or '' }}"
-            >
-                <span class="project-id">
-                    {{ project.id }}
-                </span>
+        <div id="manhole-list" class="selection-list"></div>
+      </section>
 
-                <span class="project-name">
-                    {{ project.name or '' }}
-                    {% if project.city %}
-                        · {{ project.city }}
-                    {% endif %}
-                </span>
-            </button>
-            {% endfor %}
-        </div>
-    </section>
-
-    <section
-        id="installation-step"
-        class="card vp-card hidden"
-    >
+      <section id="photos-step" class="card vp-card hidden">
         <div class="step-toolbar">
-            <h2 data-text="chooseInstallation">
-                Vælg installation
-            </h2>
+          <h2 data-text="photos">Billeder</h2>
 
-            <button
-                class="back-button"
-                type="button"
-                data-go-step="project"
-            >
-                ←
-                <span data-text="backProject">
-                    Projekter
-                </span>
-            </button>
+          <button class="back-button" type="button" data-go-step="manhole">
+            ←
+            <span data-text="backManhole"> Brønde </span>
+          </button>
         </div>
 
-        <div
-            id="installation-list"
-            class="selection-list"
-        ></div>
-    </section>
-
-    <section
-        id="manhole-step"
-        class="card vp-card hidden"
-    >
-        <div class="step-toolbar">
-            <h2 data-text="chooseManhole">
-                Vælg brønd
-            </h2>
-
-            <button
-                class="back-button"
-                type="button"
-                data-go-step="installation"
-            >
-                ←
-                <span data-text="backInstallation">
-                    Installationer
-                </span>
-            </button>
-        </div>
-
-        <div
-            id="manhole-list"
-            class="selection-list"
-        ></div>
-    </section>
-
-    <section
-        id="photos-step"
-        class="card vp-card hidden"
-    >
-        <div class="step-toolbar">
-            <h2 data-text="photos">
-                Billeder
-            </h2>
-
-            <button
-                class="back-button"
-                type="button"
-                data-go-step="manhole"
-            >
-                ←
-                <span data-text="backManhole">
-                    Brønde
-                </span>
-            </button>
-        </div>
-
-        <div
-            id="selected-status"
-            class="photo-location"
-        ></div>
+        <div id="selected-status" class="photo-location"></div>
 
         <div class="photo-grid">
-            <button
-                class="photo-slot"
-                type="button"
-                data-photo-type="before"
-            >
-                <span
-                    class="photo-label"
-                    data-text="before"
-                >
-                    Før
-                </span>
+          <button class="photo-slot" type="button" data-photo-type="before">
+            <span class="photo-label" data-text="before"> Før </span>
 
-                <span class="photo-placeholder">
-                    ＋
-                </span>
+            <span class="photo-placeholder"> ＋ </span>
 
-                <span
-                    class="photo-help"
-                    data-text="takePhoto"
-                >
-                    Tag billede
-                </span>
-            </button>
+            <span class="photo-help" data-text="takePhoto"> Tag billede </span>
+          </button>
 
-            <button
-                class="photo-slot optional"
-                type="button"
-                data-photo-type="during"
-            >
-                <span class="photo-label">
-                    <span data-text="during">
-                        Igangværende
-                    </span>
+          <button
+            class="photo-slot optional"
+            type="button"
+            data-photo-type="during"
+          >
+            <span class="photo-label">
+              <span data-text="during"> Igangværende </span>
 
-                    <span
-                        class="optional-label"
-                        data-text="optional"
-                    >
-                        Valgfrit
-                    </span>
-                </span>
+              <span class="optional-label" data-text="optional">
+                Valgfrit
+              </span>
+            </span>
 
-                <span class="photo-placeholder">
-                    ＋
-                </span>
+            <span class="photo-placeholder"> ＋ </span>
 
-                <span
-                    class="photo-help"
-                    data-text="addPhoto"
-                >
-                    Tilføj billede
-                </span>
-            </button>
+            <span class="photo-help" data-text="addPhoto">
+              Tilføj billede
+            </span>
+          </button>
 
-            <button
-                class="photo-slot"
-                type="button"
-                data-photo-type="after"
-            >
-                <span
-                    class="photo-label"
-                    data-text="after"
-                >
-                    Efter
-                </span>
+          <button class="photo-slot" type="button" data-photo-type="after">
+            <span class="photo-label" data-text="after"> Efter </span>
 
-                <span class="photo-placeholder">
-                    ＋
-                </span>
+            <span class="photo-placeholder"> ＋ </span>
 
-                <span
-                    class="photo-help"
-                    data-text="takePhoto"
-                >
-                    Tag billede
-                </span>
-            </button>
+            <span class="photo-help" data-text="takePhoto"> Tag billede </span>
+          </button>
 
-            <button
-                class="photo-slot"
-                type="button"
-                data-photo-type="cover"
-            >
-                <span
-                    class="photo-label"
-                    data-text="cover"
-                >
-                    Dæksel
-                </span>
+          <button class="photo-slot" type="button" data-photo-type="cover">
+            <span class="photo-label" data-text="cover"> Dæksel </span>
 
-                <span class="photo-placeholder">
-                    ＋
-                </span>
+            <span class="photo-placeholder"> ＋ </span>
 
-                <span
-                    class="photo-help"
-                    data-text="takePhoto"
-                >
-                    Tag billede
-                </span>
-            </button>
+            <span class="photo-help" data-text="takePhoto"> Tag billede </span>
+          </button>
         </div>
-    </section>
 
-</main>
+        <input
+          id="photo-file-input"
+          type="file"
+          accept="image/*"
+          capture="environment"
+          class="hidden"
+        />
 
-<script>
-    const translations = {
+        <div
+          id="photo-upload-status"
+          role="status"
+          aria-live="polite"
+          style="margin-top: 18px"
+        ></div>
+      </section>
+    </main>
+
+    <script>
+      const translations = {
         da: {
-            project: "Projekt",
-            chooseProject: "Vælg projekt",
-            searchProject:
-                "Søg V-nummer eller projektnavn",
-            chooseInstallation: "Vælg installation",
-            chooseManhole: "Vælg brønd",
-            installation: "Installation",
-            manhole: "Brønd",
-            photos: "Billeder",
-            loading: "Henter installationer...",
-            loadError:
-                "Kunne ikke hente installationer.",
-            noInstallations:
-                "Projektet har ingen installationer med brønde.",
-            backProject: "Projekter",
-            backInstallation: "Installationer",
-            backManhole: "Brønde",
-            before: "Før",
-            during: "Igangværende",
-            after: "Efter",
-            cover: "Dæksel",
-            optional: "Valgfrit",
-            takePhoto: "Tag billede",
-            addPhoto: "Tilføj billede"
+          project: "Projekt",
+          chooseProject: "Vælg projekt",
+          searchProject: "Søg V-nummer eller projektnavn",
+          chooseInstallation: "Vælg installation",
+          chooseManhole: "Vælg brønd",
+          installation: "Installation",
+          manhole: "Brønd",
+          photos: "Billeder",
+          loading: "Henter installationer...",
+          loadError: "Kunne ikke hente installationer.",
+          noInstallations: "Projektet har ingen installationer med brønde.",
+          backProject: "Projekter",
+          backInstallation: "Installationer",
+          backManhole: "Brønde",
+          before: "Før",
+          during: "Igangværende",
+          after: "Efter",
+          cover: "Dæksel",
+          optional: "Valgfrit",
+          takePhoto: "Tag billede",
+          addPhoto: "Tilføj billede",
         },
 
         pl: {
-            project: "Projekt",
-            chooseProject: "Wybierz projekt",
-            searchProject:
-                "Szukaj numeru V lub nazwy projektu",
-            chooseInstallation: "Wybierz instalację",
-            chooseManhole: "Wybierz studnię",
-            installation: "Instalacja",
-            manhole: "Studnia",
-            photos: "Zdjęcia",
-            loading: "Pobieranie instalacji...",
-            loadError:
-                "Nie można pobrać instalacji.",
-            noInstallations:
-                "Projekt nie ma instalacji ze studniami.",
-            backProject: "Projekty",
-            backInstallation: "Instalacje",
-            backManhole: "Studnie",
-            before: "Przed",
-            during: "W trakcie",
-            after: "Po",
-            cover: "Pokrywa",
-            optional: "Opcjonalne",
-            takePhoto: "Zrób zdjęcie",
-            addPhoto: "Dodaj zdjęcie"
+          project: "Projekt",
+          chooseProject: "Wybierz projekt",
+          searchProject: "Szukaj numeru V lub nazwy projektu",
+          chooseInstallation: "Wybierz instalację",
+          chooseManhole: "Wybierz studnię",
+          installation: "Instalacja",
+          manhole: "Studnia",
+          photos: "Zdjęcia",
+          loading: "Pobieranie instalacji...",
+          loadError: "Nie można pobrać instalacji.",
+          noInstallations: "Projekt nie ma instalacji ze studniami.",
+          backProject: "Projekty",
+          backInstallation: "Instalacje",
+          backManhole: "Studnie",
+          before: "Przed",
+          during: "W trakcie",
+          after: "Po",
+          cover: "Pokrywa",
+          optional: "Opcjonalne",
+          takePhoto: "Zrób zdjęcie",
+          addPhoto: "Dodaj zdjęcie",
         },
 
         de: {
-            project: "Projekt",
-            chooseProject: "Projekt auswählen",
-            searchProject:
-                "V-Nummer oder Projektname suchen",
-            chooseInstallation:
-                "Installation auswählen",
-            chooseManhole: "Schacht auswählen",
-            installation: "Installation",
-            manhole: "Schacht",
-            photos: "Fotos",
-            loading:
-                "Installationen werden geladen...",
-            loadError:
-                "Installationen konnten nicht geladen werden.",
-            noInstallations:
-                "Das Projekt hat keine Installationen mit Schächten.",
-            backProject: "Projekte",
-            backInstallation: "Installationen",
-            backManhole: "Schächte",
-            before: "Vorher",
-            during: "Während der Arbeit",
-            after: "Nachher",
-            cover: "Deckel",
-            optional: "Optional",
-            takePhoto: "Foto aufnehmen",
-            addPhoto: "Foto hinzufügen"
+          project: "Projekt",
+          chooseProject: "Projekt auswählen",
+          searchProject: "V-Nummer oder Projektname suchen",
+          chooseInstallation: "Installation auswählen",
+          chooseManhole: "Schacht auswählen",
+          installation: "Installation",
+          manhole: "Schacht",
+          photos: "Fotos",
+          loading: "Installationen werden geladen...",
+          loadError: "Installationen konnten nicht geladen werden.",
+          noInstallations:
+            "Das Projekt hat keine Installationen mit Schächten.",
+          backProject: "Projekte",
+          backInstallation: "Installationen",
+          backManhole: "Schächte",
+          before: "Vorher",
+          during: "Während der Arbeit",
+          after: "Nachher",
+          cover: "Deckel",
+          optional: "Optional",
+          takePhoto: "Foto aufnehmen",
+          addPhoto: "Foto hinzufügen",
         },
 
         en: {
-            project: "Project",
-            chooseProject: "Select project",
-            searchProject:
-                "Search V-number or project name",
-            chooseInstallation: "Select installation",
-            chooseManhole: "Select manhole",
-            installation: "Installation",
-            manhole: "Manhole",
-            photos: "Photos",
-            loading: "Loading installations...",
-            loadError:
-                "Could not load installations.",
-            noInstallations:
-                "This project has no installations with manholes.",
-            backProject: "Projects",
-            backInstallation: "Installations",
-            backManhole: "Manholes",
-            before: "Before",
-            during: "Work in progress",
-            after: "After",
-            cover: "Cover",
-            optional: "Optional",
-            takePhoto: "Take photo",
-            addPhoto: "Add photo"
-        }
-    };
+          project: "Project",
+          chooseProject: "Select project",
+          searchProject: "Search V-number or project name",
+          chooseInstallation: "Select installation",
+          chooseManhole: "Select manhole",
+          installation: "Installation",
+          manhole: "Manhole",
+          photos: "Photos",
+          loading: "Loading installations...",
+          loadError: "Could not load installations.",
+          noInstallations: "This project has no installations with manholes.",
+          backProject: "Projects",
+          backInstallation: "Installations",
+          backManhole: "Manholes",
+          before: "Before",
+          during: "Work in progress",
+          after: "After",
+          cover: "Cover",
+          optional: "Optional",
+          takePhoto: "Take photo",
+          addPhoto: "Add photo",
+        },
+      };
 
-    let currentLanguage = "da";
-    let currentStep = "project";
+      let currentLanguage = "da";
+      let currentStep = "project";
 
-    let selectedProjectId = null;
-    let selectedInstallation = null;
-    let selectedManhole = null;
+      let selectedProjectId = null;
+      let selectedInstallation = null;
+      let selectedManhole = null;
 
-    let currentInstallations = [];
+      let currentInstallations = [];
 
-    const steps = {
-        project:
-            document.getElementById("project-step"),
-        installation:
-            document.getElementById(
-                "installation-step"
-            ),
-        manhole:
-            document.getElementById("manhole-step"),
-        photos:
-            document.getElementById("photos-step")
-    };
+      const steps = {
+        project: document.getElementById("project-step"),
+        installation: document.getElementById("installation-step"),
+        manhole: document.getElementById("manhole-step"),
+        photos: document.getElementById("photos-step"),
+      };
 
-    const navButtons = {
-        project:
-            document.getElementById("nav-project"),
-        installation:
-            document.getElementById(
-                "nav-installation"
-            ),
-        manhole:
-            document.getElementById("nav-manhole"),
-        photos:
-            document.getElementById("nav-photos")
-    };
+      const navButtons = {
+        project: document.getElementById("nav-project"),
+        installation: document.getElementById("nav-installation"),
+        manhole: document.getElementById("nav-manhole"),
+        photos: document.getElementById("nav-photos"),
+      };
 
-    const navProjectValue =
-        document.getElementById(
-            "nav-project-value"
-        );
+      const navProjectValue = document.getElementById("nav-project-value");
 
-    const navInstallationValue =
-        document.getElementById(
-            "nav-installation-value"
-        );
+      const navInstallationValue = document.getElementById(
+        "nav-installation-value",
+      );
 
-    const navManholeValue =
-        document.getElementById(
-            "nav-manhole-value"
-        );
+      const navManholeValue = document.getElementById("nav-manhole-value");
 
-    const projectSearch =
-        document.getElementById("project-search");
+      const projectSearch = document.getElementById("project-search");
 
-    const projectButtons =
-        document.querySelectorAll(
-            ".project-button"
-        );
+      const projectButtons = document.querySelectorAll(".project-button");
 
-    const installationList =
-        document.getElementById(
-            "installation-list"
-        );
+      const installationList = document.getElementById("installation-list");
 
-    const manholeList =
-        document.getElementById(
-            "manhole-list"
-        );
+      const manholeList = document.getElementById("manhole-list");
 
-    const selectedStatus =
-        document.getElementById(
-            "selected-status"
-        );
+      const selectedStatus = document.getElementById("selected-status");
 
-
-    function t(key) {
+      function t(key) {
         return translations[currentLanguage][key];
-    }
+      }
 
-
-    function showStep(stepName) {
-        if (
-            stepName === "installation" &&
-            !selectedProjectId
-        ) {
-            return;
+      function showStep(stepName, addToHistory = true) {
+        if (stepName === "installation" && !selectedProjectId) {
+          return;
         }
 
-        if (
-            stepName === "manhole" &&
-            !selectedInstallation
-        ) {
-            return;
+        if (stepName === "manhole" && !selectedInstallation) {
+          return;
         }
 
-        if (
-            stepName === "photos" &&
-            !selectedManhole
-        ) {
-            return;
+        if (stepName === "photos" && !selectedManhole) {
+          return;
+        }
+
+        if (addToHistory && currentStep !== stepName) {
+          window.history.pushState(
+            {
+              vpmanhole: true,
+              step: stepName,
+            },
+            "",
+            window.location.href,
+          );
         }
 
         currentStep = stepName;
 
-        Object.entries(steps).forEach(
-            ([name, element]) => {
-                element.classList.toggle(
-                    "hidden",
-                    name !== stepName
-                );
-            }
-        );
+        Object.entries(steps).forEach(([name, element]) => {
+          element.classList.toggle("hidden", name !== stepName);
+        });
 
-        Object.entries(navButtons).forEach(
-            ([name, button]) => {
-                button.classList.toggle(
-                    "active",
-                    name === stepName
-                );
-            }
-        );
+        Object.entries(navButtons).forEach(([name, button]) => {
+          button.classList.toggle("active", name === stepName);
+        });
 
         window.scrollTo({
-            top: 0,
-            behavior: "smooth"
+          top: 0,
+          behavior: "smooth",
         });
-    }
+      }
 
+      function updateNavigation() {
+        navProjectValue.textContent = selectedProjectId || "";
 
-    function updateNavigation() {
-        navProjectValue.textContent =
-            selectedProjectId || "";
+        navInstallationValue.textContent = selectedInstallation
+          ? selectedInstallation.installation_no
+          : "";
 
-        navInstallationValue.textContent =
-            selectedInstallation
-                ? selectedInstallation.installation_no
-                : "";
+        navManholeValue.textContent = selectedManhole
+          ? selectedManhole.manhole_no
+          : "";
 
-        navManholeValue.textContent =
-            selectedManhole
-                ? selectedManhole.manhole_no
-                : "";
+        navButtons.installation.disabled = !selectedProjectId;
 
-        navButtons.installation.disabled =
-            !selectedProjectId;
+        navButtons.manhole.disabled = !selectedInstallation;
 
-        navButtons.manhole.disabled =
-            !selectedInstallation;
-
-        navButtons.photos.disabled =
-            !selectedManhole;
+        navButtons.photos.disabled = !selectedManhole;
 
         navButtons.project.classList.toggle(
-            "completed",
-            Boolean(selectedProjectId)
+          "completed",
+          Boolean(selectedProjectId),
         );
 
         navButtons.installation.classList.toggle(
-            "completed",
-            Boolean(selectedInstallation)
+          "completed",
+          Boolean(selectedInstallation),
         );
 
         navButtons.manhole.classList.toggle(
-            "completed",
-            Boolean(selectedManhole)
+          "completed",
+          Boolean(selectedManhole),
         );
 
         navButtons.photos.classList.toggle(
-            "completed",
-            Boolean(selectedManhole)
+          "completed",
+          Boolean(selectedManhole),
         );
-    }
+      }
 
-
-    function renderSelectionStatus() {
-        if (
-            !selectedProjectId ||
-            !selectedInstallation ||
-            !selectedManhole
-        ) {
-            selectedStatus.textContent = "";
-            return;
+      function renderSelectionStatus() {
+        if (!selectedProjectId || !selectedInstallation || !selectedManhole) {
+          selectedStatus.textContent = "";
+          return;
         }
 
         selectedStatus.textContent =
-            `${selectedProjectId} · ` +
-            `${t("installation")} ` +
-            `${selectedInstallation.installation_no} · ` +
-            `${t("manhole")} ` +
-            `${selectedManhole.manhole_no}`;
-    }
+          `${selectedProjectId} · ` +
+          `${t("installation")} ` +
+          `${selectedInstallation.installation_no} · ` +
+          `${t("manhole")} ` +
+          `${selectedManhole.manhole_no}`;
+      }
 
-
-    function setLanguage(language) {
+      function setLanguage(language) {
         currentLanguage = language;
 
         document.documentElement.lang = language;
 
-        document
-            .querySelectorAll(
-                ".language-button"
-            )
-            .forEach((button) => {
-                button.classList.toggle(
-                    "active",
-                    button.dataset.language ===
-                        language
-                );
-            });
+        document.querySelectorAll(".language-button").forEach((button) => {
+          button.classList.toggle(
+            "active",
+            button.dataset.language === language,
+          );
+        });
 
-        document
-            .querySelectorAll("[data-text]")
-            .forEach((element) => {
-                element.textContent =
-                    t(element.dataset.text);
-            });
+        document.querySelectorAll("[data-text]").forEach((element) => {
+          element.textContent = t(element.dataset.text);
+        });
 
-        document
-            .querySelectorAll(
-                "[data-placeholder]"
-            )
-            .forEach((element) => {
-                element.placeholder =
-                    t(
-                        element.dataset.placeholder
-                    );
-            });
+        document.querySelectorAll("[data-placeholder]").forEach((element) => {
+          element.placeholder = t(element.dataset.placeholder);
+        });
 
         if (currentInstallations.length) {
-            renderInstallations();
+          renderInstallations();
         }
 
         if (selectedInstallation) {
-            renderManholes();
+          renderManholes();
         }
 
         renderSelectionStatus();
         updateNavigation();
-    }
+      }
 
+      projectSearch.addEventListener("input", () => {
+        const query = projectSearch.value.trim().toLowerCase();
 
-    projectSearch.addEventListener(
-        "input",
-        () => {
-            const query =
-                projectSearch.value
-                    .trim()
-                    .toLowerCase();
+        projectButtons.forEach((button) => {
+          const searchText = button.dataset.search.toLowerCase();
 
-            projectButtons.forEach((button) => {
-                const searchText =
-                    button.dataset.search
-                        .toLowerCase();
+          button.classList.toggle("hidden", !searchText.includes(query));
+        });
+      });
 
-                button.classList.toggle(
-                    "hidden",
-                    !searchText.includes(query)
-                );
-            });
-        }
-    );
+      projectButtons.forEach((button) => {
+        button.addEventListener("click", async () => {
+          const projectId = button.dataset.projectId;
 
+          if (selectedProjectId !== projectId) {
+            selectedProjectId = projectId;
+            selectedInstallation = null;
+            selectedManhole = null;
+            currentInstallations = [];
+          }
 
-    projectButtons.forEach((button) => {
-        button.addEventListener(
-            "click",
-            async () => {
-                const projectId =
-                    button.dataset.projectId;
+          projectButtons.forEach((item) => {
+            item.classList.toggle("selected", item === button);
+          });
 
-                if (
-                    selectedProjectId !== projectId
-                ) {
-                    selectedProjectId = projectId;
-                    selectedInstallation = null;
-                    selectedManhole = null;
-                    currentInstallations = [];
-                }
+          updateNavigation();
 
-                projectButtons.forEach(
-                    (item) => {
-                        item.classList.toggle(
-                            "selected",
-                            item === button
-                        );
-                    }
-                );
+          installationList.innerHTML =
+            `<div class="status">` + `${t("loading")}` + `</div>`;
 
-                updateNavigation();
+          showStep("installation");
 
-                installationList.innerHTML =
-                    `<div class="status">` +
-                    `${t("loading")}` +
-                    `</div>`;
+          try {
+            const response = await fetch(
+              `/projects/` +
+                `${encodeURIComponent(selectedProjectId)}` +
+                `/installations`,
+            );
 
-                showStep("installation");
-
-                try {
-                    const response = await fetch(
-                        `/projects/` +
-                        `${encodeURIComponent(
-                            selectedProjectId
-                        )}` +
-                        `/installations`
-                    );
-
-                    if (!response.ok) {
-                        throw new Error(
-                            `HTTP ${response.status}`
-                        );
-                    }
-
-                    const data =
-                        await response.json();
-
-                    currentInstallations =
-                        data.installations;
-
-                    renderInstallations();
-                } catch (error) {
-                    installationList.innerHTML =
-                        `<div class="status">` +
-                        `${t("loadError")}` +
-                        `</div>`;
-
-                    console.error(error);
-                }
+            if (!response.ok) {
+              throw new Error(`HTTP ${response.status}`);
             }
-        );
-    });
 
+            const data = await response.json();
 
-    function renderInstallations() {
+            currentInstallations = data.installations;
+
+            renderInstallations();
+          } catch (error) {
+            installationList.innerHTML =
+              `<div class="status">` + `${t("loadError")}` + `</div>`;
+
+            console.error(error);
+          }
+        });
+      });
+
+      function renderInstallations() {
         installationList.innerHTML = "";
 
         if (!currentInstallations.length) {
-            installationList.innerHTML =
-                `<div class="status">` +
-                `${t("noInstallations")}` +
-                `</div>`;
-            return;
+          installationList.innerHTML =
+            `<div class="status">` + `${t("noInstallations")}` + `</div>`;
+          return;
         }
 
-        currentInstallations.forEach(
-            (installation) => {
-                const button =
-                    document.createElement(
-                        "button"
-                    );
+        currentInstallations.forEach((installation) => {
+          const button = document.createElement("button");
 
-                button.type = "button";
-                button.className =
-                    "selection-button";
+          button.type = "button";
+          button.className = "selection-button";
 
-                if (
-                    selectedInstallation &&
-                    selectedInstallation.id ===
-                        installation.id
-                ) {
-                    button.classList.add(
-                        "selected"
-                    );
-                }
+          if (
+            selectedInstallation &&
+            selectedInstallation.id === installation.id
+          ) {
+            button.classList.add("selected");
+          }
 
-                button.textContent =
-                    `${t("installation")} ` +
-                    installation.installation_no;
+          button.textContent =
+            `${t("installation")} ` + installation.installation_no;
 
-                button.addEventListener(
-                    "click",
-                    () => {
-                        const changed =
-                            !selectedInstallation ||
-                            selectedInstallation.id !==
-                                installation.id;
+          button.addEventListener("click", () => {
+            const changed =
+              !selectedInstallation ||
+              selectedInstallation.id !== installation.id;
 
-                        selectedInstallation =
-                            installation;
+            selectedInstallation = installation;
 
-                        if (changed) {
-                            selectedManhole = null;
-                        }
-
-                        renderInstallations();
-                        renderManholes();
-                        updateNavigation();
-
-                        showStep("manhole");
-                    }
-                );
-
-                installationList.appendChild(
-                    button
-                );
+            if (changed) {
+              selectedManhole = null;
             }
-        );
-    }
 
+            renderInstallations();
+            renderManholes();
+            updateNavigation();
 
-    function renderManholes() {
+            showStep("manhole");
+          });
+
+          installationList.appendChild(button);
+        });
+      }
+
+      let sortManholesByStatus = false;
+      let manholePhotoStatuses = {};
+      let manholeStatusRequestVersion = 0;
+
+      const sortManholeButton = document.getElementById("sort-manhole-status");
+
+      sortManholeButton.addEventListener("click", () => {
+        sortManholesByStatus = !sortManholesByStatus;
+
+        sortManholeButton.textContent = sortManholesByStatus
+          ? "Vis normal rækkefølge"
+          : "Vis manglende billeder først";
+
+        renderManholes(false);
+      });
+
+      async function loadManholePhotoStatuses() {
+        if (!selectedProjectId || !selectedInstallation) {
+          return;
+        }
+
+        const projectId = selectedProjectId;
+        const installationId = selectedInstallation.id;
+        const requestVersion = ++manholeStatusRequestVersion;
+
+        try {
+          const response = await fetch(
+            `/projects/${encodeURIComponent(projectId)}` +
+              `/installations/${installationId}/photo-status`,
+            { cache: "no-store" },
+          );
+
+          if (!response.ok) {
+            throw new Error(`HTTP ${response.status}`);
+          }
+
+          const data = await response.json();
+
+          if (
+            requestVersion !== manholeStatusRequestVersion ||
+            selectedProjectId !== projectId ||
+            selectedInstallation?.id !== installationId
+          ) {
+            return;
+          }
+
+          manholePhotoStatuses = data.manholes || {};
+
+          // Tegn listen igen med de nye statusdata.
+          // false betyder: hent IKKE data igen.
+          renderManholes(false);
+        } catch (error) {
+          console.error("Kunne ikke hente billedstatus:", error);
+        }
+      }
+
+      function renderManholes(fetchStatuses = true) {
         manholeList.innerHTML = "";
 
         if (!selectedInstallation) {
+          return;
+        }
+
+        const manholes = [...selectedInstallation.manholes];
+
+        if (sortManholesByStatus) {
+          manholes.sort((a, b) => {
+            const statusA = manholePhotoStatuses[a.id]?.completed ?? 0;
+
+            const statusB = manholePhotoStatuses[b.id]?.completed ?? 0;
+
+            return statusA - statusB;
+          });
+        }
+
+        manholes.forEach((manhole) => {
+          const button = document.createElement("button");
+
+          button.type = "button";
+          button.className = "selection-button manhole-list-item";
+
+          button.dataset.manholeId = manhole.id;
+
+          if (selectedManhole && selectedManhole.id === manhole.id) {
+            button.classList.add("selected");
+          }
+
+          const name = document.createElement("span");
+
+          name.textContent = `${t("manhole")} ${manhole.manhole_no}`;
+
+          const status = document.createElement("span");
+
+          status.className = "manhole-photo-status";
+
+          const completed = manholePhotoStatuses[manhole.id]?.completed ?? 0;
+
+          status.textContent = `${completed}/3`;
+
+          status.classList.toggle("complete", completed === 3);
+
+          status.classList.toggle("incomplete", completed > 0 && completed < 3);
+
+          status.setAttribute("aria-label", "Dokumentationsstatus");
+
+          button.appendChild(name);
+          button.appendChild(status);
+
+          button.addEventListener("click", () => {
+            selectedManhole = manhole;
+
+            renderManholes(false);
+            renderSelectionStatus();
+            updateNavigation();
+
+            showStep("photos");
+            loadSavedPhotos();
+          });
+
+          manholeList.appendChild(button);
+        });
+
+        if (fetchStatuses) {
+          manholePhotoStatuses = {};
+          loadManholePhotoStatuses();
+        }
+      }
+
+      Object.entries(navButtons).forEach(([stepName, button]) => {
+        button.addEventListener("click", () => {
+          showStep(stepName);
+        });
+      });
+
+      document.querySelectorAll("[data-go-step]").forEach((button) => {
+        button.addEventListener("click", () => {
+          showStep(button.dataset.goStep);
+        });
+      });
+
+      document.querySelectorAll(".language-button").forEach((button) => {
+        button.addEventListener("click", () => {
+          setLanguage(button.dataset.language);
+        });
+      });
+
+      const photoFileInput = document.getElementById("photo-file-input");
+
+      const photoUploadStatus = document.getElementById("photo-upload-status");
+
+      let pendingPhotoType = null;
+      let photoUploading = false;
+      let duringPhotoSequence = 1;
+
+      let photoLoadVersion = 0;
+
+      function clearPhotoPreviews() {
+        document.querySelectorAll(".photo-slot").forEach((button) => {
+          button
+            .querySelectorAll(
+              ".photo-preview, .during-gallery, .during-photo-count",
+            )
+            .forEach((element) => {
+              element.remove();
+            });
+
+          const placeholder = button.querySelector(".photo-placeholder");
+
+          if (placeholder) {
+            placeholder.style.display = "";
+          }
+
+          button.style.borderColor = "";
+          button.style.backgroundColor = "";
+        });
+
+        duringPhotoSequence = 1;
+        photoUploadStatus.textContent = "";
+      }
+
+      async function loadSavedPhotos() {
+        const version = ++photoLoadVersion;
+
+        clearPhotoPreviews();
+
+        if (!selectedProjectId || !selectedInstallation || !selectedManhole) {
+          return;
+        }
+
+        const projectId = selectedProjectId;
+        const installationId = selectedInstallation.id;
+        const manholeId = selectedManhole.id;
+
+        try {
+          const response = await fetch(
+            `/projects/${encodeURIComponent(projectId)}` +
+              `/manholes/${manholeId}/photos` +
+              `?installation_id=${installationId}`,
+            { cache: "no-store" },
+          );
+
+          if (!response.ok) {
+            throw new Error("Kunne ikke hente gemte billeder.");
+          }
+
+          const result = await response.json();
+
+          // Ignorér gamle svar ved skift af brønd.
+          if (version !== photoLoadVersion) {
             return;
-        }
+          }
 
-        selectedInstallation.manholes.forEach(
-            (manhole) => {
-                const button =
-                    document.createElement(
-                        "button"
-                    );
+          const photos = result.photos || [];
 
-                button.type = "button";
-                button.className =
-                    "selection-button";
+          // Opdatér brøndlistens dokumentationsstatus.
+          loadManholePhotoStatuses();
 
-                if (
-                    selectedManhole &&
-                    selectedManhole.id ===
-                        manhole.id
-                ) {
-                    button.classList.add(
-                        "selected"
-                    );
-                }
+          const duringPhotos = photos.filter(
+            (photo) => photo.photo_type === "during",
+          );
 
-                button.textContent =
-                    `${t("manhole")} ` +
-                    manhole.manhole_no;
+          duringPhotoSequence = duringPhotos.length
+            ? Math.max(...duringPhotos.map((photo) => photo.sequence)) + 1
+            : 1;
 
-                button.addEventListener(
-                    "click",
-                    () => {
-                        selectedManhole =
-                            manhole;
+          for (const photoType of ["before", "during", "after", "cover"]) {
+            const matching = photos.filter(
+              (photo) => photo.photo_type === photoType,
+            );
 
-                        renderManholes();
-                        renderSelectionStatus();
-                        updateNavigation();
-
-                        showStep("photos");
-                    }
-                );
-
-                manholeList.appendChild(button);
+            if (!matching.length) {
+              continue;
             }
-        );
-    }
 
+            if (photoType === "during") {
+              const button = document.querySelector(
+                '.photo-slot[data-photo-type="during"]',
+              );
 
-    Object.entries(navButtons).forEach(
-        ([stepName, button]) => {
-            button.addEventListener(
-                "click",
-                () => {
-                    showStep(stepName);
-                }
+              if (!button) {
+                continue;
+              }
+
+              const gallery = document.createElement("div");
+              gallery.className = "during-gallery";
+
+              const sortedPhotos = [...matching].sort(
+                (a, b) => a.sequence - b.sequence,
+              );
+
+              for (const photo of sortedPhotos) {
+                const image = document.createElement("img");
+                image.src = photo.url;
+                image.alt = `Igangværende billede ${photo.sequence}`;
+                image.loading = "lazy";
+
+                gallery.appendChild(image);
+              }
+
+              const count = document.createElement("span");
+              count.className = "during-photo-count";
+              count.textContent = `${matching.length} billeder gemt`;
+
+              const placeholder = button.querySelector(".photo-placeholder");
+
+              if (placeholder) {
+                placeholder.style.display = "none";
+              }
+
+              button.prepend(count);
+              button.prepend(gallery);
+
+              button.style.borderColor = "#198754";
+              button.style.backgroundColor = "#e8f5e9";
+
+              continue;
+            }
+
+            const photo = matching[matching.length - 1];
+
+            const button = document.querySelector(
+              `.photo-slot[data-photo-type="${photoType}"]`,
             );
+
+            if (!button) {
+              continue;
+            }
+
+            const preview = document.createElement("img");
+
+            preview.className = "photo-preview";
+            preview.alt = "Gemt brøndfoto";
+            preview.src = photo.url;
+
+            preview.style.width = "100%";
+            preview.style.height = "160px";
+            preview.style.objectFit = "cover";
+            preview.style.borderRadius = "8px";
+            preview.style.display = "block";
+
+            const placeholder = button.querySelector(".photo-placeholder");
+
+            if (placeholder) {
+              placeholder.style.display = "none";
+            }
+
+            button.prepend(preview);
+
+            button.style.borderColor = "#198754";
+            button.style.backgroundColor = "#e8f5e9";
+          }
+        } catch (error) {
+          if (version === photoLoadVersion) {
+            setPhotoStatus(error.message || "Kunne ikke hente billeder.", true);
+          }
         }
-    );
+      }
 
+      function setPhotoStatus(message, isError = false) {
+        photoUploadStatus.textContent = message;
+        photoUploadStatus.style.color = isError ? "#842029" : "#003366";
+      }
 
-    document
-        .querySelectorAll("[data-go-step]")
-        .forEach((button) => {
-            button.addEventListener(
-                "click",
-                () => {
-                    showStep(
-                        button.dataset.goStep
-                    );
-                }
-            );
+      document.querySelectorAll(".photo-slot").forEach((button) => {
+        button.addEventListener("click", () => {
+          if (photoUploading) {
+            return;
+          }
+
+          if (!selectedProjectId || !selectedInstallation || !selectedManhole) {
+            setPhotoStatus("Vælg projekt, installation og brønd først.", true);
+            return;
+          }
+
+          pendingPhotoType = button.dataset.photoType;
+          photoFileInput.value = "";
+          photoFileInput.click();
+        });
+      });
+
+      photoFileInput.addEventListener("change", async () => {
+        const file = photoFileInput.files[0];
+
+        if (!file || !pendingPhotoType || photoUploading) {
+          return;
+        }
+
+        const projectId = selectedProjectId;
+        const installationId = selectedInstallation.id;
+        const manholeId = selectedManhole.id;
+        const photoType = pendingPhotoType;
+
+        if (file.size > 20 * 1024 * 1024) {
+          setPhotoStatus("Billedet må højst fylde 20 MB.", true);
+          return;
+        }
+
+        photoUploading = true;
+
+        const photoButtons = document.querySelectorAll(".photo-slot");
+
+        photoButtons.forEach((button) => {
+          button.disabled = true;
         });
 
+        setPhotoStatus("Gemmer billede...");
 
-    document
-        .querySelectorAll(
-            ".language-button"
-        )
-        .forEach((button) => {
-            button.addEventListener(
-                "click",
-                () => {
-                    setLanguage(
-                        button.dataset.language
-                    );
-                }
-            );
-        });
+        const formData = new FormData();
 
+        formData.append("installation_id", installationId);
 
-    updateNavigation();
-</script>
+        formData.append("photo_type", photoType);
 
-</body>
+        formData.append(
+          "sequence",
+          photoType === "during" ? duringPhotoSequence : 1,
+        );
+
+        formData.append("image", file);
+
+        formData.append("csrf_token", "{{ csrf_token(request) }}");
+
+        try {
+          const response = await fetch(
+            `/projects/${encodeURIComponent(projectId)}` +
+              `/manholes/${manholeId}/photos`,
+            {
+              method: "POST",
+              body: formData,
+            },
+          );
+
+          const result = await response.json();
+
+          if (!response.ok || !result.success) {
+            throw new Error(result.detail || "Billedet kunne ikke gemmes.");
+          }
+
+          setPhotoStatus("Billedet er gemt: " + file.name);
+
+          await loadSavedPhotos();
+
+          setPhotoStatus("Billedet er gemt: " + file.name);
+
+          if (photoType === "during") {
+            duringPhotoSequence++;
+          }
+
+          const button = document.querySelector(
+            `.photo-slot[data-photo-type="${photoType}"]`,
+          );
+
+          if (button) {
+            button.style.borderColor = "#198754";
+            button.style.backgroundColor = "#e8f5e9";
+          }
+        } catch (error) {
+          setPhotoStatus(
+            error.message || "Der opstod en fejl under upload.",
+            true,
+          );
+        } finally {
+          photoUploading = false;
+
+          photoButtons.forEach((button) => {
+            button.disabled = false;
+          });
+
+          photoFileInput.value = "";
+          pendingPhotoType = null;
+        }
+      });
+
+      window.history.replaceState(
+        {
+          vpmanhole: true,
+          step: currentStep,
+        },
+        "",
+        window.location.href,
+      );
+
+      window.addEventListener("popstate", (event) => {
+        const state = event.state;
+
+        if (!state || !state.vpmanhole) {
+          return;
+        }
+
+        showStep(state.step, false);
+      });
+
+      updateNavigation();
+    </script>
+    <form
+      action="/logout"
+      method="post"
+      style="position: fixed; top: 12px; right: 12px; z-index: 1000"
+    >
+      <input
+        type="hidden"
+        name="csrf_token"
+        value="{{ csrf_token(request) }}"
+      />
+      <button type="submit" class="back-button">Log ud</button>
+    </form>
+  </body>
 </html>
