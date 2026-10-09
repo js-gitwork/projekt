@@ -1,0 +1,236 @@
+
+<!DOCTYPE html>
+<html lang="da">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Brugeradministration – Rørbot</title>
+    <style>
+        :root {
+            font-family: system-ui, sans-serif;
+            color: #172536;
+            background: #f3f5f8;
+        }
+        body { margin: 0; }
+        header {
+            background: #172b46;
+            color: white;
+            padding: 20px 28px;
+        }
+        header h1 { margin: 0 0 6px; font-size: 24px; }
+        header a { color: #dbeafe; }
+        main { max-width: 1200px; margin: 28px auto; padding: 0 16px; }
+        section {
+            background: white;
+            border: 1px solid #dce2e9;
+            border-radius: 12px;
+            padding: 22px;
+            margin-bottom: 24px;
+        }
+        h2 { margin-top: 0; }
+        label { display: block; font-size: 13px; margin-bottom: 5px; }
+        input, select {
+            box-sizing: border-box;
+            width: 100%;
+            padding: 9px;
+            border: 1px solid #bdc8d5;
+            border-radius: 6px;
+            font: inherit;
+        }
+        button {
+            background: #2457a6;
+            color: white;
+            border: 0;
+            border-radius: 6px;
+            padding: 10px 14px;
+            cursor: pointer;
+            font: inherit;
+        }
+        button:hover { filter: brightness(.9); }
+        .secondary { background: #526477; }
+        .danger { background: #a83232; }
+        .success { background: #23734b; }
+        .fields {
+            display: grid;
+            grid-template-columns: repeat(4, minmax(0, 1fr));
+            gap: 12px;
+            align-items: end;
+        }
+        .fields button { min-height: 41px; }
+        .users { display: grid; gap: 16px; }
+        .user {
+            border: 1px solid #dce2e9;
+            border-radius: 9px;
+            padding: 16px;
+        }
+        .user-head {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 12px;
+            margin-bottom: 14px;
+        }
+        .user-head strong { font-size: 17px; }
+        .muted { color: #64748b; font-size: 13px; }
+        .status { font-size: 13px; font-weight: 600; }
+        .inactive { color: #a83232; }
+        .active { color: #23734b; }
+        .actions {
+            display: grid;
+            grid-template-columns: minmax(0, 2fr) minmax(0, 1fr);
+            gap: 14px;
+        }
+        .edit-fields {
+            display: grid;
+            grid-template-columns: 1fr 140px auto;
+            gap: 10px;
+            align-items: end;
+        }
+        .reset-fields {
+            display: grid;
+            grid-template-columns: 1fr auto;
+            gap: 10px;
+            align-items: end;
+        }
+        .toggle { margin-top: 12px; }
+        .note { color: #64748b; font-size: 13px; }
+        @media (max-width: 850px) {
+            .fields, .actions, .edit-fields, .reset-fields {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+<header>
+    <h1>Brugeradministration</h1>
+    <div>Fælles brugere for Rørbot og VPManhole</div>
+    <p><a href="/">← Tilbage til Rørbot</a></p>
+</header>
+
+<main>
+    <section>
+        <h2>Opret ny bruger</h2>
+        <p class="note">
+            Brugeren skal ændre sin midlertidige adgangskode ved første login.
+        </p>
+        <form method="post" action="/admin/users/create">
+            <input type="hidden" name="csrf_token"
+                   value="{{ csrf_token(request) }}">
+            <div class="fields">
+                <div>
+                    <label for="username">Brugernavn</label>
+                    <input id="username" name="username" required
+                           maxlength="100" autocomplete="off">
+                </div>
+                <div>
+                    <label for="display_name">Navn</label>
+                    <input id="display_name" name="display_name"
+                           required maxlength="150">
+                </div>
+                <div>
+                    <label for="role">Rolle</label>
+                    <select id="role" name="role">
+                        <option value="felt">Felt</option>
+                        <option value="kontor">Kontor</option>
+                        <option value="admin">Administrator</option>
+                    </select>
+                </div>
+                <div>
+                    <label for="password">Midlertidig adgangskode</label>
+                    <input id="password" type="password" name="password"
+                           required minlength="4" autocomplete="new-password">
+                </div>
+            </div>
+            <p><button type="submit">Opret bruger</button></p>
+        </form>
+    </section>
+
+    <section>
+        <h2>Eksisterende brugere ({{ users|length }})</h2>
+        <div class="users">
+            {% for user in users %}
+            <article class="user">
+                <div class="user-head">
+                    <div>
+                        <strong>{{ user.display_name }}</strong>
+                        <div class="muted">@{{ user.username }}</div>
+                    </div>
+                    {% if user.is_active %}
+                        <span class="status active">Aktiv</span>
+                    {% else %}
+                        <span class="status inactive">Deaktiveret</span>
+                    {% endif %}
+                </div>
+
+                <div class="actions">
+                    <form method="post"
+                          action="/admin/users/{{ user.id }}/update">
+                        <input type="hidden" name="csrf_token"
+                               value="{{ csrf_token(request) }}">
+                        <div class="edit-fields">
+                            <div>
+                                <label>Navn</label>
+                                <input name="display_name" required
+                                       maxlength="150"
+                                       value="{{ user.display_name }}">
+                            </div>
+                            <div>
+                                <label>Rolle</label>
+                                <select name="role">
+                                    {% for role, label in [
+                                        ('felt', 'Felt'),
+                                        ('kontor', 'Kontor'),
+                                        ('admin', 'Administrator')
+                                    ] %}
+                                    <option value="{{ role }}"
+                                        {% if user.role == role %}selected{% endif %}>
+                                        {{ label }}
+                                    </option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                            <button type="submit">Gem ændringer</button>
+                        </div>
+                    </form>
+
+                    <form method="post"
+                          action="/admin/users/{{ user.id }}/reset-password"
+                          onsubmit="return confirm('Nulstil adgangskoden for {{ user.username }}?')">
+                        <input type="hidden" name="csrf_token"
+                               value="{{ csrf_token(request) }}">
+                        <div class="reset-fields">
+                            <div>
+                                <label>Ny midlertidig adgangskode</label>
+                                <input type="password" name="password"
+                                       required minlength="4"
+                                       autocomplete="new-password">
+                            </div>
+                            <button type="submit" class="secondary">
+                                Nulstil
+                            </button>
+                        </div>
+                    </form>
+                </div>
+
+                <form method="post"
+                      action="/admin/users/{{ user.id }}/toggle"
+                      class="toggle"
+                      onsubmit="return confirm('Ændre adgang for {{ user.username }}?')">
+                    <input type="hidden" name="csrf_token"
+                           value="{{ csrf_token(request) }}">
+                    {% if user.is_active %}
+                        <button type="submit" class="danger">Deaktiver</button>
+                    {% else %}
+                        <button type="submit" class="success">Genaktiver</button>
+                    {% endif %}
+                </form>
+            </article>
+            {% else %}
+            <p>Der er endnu ingen brugere.</p>
+            {% endfor %}
+        </div>
+    </section>
+</main>
+</body>
+</html>

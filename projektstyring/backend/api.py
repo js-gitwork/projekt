@@ -73,6 +73,7 @@ from projektstyring.backend.planning_board_service import (
     build_planning_board,
 )
 from projektstyring.vpmanhole.router import router as vpmanhole_router
+from projektstyring.backend.admin_router import router as admin_router
 
 app = FastAPI()
 
@@ -150,8 +151,13 @@ async def require_login(request: Request, call_next):
                 },
             )
 
-        if path == "/logout":
+        if path in {
+            "/change-password",
+            "/logout",
+        }:
             allowed = True
+        elif path == "/admin" or path.startswith("/admin/"):
+            allowed = role == "admin"
         elif path.startswith("/vpmanhole"):
             allowed = role in {
                 "felt",
@@ -193,6 +199,7 @@ app.add_middleware(
 
 
 app.include_router(vpmanhole_router)
+app.include_router(admin_router)
 
 app.mount(
     "/static",
@@ -1276,14 +1283,38 @@ async def c5_import_preview(
         form.get("csv_text", "")
     )
 
-    import_type = detect_c5_csv_type(
-        csv_text
-    )
+    selected_import_type = str(
+        form.get("import_type", "")
+    ).strip()
 
-    import_data = parse_c5_import(
-        csv_text=csv_text,
-        project_id=project_id,
-    )
+    if selected_import_type:
+        import_type = selected_import_type
+    else:
+        # Bagudkompatibilitet med den eksisterende formular,
+        # indtil den nye importside er på plads.
+        import_type = detect_c5_csv_type(
+            csv_text
+        )
+
+    try:
+        import_data = parse_c5_import(
+            csv_text=csv_text,
+            project_id=project_id,
+            expected_import_type=import_type,
+        )
+    except ValueError as exc:
+        return templates.TemplateResponse(
+            request,
+            "c5_import.html",
+            {
+                "project": project,
+                "csv_text": csv_text,
+                "import_type": import_type,
+                "updates": [],
+                "import_error": str(exc),
+            },
+            status_code=400,
+        )
 
     if isinstance(
         import_data,
@@ -1298,20 +1329,25 @@ async def c5_import_preview(
         )
 
     else:
-        # Den eksisterende detaljerede
-        # C5-preview for tekniske data.
-        updates = parse_c5_csv(
-            csv_text
-        )
-
-        updates = [
-            update
-            for update in updates
-            if (
-                update.get("project_id")
-                == project_id.upper()
+        if import_type == "project_overview":
+            # Den eksisterende detaljerede preview-visning
+            # gælder kun produktionsoversigten.
+            updates = parse_c5_csv(
+                csv_text
             )
-        ]
+
+            updates = [
+                update
+                for update in updates
+                if (
+                    update.get("project_id")
+                    == project_id.upper()
+                )
+            ]
+        else:
+            # Opmålings- og brøndoversigter bruger den
+            # fælles tekniske import-preview.
+            updates = []
 
         preview_result = (
             technical_asset_import_service.preview(
@@ -1352,11 +1388,40 @@ async def c5_import_apply(
         form.get("csv_text", "")
     )
 
-    import_data = parse_c5_import(
-        csv_text=csv_text,
-        project_id=project_id,
-    )
+    selected_import_type = str(
+        form.get("import_type", "")
+    ).strip()
 
+    if selected_import_type:
+        import_type = selected_import_type
+    else:
+        # Bagudkompatibilitet med den eksisterende formular,
+        # indtil den nye importside er på plads.
+        import_type = detect_c5_csv_type(
+            csv_text
+        )
+
+    try:
+        import_data = parse_c5_import(
+            csv_text=csv_text,
+            project_id=project_id,
+            expected_import_type=import_type,
+        )
+    except ValueError as exc:
+        project = repo.load_project(project_id)
+
+        return templates.TemplateResponse(
+            request,
+            "c5_import.html",
+            {
+                "project": project,
+                "csv_text": csv_text,
+                "import_type": import_type,
+                "updates": [],
+                "import_error": str(exc),
+            },
+            status_code=400,
+        )
     if isinstance(
         import_data,
         DeviationImport,
