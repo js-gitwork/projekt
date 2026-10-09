@@ -110,7 +110,10 @@ async def require_login(request: Request, call_next):
     with SessionLocal() as session:
         user = session.get(User, user_id)
 
-        if user is None or not user.is_active:
+        if (
+            request.session.get("session_version")
+            != user.session_version
+        ):
             request.session.clear()
 
             if request.method == "GET":
@@ -122,7 +125,7 @@ async def require_login(request: Request, call_next):
             return JSONResponse(
                 status_code=401,
                 content={
-                    "detail": "Login kræves.",
+                    "detail": "Sessionen er udløbet. Log ind igen.",
                 },
             )
 
@@ -280,6 +283,7 @@ def login(
         request.session.clear()
 
         request.session["user_id"] = user.id
+        request.session["session_version"] = user.session_version
         request.session["username"] = user.username
         request.session["display_name"] = user.display_name
         request.session["role"] = user.role
@@ -409,9 +413,11 @@ def change_password(
             new_password
         )
         user.must_change_password = False
+        user.session_version += 1
 
         session.commit()
 
+        request.session["session_version"] = user.session_version
         request.session["must_change_password"] = False
 
         role = user.role

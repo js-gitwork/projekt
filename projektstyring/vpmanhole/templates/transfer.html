@@ -1,210 +1,720 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="da">
-<head>
-    <meta charset="UTF-8">
-    <meta
-        name="viewport"
-        content="width=device-width, initial-scale=1.0"
-    >
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Overfør billeder · VPManhole</title>
-
     <link
-        rel="icon"
-        type="image/png"
-        href="/static/images/roerbot.png"
-    >
-    <link
-        rel="stylesheet"
-        href="/static/style.css"
-    >
+      rel="icon"
+      type="image/png"
+      href="/vpmanhole-static/images/vpmanhole.png"
+    />
+    <link rel="stylesheet" href="/static/style.css" />
 
     <style>
-        body {
-            margin: 0;
-            background: #f4f6f8;
-            font-family: Arial, sans-serif;
+      * {
+        box-sizing: border-box;
+      }
+      body {
+        margin: 0;
+        background: #f4f6f8;
+        font-family: Arial, sans-serif;
+      }
+      .vp-header {
+        background: #003366;
+        color: #ffeb3b;
+        padding: 15px 20px;
+        margin-bottom: 16px;
+        box-shadow: 0 2px 8px #0003;
+      }
+      .vp-header-inner {
+        max-width: 900px;
+        width: 94%;
+        margin: auto;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 16px;
+      }
+      .vp-header h1 {
+        margin: 0;
+        font-size: 1.4rem;
+      }
+      .vp-page {
+        max-width: 900px;
+        width: 94%;
+        margin: 0 auto 30px;
+      }
+      .step-navigation {
+        display: flex;
+        gap: 6px;
+        margin-bottom: 16px;
+        overflow-x: auto;
+      }
+      .step-button {
+        flex: 1;
+        min-width: 110px;
+        min-height: 54px;
+        padding: 8px;
+        border: 2px solid #003366;
+        border-radius: 6px;
+        background: white;
+        color: #003366;
+        font-weight: bold;
+        cursor: pointer;
+      }
+      .step-button.active {
+        background: #003366;
+        color: #ffeb3b;
+      }
+      .step-button:disabled {
+        border-color: #aab4be;
+        background: #f1f3f5;
+        color: #8a949e;
+        cursor: default;
+      }
+      .step-number {
+        display: block;
+        font-size: 0.75rem;
+        font-weight: normal;
+      }
+      .step-value {
+        display: block;
+        font-size: 0.8rem;
+        font-weight: normal;
+      }
+      .vp-card {
+        background: white;
+        border-radius: 8px;
+        padding: 24px;
+        min-height: 350px;
+        box-shadow: 0 2px 8px #0001;
+      }
+      .vp-card h2 {
+        margin-top: 0;
+        color: #003366;
+      }
+      .hidden {
+        display: none !important;
+      }
+      .step-toolbar {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 12px;
+        margin-bottom: 18px;
+      }
+      .selection-list {
+        display: grid;
+        gap: 10px;
+      }
+      .selection-button {
+        width: 100%;
+        padding: 16px;
+        min-height: 58px;
+        border: 2px solid #cbd4df;
+        border-radius: 7px;
+        background: white;
+        text-align: left;
+        font-size: 1rem;
+        cursor: pointer;
+        color: #003366;
+      }
+      .selection-button:hover {
+        background: #e6f2ff;
+      }
+      .selection-button.selected {
+        background: #e6f2ff;
+        border-color: #003366;
+        font-weight: bold;
+      }
+      .back-button {
+        min-height: 46px;
+        padding: 9px 14px;
+        border: 2px solid #003366;
+        border-radius: 5px;
+        background: white;
+        color: #003366;
+        font-size: 1rem;
+        font-weight: bold;
+        cursor: pointer;
+      }
+      .primary-button {
+        min-height: 48px;
+        padding: 10px 20px;
+        border: 2px solid #003366;
+        border-radius: 5px;
+        background: #003366;
+        color: #ffeb3b;
+        font-size: 1rem;
+        font-weight: bold;
+        cursor: pointer;
+      }
+      .primary-button:disabled {
+        opacity: 0.45;
+        cursor: default;
+      }
+      .action-row {
+        display: flex;
+        justify-content: space-between;
+        flex-wrap: wrap;
+        gap: 12px;
+        margin-top: 24px;
+      }
+      .search-input {
+        width: 100%;
+        padding: 13px;
+        margin-bottom: 16px;
+        border: 2px solid #cbd4df;
+        border-radius: 6px;
+        font-size: 1rem;
+      }
+      .check-row {
+        display: flex;
+        align-items: center;
+        gap: 14px;
+      }
+      .check-row input {
+        width: 22px;
+        height: 22px;
+        accent-color: #003366;
+      }
+      .summary {
+        line-height: 1.8;
+      }
+      .status {
+        color: #526170;
+        padding: 12px 0;
+      }
+      .warning {
+        color: #9a5300;
+      }
+      @media (max-width: 650px) {
+        .vp-header-inner {
+          flex-wrap: wrap;
         }
-
-        .transfer-page {
-            max-width: 1100px;
-            margin: 0 auto;
-            padding: 32px 20px 60px;
+        .step-button {
+          min-width: 100px;
         }
-
-        .transfer-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            gap: 24px;
-            margin-bottom: 32px;
+        .vp-card {
+          padding: 16px;
         }
-
-        .transfer-header h1 {
-            margin: 0 0 6px;
-            font-size: 32px;
-        }
-
-        .transfer-header p {
-            margin: 0;
-            color: #5f6873;
-        }
-
-        .logout-form {
-            margin: 0;
-        }
-
-        .logout-button {
-            border: 1px solid #c8ced6;
-            border-radius: 10px;
-            background: white;
-            padding: 10px 18px;
-            font-size: 15px;
-            cursor: pointer;
-        }
-
-        .transfer-card {
-            background: white;
-            border-radius: 16px;
-            padding: 26px;
-            box-shadow:
-                0 2px 10px rgba(0, 0, 0, 0.08);
-        }
-
-        .transfer-card h2 {
-            margin-top: 0;
-        }
-
-        .project-list {
-            display: grid;
-            gap: 12px;
-            margin-top: 22px;
-        }
-
-        .project-button {
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            gap: 20px;
-
-            width: 100%;
-            padding: 18px 20px;
-
-            border: 1px solid #d9dee5;
-            border-radius: 12px;
-            background: white;
-
-            text-align: left;
-            cursor: pointer;
-        }
-
-        .project-button:hover {
-            background: #f7f9fb;
-            border-color: #aeb7c2;
-        }
-
-        .project-id {
-            display: block;
-            margin-bottom: 4px;
-            font-size: 18px;
-            font-weight: 700;
-        }
-
-        .project-name {
-            color: #5f6873;
-        }
-
-        .project-arrow {
-            font-size: 24px;
-            color: #69727d;
-        }
-
-        .empty-message {
-            padding: 30px 0;
-            color: #69727d;
-        }
-
-        @media (max-width: 650px) {
-            .transfer-header {
-                align-items: flex-start;
-                flex-direction: column;
-            }
-
-            .transfer-page {
-                padding: 20px 12px 40px;
-            }
-        }
+      }
     </style>
-</head>
+  </head>
 
-<body>
-    <main class="transfer-page">
-        <header class="transfer-header">
-            <div>
-                <h1>Overfør brøndbilleder</h1>
+  <body>
+    <header class="vp-header">
+      <div class="vp-header-inner">
+        <h1>VPManhole · Billedoverførsel</h1>
+        <form action="/logout" method="post">
+          <input
+            type="hidden"
+            name="csrf_token"
+            value="{{ csrf_token(request) }}"
+          />
+          <button class="back-button" type="submit">Log ud</button>
+        </form>
+      </div>
+    </header>
 
-                <p>
-                    Vælg projekt, installationer eller enkelte
-                    brønde, som skal overføres.
-                </p>
-            </div>
+    <main class="vp-page">
+      <nav class="step-navigation" aria-label="Navigation">
+        <button id="nav-project" class="step-button active" type="button">
+          <span class="step-number">1</span>Projekt
+          <span id="nav-project-value" class="step-value"></span>
+        </button>
+        <button
+          id="nav-installation"
+          class="step-button"
+          type="button"
+          disabled
+        >
+          <span class="step-number">2</span>Installationer
+        </button>
+        <button id="nav-manhole" class="step-button" type="button" disabled>
+          <span class="step-number">3</span>Brønde
+        </button>
+        <button id="nav-download" class="step-button" type="button" disabled>
+          <span class="step-number">4</span>Download
+        </button>
+      </nav>
 
-            <form
-                class="logout-form"
-                method="post"
-                action="/logout"
-            >
-                <input
-                    type="hidden"
-                    name="csrf_token"
-                    value="{{ csrf_token(request) }}"
-                >
+      <section id="project-step" class="vp-card">
+        <h2>Vælg projekt</h2>
+        <input
+          id="project-search"
+          class="search-input"
+          type="search"
+          placeholder="Søg V-nummer eller projektnavn"
+        />
+        <div class="selection-list" id="project-list">
+          {% for project in projects %}
+          <button
+            class="selection-button project-button"
+            type="button"
+            data-project-id="{{ project.id }}"
+            data-search="{{ project.id }} {{ project.name or '' }} {{ project.city or '' }}"
+          >
+            <strong>{{ project.id }}</strong>
+            <span> · {{ project.name or '' }}</span>
+            {% if project.city %}<span> · {{ project.city }}</span>{% endif %}
+          </button>
+          {% endfor %}
+        </div>
+      </section>
 
-                <button
-                    class="logout-button"
-                    type="submit"
-                >
-                    Log ud
-                </button>
-            </form>
-        </header>
+      <section id="installation-step" class="vp-card hidden">
+        <div class="step-toolbar">
+          <h2>Vælg installationer</h2>
+          <button class="back-button" type="button" data-back="project">
+            ← Projekter
+          </button>
+        </div>
+        <p>Markér de installationer, der skal med i overførslen.</p>
+        <div id="installation-list" class="selection-list"></div>
+        <div class="action-row">
+          <button
+            id="select-all-installations"
+            class="back-button"
+            type="button"
+          >
+            Vælg alle
+          </button>
+          <button
+            id="installation-next"
+            class="primary-button"
+            type="button"
+            disabled
+          >
+            Videre til brønde →
+          </button>
+        </div>
+      </section>
 
-        <section class="transfer-card">
-            <h2>Vælg projekt</h2>
+      <section id="manhole-step" class="vp-card hidden">
+        <div class="step-toolbar">
+          <h2>Vælg brønde</h2>
+          <button class="back-button" type="button" data-back="installation">
+            ← Installationer
+          </button>
+        </div>
+        <p>
+          Alle brønde i de valgte installationer er markeret som udgangspunkt.
+        </p>
+        <div id="manhole-list" class="selection-list"></div>
+        <div class="action-row">
+          <button id="select-all-manholes" class="back-button" type="button">
+            Vælg alle brønde
+          </button>
+          <button
+            id="manhole-next"
+            class="primary-button"
+            type="button"
+            disabled
+          >
+            Videre til download →
+          </button>
+        </div>
+      </section>
 
-            {% if projects %}
-                <div class="project-list">
-                    {% for project in projects %}
-                        <button
-                            class="project-button"
-                            type="button"
-                            data-project-id="{{ project.id }}"
-                        >
-                            <span>
-                                <span class="project-id">
-                                    {{ project.id }}
-                                </span>
-
-                                <span class="project-name">
-                                    {{ project.name or '' }}
-
-                                    {% if project.city %}
-                                        · {{ project.city }}
-                                    {% endif %}
-                                </span>
-                            </span>
-
-                            <span class="project-arrow">
-                                ›
-                            </span>
-                        </button>
-                    {% endfor %}
-                </div>
-            {% else %}
-                <div class="empty-message">
-                    Der er ingen åbne projekter.
-                </div>
-            {% endif %}
-        </section>
+      <section id="download-step" class="vp-card hidden">
+        <div class="step-toolbar">
+          <h2>Klar til download</h2>
+          <button class="back-button" type="button" data-back="manhole">
+            ← Brønde
+          </button>
+        </div>
+        <div id="download-summary" class="summary"></div>
+        <p class="status">
+          ZIP-filen samles i mappen <strong id="zip-folder-name"></strong>. Hver
+          brønd får sin egen mappe direkte under denne.
+        </p>
+        <p id="download-status" role="status"></p>
+        <button
+          id="download-button"
+          class="primary-button"
+          type="button"
+          disabled
+        >
+          Download valgte brønde
+        </button>
+      </section>
     </main>
-</body>
+
+    <script>
+      const exportCsrfToken = "{{ csrf_token(request) }}";
+      const steps = ["project", "installation", "manhole", "download"];
+      const selectedInstallations = new Set();
+      const selectedManholes = new Set();
+      const photoStatuses = new Map();
+      let projectId = null;
+      let installations = [];
+      let currentStep = "project";
+      let requestVersion = 0;
+
+      const byId = (id) => document.getElementById(id);
+
+      function allManholes() {
+        const result = new Map();
+        for (const installation of installations) {
+          if (!selectedInstallations.has(String(installation.id))) continue;
+          for (const manhole of installation.manholes || []) {
+            result.set(String(manhole.id), manhole);
+          }
+        }
+        return result;
+      }
+
+      async function loadPhotoStatuses(projectId, installations) {
+        photoStatuses.clear();
+
+        const results = await Promise.all(
+          installations.map(async (installation) => {
+            const response = await fetch(
+              `/projects/${encodeURIComponent(projectId)}/installations/${installation.id}/photo-status`,
+              { cache: "no-store" },
+            );
+
+            if (!response.ok) {
+              throw new Error(
+                `Kunne ikke hente billedstatus: HTTP ${response.status}`,
+              );
+            }
+
+            return response.json();
+          }),
+        );
+
+        for (const result of results) {
+          for (const [manholeId, status] of Object.entries(
+            result.manholes || {},
+          )) {
+            photoStatuses.set(String(manholeId), status);
+          }
+        }
+      }
+
+      function hasPhotos(manholeId) {
+        return photoStatuses.get(String(manholeId))?.has_photos === true;
+      }
+
+      function showStep(step) {
+        if (!steps.includes(step)) return;
+        currentStep = step;
+        for (const name of steps) {
+          byId(`${name}-step`).classList.toggle("hidden", name !== step);
+          byId(`nav-${name}`).classList.toggle("active", name === step);
+        }
+        window.scrollTo({ top: 0, behavior: "smooth" });
+      }
+
+      function updateNavigation() {
+        byId("nav-project-value").textContent = projectId || "";
+        byId("nav-installation").disabled = !projectId;
+        byId("nav-manhole").disabled =
+          !projectId || !selectedInstallations.size;
+        byId("nav-download").disabled = !projectId || !selectedManholes.size;
+        byId("installation-next").disabled = !selectedInstallations.size;
+        byId("manhole-next").disabled = !selectedManholes.size;
+      }
+
+      function renderInstallations() {
+        const list = byId("installation-list");
+        list.replaceChildren();
+
+        for (const installation of installations) {
+          const manholes = installation.manholes || [];
+          const withPhotos = manholes.filter((manhole) =>
+            hasPhotos(manhole.id),
+          ).length;
+
+          const label = document.createElement("label");
+          label.className = "selection-button check-row";
+
+          const input = document.createElement("input");
+          input.type = "checkbox";
+          input.checked = selectedInstallations.has(String(installation.id));
+          input.disabled = false;
+          const description = document.createElement("span");
+          description.textContent =
+            `Installation ${installation.installation_no} · ` +
+            `${withPhotos}/${manholes.length} brønde med billeder`;
+
+          label.append(input, description);
+
+          if (withPhotos === 0) {
+            label.style.opacity = "0.5";
+          }
+
+          input.addEventListener("change", () => {
+            if (input.checked) {
+              selectedInstallations.add(String(installation.id));
+            } else {
+              selectedInstallations.delete(String(installation.id));
+            }
+
+            selectedManholes.clear();
+
+            for (const [id] of allManholes()) {
+              if (hasPhotos(id)) {
+                selectedManholes.add(id);
+              }
+            }
+
+            updateNavigation();
+          });
+
+          list.append(label);
+        }
+
+        updateNavigation();
+      }
+
+      function renderManholes() {
+        const list = byId("manhole-list");
+        list.replaceChildren();
+
+        for (const [id, manhole] of allManholes()) {
+          const status = photoStatuses.get(id);
+          const available = hasPhotos(id);
+
+          const label = document.createElement("label");
+          label.className = "selection-button check-row";
+
+          if (!available) {
+            label.style.opacity = "0.5";
+          }
+
+          const input = document.createElement("input");
+          input.type = "checkbox";
+          input.checked = selectedManholes.has(id);
+          input.disabled = !available;
+
+          const name = document.createElement("span");
+          name.textContent = `Brønd ${manhole.manhole_no}`;
+          name.style.flex = "1";
+
+          const count = document.createElement("strong");
+          count.textContent = `${status?.completed ?? 0}/3`;
+
+          if (status?.complete) {
+            count.style.color = "#238636";
+          } else if (available) {
+            count.style.color = "#b26a00";
+          } else {
+            count.style.color = "#8a949e";
+          }
+
+          label.append(input, name, count);
+
+          input.addEventListener("change", () => {
+            if (input.checked) {
+              selectedManholes.add(id);
+            } else {
+              selectedManholes.delete(id);
+            }
+
+            updateNavigation();
+          });
+
+          list.append(label);
+        }
+
+        updateNavigation();
+      }
+
+      function renderSummary() {
+        byId("download-summary").textContent =
+          `Projekt ${projectId} · ${selectedInstallations.size} installationer · ` +
+          `${selectedManholes.size} valgte brønde`;
+        byId("zip-folder-name").textContent = `Brønde-${projectId}`;
+        byId("download-status").textContent =
+          "Klik på knappen nedenfor for at downloade de valgte billedfiler.";
+      }
+
+      document.querySelectorAll(".project-button").forEach((button) => {
+        button.addEventListener("click", async () => {
+          const id = button.dataset.projectId;
+          const version = ++requestVersion;
+          projectId = id;
+          installations = [];
+          selectedInstallations.clear();
+          selectedManholes.clear();
+          updateNavigation();
+          showStep("installation");
+          byId("installation-list").textContent = "Henter installationer...";
+
+          try {
+            const response = await fetch(
+              `/projects/${encodeURIComponent(id)}/installations`,
+              { cache: "no-store" },
+            );
+            if (!response.ok) throw new Error(`HTTP ${response.status}`);
+            const data = await response.json();
+            if (version !== requestVersion) return;
+
+            installations = data.installations || [];
+
+            await loadPhotoStatuses(id, installations);
+
+            if (version !== requestVersion) return;
+
+            for (const installation of installations) {
+              if (
+                (installation.manholes || []).some((manhole) =>
+                  hasPhotos(manhole.id),
+                )
+              ) {
+                selectedInstallations.add(String(installation.id));
+              }
+            }
+
+            for (const [manholeId] of allManholes()) {
+              if (hasPhotos(manholeId)) {
+                selectedManholes.add(manholeId);
+              }
+            }
+
+            renderInstallations();
+          } catch (error) {
+            if (version !== requestVersion) return;
+            byId("installation-list").textContent =
+              "Kunne ikke hente installationerne.";
+            console.error(error);
+          }
+        });
+      });
+
+      byId("project-search").addEventListener("input", (event) => {
+        const query = event.target.value.toLocaleLowerCase("da");
+        document.querySelectorAll(".project-button").forEach((button) => {
+          button.classList.toggle(
+            "hidden",
+            !button.dataset.search.toLocaleLowerCase("da").includes(query),
+          );
+        });
+      });
+
+      byId("select-all-installations").addEventListener("click", () => {
+        selectedInstallations.clear();
+
+        for (const installation of installations) {
+          if (
+            (installation.manholes || []).some((manhole) =>
+              hasPhotos(manhole.id),
+            )
+          ) {
+            selectedInstallations.add(String(installation.id));
+          }
+        }
+
+        selectedManholes.clear();
+
+        for (const [id] of allManholes()) {
+          if (hasPhotos(id)) {
+            selectedManholes.add(id);
+          }
+        }
+
+        renderInstallations();
+      });
+
+      byId("installation-next").addEventListener("click", () => {
+        if (!selectedInstallations.size) return;
+        renderManholes();
+        showStep("manhole");
+      });
+
+      byId("select-all-manholes").addEventListener("click", () => {
+        selectedManholes.clear();
+        for (const [id] of allManholes()) {
+          if (hasPhotos(id)) selectedManholes.add(id);
+        }
+        renderManholes();
+      });
+
+      byId("manhole-next").addEventListener("click", () => {
+        if (!selectedManholes.size) return;
+        renderSummary();
+        showStep("download");
+      });
+
+      document.querySelectorAll("[data-back]").forEach((button) => {
+        button.addEventListener("click", () => showStep(button.dataset.back));
+      });
+
+      for (const step of steps) {
+        byId(`nav-${step}`).addEventListener("click", () => {
+          if (!byId(`nav-${step}`).disabled) {
+            if (step === "manhole") renderManholes();
+            if (step === "download") renderSummary();
+            showStep(step);
+          }
+        });
+      }
+
+
+      const downloadButton = byId("download-button");
+
+      downloadButton.disabled = false;
+
+      downloadButton.addEventListener("click", async () => {
+        if (!projectId || selectedManholes.size === 0) {
+          byId("download-status").textContent =
+            "Du skal vælge mindst én brønd.";
+          return;
+        }
+
+        downloadButton.disabled = true;
+        byId("download-status").textContent = "ZIP-filen oprettes...";
+
+        try {
+          const response = await fetch(
+            `/projects/${encodeURIComponent(projectId)}/export-selected`,
+            {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/json",
+                "X-CSRF-Token": exportCsrfToken,
+              },
+              body: JSON.stringify({
+                manhole_ids: [...selectedManholes].map(Number),
+              }),
+            },
+          );
+
+          if (!response.ok) {
+            const error = await response.json().catch(() => ({}));
+            throw new Error(
+              error.detail || `Download fejlede (HTTP ${response.status})`,
+            );
+          }
+
+          const blob = await response.blob();
+          const url = URL.createObjectURL(blob);
+          const link = document.createElement("a");
+
+          link.href = url;
+          link.download = `Brønde-${projectId}.zip`;
+          document.body.appendChild(link);
+          link.click();
+          link.remove();
+
+          setTimeout(() => URL.revokeObjectURL(url), 60000);
+
+          byId("download-status").textContent =
+            "ZIP-filen er klar til download.";
+        } catch (error) {
+          byId("download-status").textContent = error.message;
+          console.error(error);
+        } finally {
+          downloadButton.disabled = false;
+        }
+      });
+
+
+      updateNavigation();
+    </script>
+  </body>
 </html>

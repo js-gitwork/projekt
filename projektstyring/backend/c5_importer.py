@@ -111,6 +111,17 @@ def detect_c5_csv_type(
         "Pkt.rep",
     }
 
+    survey_signature = {
+        "Projekt",
+        "Inst.nr",
+        "Brønd 1",
+        "Brønd 2",
+        "Eks. dim.",
+        "Ny dim. A",
+        "Ny dim. B",
+        "Opmåling udført",
+    }
+
     if deviation_signature.issubset(
         header
     ):
@@ -121,6 +132,11 @@ def detect_c5_csv_type(
     ):
         return "manhole_overview"
 
+    if survey_signature.issubset(
+        header
+    ):
+        return "survey_overview"
+
     if project_signature.issubset(
         header
     ):
@@ -128,8 +144,9 @@ def detect_c5_csv_type(
 
     raise ValueError(
         "C5 CSV-formatet kunne ikke genkendes. "
-        "Filen matcher hverken projektoversigten "
-        "eller brøndoversigten."
+        "Filen matcher hverken projektoversigten, "
+        "opmålingsoversigten, brøndoversigten "
+        "eller afvigelsesoversigten."
     )
 
 def parse_c5_date(
@@ -1251,10 +1268,18 @@ def parse_c5_missing_permit_references(
             for key, value in row.items()
         }
 
-        if normalize_project_id(
+        csv_project_id = normalize_project_id(
             row.get("Projekt")
-        ) != normalized_project_id:
-            continue
+        )
+
+        if csv_project_id != normalized_project_id:
+            raise ValueError(
+                "Forkert projektnummer i CSV-filen. "
+                f"Filen indeholder '{csv_project_id or 'tomt'}', "
+                f"men det aktive projekt er "
+                f"'{normalized_project_id}'. "
+                "Importen er afvist."
+            )
 
         permit_number = str(
             row.get("Tilladnr.") or ""
@@ -2455,20 +2480,57 @@ def parse_c5_deviation_import(
 def parse_c5_import(
     csv_text: str,
     project_id: str,
+    expected_import_type: str | None = None,
 ) -> TechnicalAssetImport | DeviationImport:
     """
     Fælles C5-indgang.
 
-    CSV-typen genkendes automatisk ud fra headeren,
-    hvorefter den korrekte importmodel oprettes.
+    CSV-typen genkendes automatisk ud fra headeren.
+
+    Hvis expected_import_type er angivet, kontrolleres det,
+    at den valgte importtype matcher den CSV-type, som faktisk
+    er blevet indsat. Dermed kan en fil ikke ved en fejl
+    importeres gennem den forkerte importfunktion.
     """
 
     import_type = detect_c5_csv_type(
         csv_text
     )
 
+    if (
+        expected_import_type is not None
+        and import_type != expected_import_type
+    ):
+        type_names = {
+            "project_overview": "Produktionsoversigt",
+            "survey_overview": "Opmåling",
+            "manhole_overview": "Brøndrenovering",
+            "deviation_overview": "Afvigelsesoversigt",
+        }
+
+        expected_name = type_names.get(
+            expected_import_type,
+            expected_import_type,
+        )
+        detected_name = type_names.get(
+            import_type,
+            import_type,
+        )
+
+        raise ValueError(
+            "Den valgte importtype passer ikke til CSV-filen. "
+            f"Du valgte '{expected_name}', men filen blev "
+            f"genkendt som '{detected_name}'."
+        )
+
     if import_type == "project_overview":
         return parse_c5_project_overview_import(
+            csv_text=csv_text,
+            project_id=project_id,
+        )
+
+    if import_type == "survey_overview":
+        return parse_c5_survey_import(
             csv_text=csv_text,
             project_id=project_id,
         )

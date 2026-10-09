@@ -16,6 +16,7 @@ from projektstyring.backend.db_models import (
     Installation,
     Project,
     ProjectTask,
+    Stretch,
     TaskAssignment,
     TaskQuantity,
 )
@@ -76,14 +77,15 @@ class DatabaseProjectRepository:
                     selectinload(Project.installations)
                     .selectinload(Installation.tasks)
                     .selectinload(
-                        ProjectTask.task_assignments
+                    ProjectTask.task_assignments
                     ),
 
-                    selectinload(Project.installations)
-                    .selectinload(Installation.progress),
+                   selectinload(Project.installations)
+                   .selectinload(Installation.progress),
 
                     selectinload(Project.installations)
-                    .selectinload(Installation.stretches),
+                    .selectinload(Installation.stretches)
+                    .selectinload(Stretch.survey),
                 )
             )
 
@@ -443,8 +445,13 @@ class DatabaseProjectRepository:
     def _stretches_to_list(
         installation: Installation,
     ) -> list[dict[str, Any]]:
-        return [
-            {
+        result = []
+
+        for stretch in sorted(
+            installation.stretches,
+            key=lambda item: item.sequence,
+        ):
+            stretch_data = {
                 "from_brond": stretch.from_brond,
                 "to_brond": stretch.to_brond,
                 "length_m": stretch.length_m,
@@ -454,11 +461,66 @@ class DatabaseProjectRepository:
                 "notes": stretch.notes,
                 **(stretch.metadata_data or {}),
             }
-            for stretch in sorted(
-                installation.stretches,
-                key=lambda item: item.sequence,
-            )
-        ]
+
+            if stretch.survey is not None:
+                survey = stretch.survey
+
+                stretch_data["survey"] = {
+                    "existing_profile": (
+                        survey.existing_profile
+                    ),
+                    "existing_dimension": (
+                        survey.existing_dimension
+                    ),
+                    "existing_material": (
+                        survey.existing_material
+                    ),
+                    "existing_length_m": (
+                        survey.existing_length_m
+                    ),
+                    "planned_dimension": (
+                        survey.planned_dimension
+                    ),
+                    "planned_length_m": (
+                        survey.planned_length_m
+                    ),
+                    "traffic": survey.traffic,
+                    "bottom_cannot_open": (
+                        survey.bottom_cannot_open
+                    ),
+                    "bottom_profile": (
+                        survey.bottom_profile
+                    ),
+                    "bottom_dimension_a_mm": (
+                        survey.bottom_dimension_a_mm
+                    ),
+                    "bottom_dimension_b_mm": (
+                        survey.bottom_dimension_b_mm
+                    ),
+                    "bottom_material": (
+                        survey.bottom_material
+                    ),
+                    "top_cannot_open": (
+                        survey.top_cannot_open
+                    ),
+                    "top_profile": survey.top_profile,
+                    "top_dimension_a_mm": (
+                        survey.top_dimension_a_mm
+                    ),
+                    "top_dimension_b_mm": (
+                        survey.top_dimension_b_mm
+                    ),
+                    "top_material": survey.top_material,
+                    "measured_by": survey.measured_by,
+                    "notes": survey.notes,
+                    "raw_data": dict(
+                        survey.raw_data or {}
+                    ),
+                }
+
+            result.append(stretch_data)
+
+        return result
 
     @staticmethod
     def _installation_sort_key(

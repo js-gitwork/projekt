@@ -47,7 +47,7 @@ from projektstyring.vpmanhole.photo_service import (
     PhotoServiceError,
     VPManholePhotoService,
 )
-
+from starlette.background import BackgroundTask
 
 BASE_DIR = Path(__file__).resolve().parent
 PROJECT_ROOT = BASE_DIR.parent.parent
@@ -125,6 +125,25 @@ async def require_login(
                 status_code=401,
                 content={
                     "detail": "Login kræves.",
+                },
+            )
+
+        if (
+            request.session.get("session_version")
+            != user.session_version
+        ):
+            request.session.clear()
+
+            if request.method == "GET":
+                return RedirectResponse(
+                    url="/login",
+                    status_code=303,
+                )
+
+            return JSONResponse(
+                status_code=401,
+                content={
+                    "detail": "Sessionen er udløbet. Log ind igen.",
                 },
             )
 
@@ -225,7 +244,7 @@ def login(
     with SessionLocal() as session:
         user = authenticate_user(
             session,
-            username,
+            username.strip().lower(),
             password,
         )
 
@@ -245,6 +264,7 @@ def login(
         request.session.clear()
 
         request.session["user_id"] = user.id
+        request.session["session_version"] = user.session_version
         request.session["username"] = user.username
         request.session["display_name"] = user.display_name
         request.session["role"] = user.role
@@ -283,7 +303,7 @@ def logout(
 
 @app.get("/change-password")
 def change_password_page(request: Request):
-    return vpmanhole_templates.TemplateResponse(
+    return auth_templates.TemplateResponse(
         request=request,
         name="change_password.html",
         context={
@@ -328,7 +348,7 @@ def change_password(
             current_password,
             user.password_hash,
         ):
-            return vpmanhole_templates.TemplateResponse(
+            return auth_templates.TemplateResponse(
                 request=request,
                 name="change_password.html",
                 context={
@@ -341,7 +361,7 @@ def change_password(
             )
 
         if new_password != confirm_password:
-            return vpmanhole_templates.TemplateResponse(
+            return auth_templates.TemplateResponse(
                 request=request,
                 name="change_password.html",
                 context={
@@ -359,7 +379,7 @@ def change_password(
         )
 
         if not valid:
-            return vpmanhole_templates.TemplateResponse(
+            return auth_templates.TemplateResponse(
                 request=request,
                 name="change_password.html",
                 context={
@@ -372,9 +392,11 @@ def change_password(
             new_password,
         )
         user.must_change_password = False
+        user.session_version += 1
 
         session.commit()
 
+        request.session["session_version"] = user.session_version
         request.session["must_change_password"] = False
 
     return RedirectResponse(
@@ -582,6 +604,7 @@ def get_installation_photo_status(
         if not manhole_ids:
             return {"manholes": {}}
 
+
         rows = session.execute(
             select(
                 VPManholeDelivery.manhole_id,
@@ -593,26 +616,30 @@ def get_installation_photo_status(
             )
             .where(
                 VPManholeDelivery.manhole_id.in_(manhole_ids),
-                VPManholePhoto.photo_type.in_(
-                    ["before", "after", "cover"]
-                ),
             )
         ).all()
 
-        completed_types = {
+        photo_types = {
             manhole_id: set()
             for manhole_id in manhole_ids
         }
 
         for manhole_id, photo_type in rows:
-            completed_types[manhole_id].add(photo_type)
+            photo_types[manhole_id].add(photo_type)
+
+        required_types = {"before", "after", "cover"}
 
         return {
             "manholes": {
                 str(manhole_id): {
-                    "completed": len(completed_types[manhole_id]),
+                    "completed": len(
+                        photo_types[manhole_id] & required_types
+                    ),
                     "required": 3,
-                    "complete": len(completed_types[manhole_id]) == 3,
+                    "complete": required_types.issubset(
+                        photo_types[manhole_id]
+                    ),
+                    "has_photos": bool(photo_types[manhole_id]),
                 }
                 for manhole_id in manhole_ids
             }
@@ -799,3 +826,172 @@ def get_manhole_photo(
             media_type="image/jpeg",
             headers={"Cache-Control": "no-store"},
         )
+
+@app.get("/projects/{project_id}/export")
+def export_project_photos(
+    project_id: str,
+    request: Request,
+):
+    """
+    ZIP-eksport for kontor og administrator.
+    """
+    user = request.state.user
+
+    if user.role not in {"kontor", "admin"}:
+        raise HTTPException(
+            status_code=403,
+            detail="Kun kontoret kan eksportere billeder.",
+        )
+
+    normalized_project_id = project_id.strip()
+
+    allowed_projects = {
+        str(project["id"])
+        for project in service.list_open_projects()
+    }
+
+    if normalized_project_id not in allowed_projects:
+        raise HTTPException(
+            status_code=404,
+            detail="Projektet findes ikke blandt de tilgængelige projekter.",
+        )
+
+    try:
+        zip_path = photo_service.create_export_zip(
+            project_id=normalized_project_id,
+        )
+    except PhotoServiceError as exc:
+        raise HTTPException(
+            status_code=400,
+            detail=str(exc),
+        ) from exc
+
+    return FileResponse(
+        path=zip_path,
+        filename=f"Brønde-{normalized_project_id}.zip",
+        media_type="application/zip",
+        background=BackgroundTask(
+            zip_path.unlink,
+            missing_ok=True,
+        ),
+    )
+
+
+@app.post("/projects/{project_id}/export-selected")
+async def export_selected_project_photos(
+    project_id: str,
+    request: Request,
+):
+    """
+    Eksporter kun de valgte brønde til ZIP.
+    Brønd-ID'er omsættes til eksisterende billedmapper.
+    """
+    user = request.state.user
+
+    if user.role not in {"kontor", "admin"}:
+        raise HTTPException(
+            status_code=403,
+            detail="Kun kontoret kan eksportere billeder.",
+        )
+
+    normalized_project_id = project_id.strip()
+
+    allowed_projects = {
+        str(project["id"])
+        for project in service.list_open_projects()
+    }
+
+    if normalized_project_id not in allowed_projects:
+        raise HTTPException(
+            status_code=404,
+            detail="Projektet findes ikke blandt de tilgængelige projekter.",
+        )
+
+    validate_csrf_token(
+        request,
+        request.headers.get("X-CSRF-Token", ""),
+    )
+
+    try:
+        payload = await request.json()
+    except (ValueError, TypeError) as exc:
+        raise HTTPException(
+            status_code=400,
+            detail="Ugyldige eksportdata.",
+        ) from exc
+
+    manhole_ids = payload.get("manhole_ids")
+
+    if (
+        not isinstance(manhole_ids, list)
+        or not manhole_ids
+        or len(manhole_ids) > 10000
+        or any(type(item) is not int for item in manhole_ids)
+    ):
+        raise HTTPException(
+            status_code=400,
+            detail="Vælg mindst én gyldig brønd.",
+        )
+
+    selected_ids = set(manhole_ids)
+
+    with SessionLocal() as session:
+        rows = session.execute(
+            select(
+                Manhole.id,
+                Manhole.manhole_no,
+                Installation.installation_no,
+            )
+            .join(
+                Stretch,
+                (
+                    (Stretch.bottom_manhole_id == Manhole.id)
+                    | (Stretch.top_manhole_id == Manhole.id)
+                ),
+            )
+            .join(
+                Installation,
+                Installation.id == Stretch.installation_id,
+            )
+            .where(
+                Manhole.id.in_(selected_ids),
+                Manhole.project_id == normalized_project_id,
+                Installation.project_id == normalized_project_id,
+                Manhole.active.is_(True),
+                Installation.active.is_(True),
+            )
+        ).all()
+
+    found_ids = {row[0] for row in rows}
+
+    if found_ids != selected_ids:
+        raise HTTPException(
+            status_code=400,
+            detail="En eller flere brønde findes ikke på projektet.",
+        )
+
+    selected_folders = sorted({
+        f"{manhole_no} Inst. {installation_no}"
+        for _, manhole_no, installation_no in rows
+    })
+
+    try:
+        zip_path = photo_service.create_export_zip(
+            project_id=normalized_project_id,
+            selected_folders=selected_folders,
+        )
+    except PhotoServiceError as exc:
+        raise HTTPException(
+            status_code=400,
+            detail=str(exc),
+        ) from exc
+
+    return FileResponse(
+        path=zip_path,
+        filename=f"Brønde-{normalized_project_id}.zip",
+        media_type="application/zip",
+        background=BackgroundTask(
+            zip_path.unlink,
+            missing_ok=True,
+        ),
+    )

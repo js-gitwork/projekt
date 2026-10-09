@@ -149,6 +149,9 @@ def update_user(
             ensure_other_admin_exists(session, user)
 
         user.display_name = display_name.strip()
+        if user.role != role:
+            user.session_version += 1
+
         user.role = role
 
         session.commit()
@@ -175,6 +178,7 @@ def toggle_user(
             ensure_other_admin_exists(session, user)
 
         user.is_active = not user.is_active
+        user.session_version += 1
 
         session.commit()
 
@@ -204,6 +208,7 @@ def reset_password(
 
         user.password_hash = hash_password(password)
         user.must_change_password = True
+        user.session_version += 1
 
         session.commit()
 

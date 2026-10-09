@@ -5,39 +5,180 @@
 {% block content %}
 
 <div class="card">
-    <a href="/projects/{{ project.id }}" class="btn btn-muted">
-        Tilbage til projekt
-    </a>
-
-    <h2>C5 import for {{ project.name }}</h2>
+    <h3>Opmåling</h3>
 
     <p>
-        Indsæt CSV fra C5 her. Først vises en forhåndsvisning.
-        Projektet ændres først, når du trykker Godkend import.
+        Importerer opmålingsdata for stræk og brønde,
+        herunder profiler, dimensioner, materialer,
+        længder og målte A/B-dimensioner.
+    </p>
+
+{% if import_error %}
+<div
+    role="alert"
+    style="
+        padding: 14px 18px;
+        margin: 16px 0;
+        border: 1px solid #dc3545;
+        border-radius: 6px;
+        background-color: #fff3f3;
+        color: #842029;
+    "
+>
+    <strong>Importen blev afvist</strong>
+    <p style="margin: 8px 0 0;">
+        {{ import_error }}
     </p>
 </div>
+{% endif %}
 
-<div class="card">
     <form
         method="post"
         action="/projects/{{ project.id }}/c5-import/preview"
     >
-    <input
-        type="hidden"
-        name="csrf_token"
-        value="{{ csrf_token(request) }}"
-    >
-        <label for="csv_text">C5 CSV</label>
+        <input
+            type="hidden"
+            name="csrf_token"
+            value="{{ csrf_token(request) }}"
+        >
+        <input
+            type="hidden"
+            name="import_type"
+            value="survey_overview"
+        >
+
+        <label for="survey_csv_text">
+            C5 CSV – Opmåling
+        </label>
 
         <textarea
-            id="csv_text"
+            id="survey_csv_text"
             name="csv_text"
             class="form-control"
-            rows="14"
-        >{{ csv_text }}</textarea>
+            rows="10"
+        >{% if import_type == "survey_overview" %}{{ csv_text }}{% endif %}</textarea>
 
         <button type="submit" class="btn">
-            Forhåndsvis import
+            Forhåndsvis opmåling
+        </button>
+    </form>
+</div>
+
+<div class="card">
+    <h3>Brøndrenovering</h3>
+
+    <p>
+        Importerer C5-data om brøndrenovering,
+        udført-status og DTVK-oplysninger.
+    </p>
+
+    <form
+        method="post"
+        action="/projects/{{ project.id }}/c5-import/preview"
+    >
+        <input
+            type="hidden"
+            name="csrf_token"
+            value="{{ csrf_token(request) }}"
+        >
+        <input
+            type="hidden"
+            name="import_type"
+            value="manhole_overview"
+        >
+
+        <label for="manhole_csv_text">
+            C5 CSV – Brøndrenovering
+        </label>
+
+        <textarea
+            id="manhole_csv_text"
+            name="csv_text"
+            class="form-control"
+            rows="10"
+        >{% if import_type == "manhole_overview" %}{{ csv_text }}{% endif %}</textarea>
+
+        <button type="submit" class="btn">
+            Forhåndsvis brøndrenovering
+        </button>
+    </form>
+</div>
+
+<div class="card">
+    <h3>Produktionsoversigt</h3>
+
+    <p>
+        Importerer projektets almindelige C5-produktionsdata
+        og status for installationer og aktiviteter.
+    </p>
+
+    <form
+        method="post"
+        action="/projects/{{ project.id }}/c5-import/preview"
+    >
+        <input
+            type="hidden"
+            name="csrf_token"
+            value="{{ csrf_token(request) }}"
+        >
+        <input
+            type="hidden"
+            name="import_type"
+            value="project_overview"
+        >
+
+        <label for="project_csv_text">
+            C5 CSV – Produktionsoversigt
+        </label>
+
+        <textarea
+            id="project_csv_text"
+            name="csv_text"
+            class="form-control"
+            rows="10"
+        >{% if import_type == "project_overview" %}{{ csv_text }}{% endif %}</textarea>
+
+        <button type="submit" class="btn">
+            Forhåndsvis produktionsoversigt
+        </button>
+    </form>
+</div>
+
+<div class="card">
+    <h3>Afvigelsesoversigt</h3>
+
+    <p>
+        Importerer registrerede afvigelser fra C5.
+    </p>
+
+    <form
+        method="post"
+        action="/projects/{{ project.id }}/c5-import/preview"
+    >
+        <input
+            type="hidden"
+            name="csrf_token"
+            value="{{ csrf_token(request) }}"
+        >
+        <input
+            type="hidden"
+            name="import_type"
+            value="deviation_overview"
+        >
+
+        <label for="deviation_csv_text">
+            C5 CSV – Afvigelser
+        </label>
+
+        <textarea
+            id="deviation_csv_text"
+            name="csv_text"
+            class="form-control"
+            rows="10"
+        >{% if import_type == "deviation_overview" %}{{ csv_text }}{% endif %}</textarea>
+
+        <button type="submit" class="btn">
+            Forhåndsvis afvigelser
         </button>
     </form>
 </div>
@@ -286,6 +427,11 @@
             type="hidden"
             name="csrf_token"
             value="{{ csrf_token(request) }}"
+        >
+        <input
+           type="hidden"
+            name="import_type"
+            value="{{ import_type }}"
         >
         <textarea
             name="csv_text"

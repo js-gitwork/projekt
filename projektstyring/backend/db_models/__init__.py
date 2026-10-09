@@ -49,6 +49,10 @@ from projektstyring.backend.db_models.production_group import (
     ProductionGroupWorkType,
 )
 from projektstyring.backend.db_models.user import User
+from projektstyring.backend.db_models.vpmanhole import (
+    VPManholeDelivery,
+    VPManholePhoto,
+)
 
 __all__ = [
     "CalendarException",
@@ -59,6 +63,8 @@ __all__ = [
     "Installation",
     "InstallationProgress",
     "Manhole",
+    "VPManholeDelivery",
+    "VPManholePhoto",
     "ManholeWork",
     "PlanningScenario",
     "Project",

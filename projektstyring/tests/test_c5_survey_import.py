@@ -4,6 +4,8 @@ import unittest
 from decimal import Decimal
 
 from projektstyring.backend.c5_importer import (
+    detect_c5_csv_type,
+    parse_c5_import,
     parse_c5_survey_import,
 )
 
@@ -149,6 +151,40 @@ class TestC5SurveyImport(unittest.TestCase):
             stretch.survey.planned_length_m,
         )
 
+    def test_survey_csv_type_is_detected(self):
+        self.assertEqual(
+            detect_c5_csv_type(SURVEY_TEXT),
+            "survey_overview",
+        )
+
+    def test_common_import_entry_routes_survey_csv(self):
+        import_data = parse_c5_import(
+            SURVEY_TEXT,
+            PROJECT_ID,
+            expected_import_type="survey_overview",
+        )
+
+        self.assertEqual(
+            import_data.import_type,
+            "survey",
+        )
+
+        installations = {
+            str(installation.installation_no): installation
+            for installation in import_data.installations
+        }
+
+        survey = installations["1"].stretches[0].survey
+
+        self.assertIsNotNone(survey)
+        self.assertEqual(
+            survey.bottom_dimension_a_mm,
+            Decimal("310"),
+        )
+        self.assertEqual(
+            survey.top_dimension_a_mm,
+            Decimal("0"),
+        )
 
 if __name__ == "__main__":
     unittest.main()

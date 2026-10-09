@@ -22,6 +22,7 @@ from projektstyring.backend.db_models import (
     VPManholeDelivery,
     VPManholePhoto,
 )
+from zipfile import ZIP_DEFLATED, ZipFile
 
 
 PhotoType = Literal[
@@ -371,6 +372,116 @@ class VPManholePhotoService:
             raise PhotoServiceError(
                 "Filen er ikke et gyldigt billede"
             ) from exc
+
+    def create_export_zip(
+        self,
+        project_id: str,
+        selected_folders: list[str] | None = None,
+    ) -> Path:
+        """
+        Opretter ZIP med brøndbilleder.
+
+        selected_folders:
+            None = alle brøndmapper
+            Liste = kun de valgte brøndmapper
+
+        ZIP-struktur:
+            Brønde-V999999/
+                381100S Inst. 8/
+                    Før.jpg
+                    Efter.jpg
+                    Dæksel.jpg
+        """
+        safe_project_id = self._safe_component(project_id)
+
+        project_folder = (
+            self.storage_root / safe_project_id
+        ).resolve()
+
+        if not project_folder.is_relative_to(self.storage_root):
+            raise PhotoServiceError("Ugyldig projektsti")
+
+        if not project_folder.is_dir():
+            raise PhotoServiceError(
+                "Projektet har endnu ingen billedmapper"
+            )
+
+        folders = sorted(
+            (
+                folder
+                for folder in project_folder.iterdir()
+                if folder.is_dir() and not folder.is_symlink()
+            ),
+            key=lambda folder: folder.name.casefold(),
+        )
+
+        if selected_folders is not None:
+            selected = {
+                self._safe_component(name)
+                for name in selected_folders
+            }
+
+            folders = [
+                folder
+                for folder in folders
+                if folder.name in selected
+            ]
+
+            if len(folders) != len(selected):
+                raise PhotoServiceError(
+                    "En eller flere valgte brøndmapper findes ikke"
+                )
+
+        if not folders:
+            raise PhotoServiceError(
+                "Ingen brøndmapper valgt til eksport"
+            )
+
+        with tempfile.NamedTemporaryFile(
+            prefix="vpmanhole_export_",
+            suffix=".zip",
+            delete=False,
+        ) as temporary:
+            zip_path = Path(temporary.name)
+
+        root_name = f"Brønde-{safe_project_id}"
+        image_count = 0
+
+        try:
+            with ZipFile(
+                zip_path,
+                mode="w",
+                compression=ZIP_DEFLATED,
+            ) as archive:
+                for folder in folders:
+                    for photo_path in sorted(folder.iterdir()):
+                        if (
+                            not photo_path.is_file()
+                            or photo_path.is_symlink()
+                            or photo_path.suffix.lower() != ".jpg"
+                        ):
+                            continue
+
+                        archive.write(
+                            photo_path,
+                            arcname=(
+                                f"{root_name}/"
+                                f"{folder.name}/"
+                                f"{photo_path.name}"
+                            ),
+                        )
+                        image_count += 1
+
+            if image_count == 0:
+                raise PhotoServiceError(
+                    "Ingen billeder fundet til eksport"
+                )
+
+            return zip_path
+
+        except Exception:
+            zip_path.unlink(missing_ok=True)
+            raise
 
     def save_photo(
         self,
