@@ -1,6 +1,6 @@
 from datetime import date, datetime, timezone
 
-from sqlalchemy import Date, DateTime, String, Text
+from sqlalchemy import Date, DateTime, ForeignKey, Integer, String, Text
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from projektstyring.backend.database.connection import Base
@@ -39,6 +39,12 @@ class Project(Base):
         String(200),
         nullable=False,
         default="",
+    )
+
+    site_manager_user_id: Mapped[int | None] = mapped_column(
+        Integer,
+        ForeignKey("users.id", ondelete="SET NULL"),
+        nullable=True,
     )
 
     city: Mapped[str] = mapped_column(

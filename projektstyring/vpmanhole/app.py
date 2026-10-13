@@ -66,12 +66,7 @@ vpmanhole_templates = Jinja2Templates(
 vpmanhole_templates.env.globals["csrf_token"] = get_csrf_token
 
 auth_templates = Jinja2Templates(
-    directory=str(
-        PROJECT_ROOT
-        / "projektstyring"
-        / "frontend"
-        / "templates"
-    ),
+    directory=str(PROJECT_ROOT / "projektstyring" / "frontend" / "templates"),
 )
 
 auth_templates.env.globals["csrf_token"] = get_csrf_token
@@ -131,10 +126,7 @@ async def require_login(
                 },
             )
 
-        if (
-            request.session.get("session_version")
-            != user.session_version
-        ):
+        if request.session.get("session_version") != user.session_version:
             request.session.clear()
 
             if request.method == "GET":
@@ -150,13 +142,10 @@ async def require_login(
                 },
             )
 
-        if (
-            user.must_change_password
-            and path not in {
-                "/change-password",
-                "/logout",
-            }
-        ):
+        if user.must_change_password and path not in {
+            "/change-password",
+            "/logout",
+        }:
             if request.method == "GET":
                 return RedirectResponse(
                     url="/change-password",
@@ -166,10 +155,7 @@ async def require_login(
             return JSONResponse(
                 status_code=403,
                 content={
-                    "detail": (
-                        "Adgangskoden skal ændres, "
-                        "før systemet kan bruges."
-                    ),
+                    "detail": ("Adgangskoden skal ændres, " "før systemet kan bruges."),
                 },
             )
 
@@ -190,22 +176,13 @@ app.add_middleware(
 
 app.mount(
     "/static",
-    StaticFiles(
-        directory=str(
-            PROJECT_ROOT
-            / "projektstyring"
-            / "frontend"
-            / "static"
-        )
-    ),
+    StaticFiles(directory=str(PROJECT_ROOT / "projektstyring" / "frontend" / "static")),
     name="static",
 )
 
 app.mount(
     "/vpmanhole-static",
-    StaticFiles(
-        directory=str(BASE_DIR / "static")
-    ),
+    StaticFiles(directory=str(BASE_DIR / "static")),
     name="vpmanhole-static",
 )
 
@@ -256,10 +233,7 @@ def login(
                 request=request,
                 name="login.html",
                 context={
-                    "error": (
-                        "Forkert brugernavn eller "
-                        "adgangskode."
-                    ),
+                    "error": ("Forkert brugernavn eller " "adgangskode."),
                 },
                 status_code=401,
             )
@@ -271,9 +245,7 @@ def login(
         request.session["username"] = user.username
         request.session["display_name"] = user.display_name
         request.session["role"] = user.role
-        request.session["must_change_password"] = (
-            user.must_change_password
-        )
+        request.session["must_change_password"] = user.must_change_password
 
         if user.must_change_password:
             redirect_url = "/change-password"
@@ -355,10 +327,7 @@ def change_password(
                 request=request,
                 name="change_password.html",
                 context={
-                    "error": (
-                        "Den nuværende adgangskode "
-                        "er forkert."
-                    ),
+                    "error": ("Den nuværende adgangskode " "er forkert."),
                 },
                 status_code=400,
             )
@@ -368,10 +337,7 @@ def change_password(
                 request=request,
                 name="change_password.html",
                 context={
-                    "error": (
-                        "De to nye adgangskoder "
-                        "er ikke ens."
-                    ),
+                    "error": ("De to nye adgangskoder " "er ikke ens."),
                 },
                 status_code=400,
             )
@@ -407,12 +373,22 @@ def change_password(
         status_code=303,
     )
 
+
 @app.get("/")
-def vpmanhole_home(request: Request):
+def vpmanhole_home(
+    request: Request,
+    view: str | None = None,
+):
     projects = service.list_open_projects()
     user = request.state.user
 
-    if user.role in {"kontor", "admin"}:
+    can_use_office = user.role in {"kontor", "admin"}
+
+    if view == "field":
+        template_name = "index.html"
+    elif view == "office" and can_use_office:
+        template_name = "transfer.html"
+    elif can_use_office:
         template_name = "transfer.html"
     else:
         template_name = "index.html"
@@ -421,17 +397,13 @@ def vpmanhole_home(request: Request):
 
     if template_name == "index.html":
         try:
-            project_completion = (
-                notification_service.get_project_completion_overview(
-                    projects
-                )
+            project_completion = notification_service.get_project_completion_overview(
+                projects
             )
         except Exception:
             import logging
 
-            logging.getLogger(__name__).exception(
-                "Kunne ikke hente projektstatus"
-            )
+            logging.getLogger(__name__).exception("Kunne ikke hente projektstatus")
 
     return vpmanhole_templates.TemplateResponse(
         request=request,
@@ -439,8 +411,10 @@ def vpmanhole_home(request: Request):
         context={
             "projects": projects,
             "project_completion": project_completion,
+            "current_user": user,
         },
     )
+
 
 @app.get("/projects/{project_id}/installations")
 def vpmanhole_project_installations(
@@ -452,11 +426,7 @@ def vpmanhole_project_installations(
         normalized_project_id,
     )
 
-    completion = (
-        notification_service.get_installation_completion(
-            normalized_project_id
-        )
-    )
+    completion = notification_service.get_installation_completion(normalized_project_id)
 
     return {
         "project_id": normalized_project_id,
@@ -503,7 +473,7 @@ async def upload_manhole_photo(
 
     user = request.state.user
 
-    if user.role != "felt":
+    if user.role not in {"felt", "kontor", "admin"}:
         raise HTTPException(
             status_code=403,
             detail="Du har ikke adgang til at uploade billeder.",
@@ -547,9 +517,7 @@ async def upload_manhole_photo(
         )
 
     try:
-        image_bytes = await image.read(
-            MAX_UPLOAD_BYTES + 1
-        )
+        image_bytes = await image.read(MAX_UPLOAD_BYTES + 1)
     finally:
         await image.close()
 
@@ -596,15 +564,12 @@ async def upload_manhole_photo(
     # Fejl i notifikationssystemet må ikke
     # gøre en vellykket upload til en fejl.
     try:
-        notification_service.enqueue_if_complete(
-            project_id.strip()
-        )
+        notification_service.enqueue_if_complete(project_id.strip())
     except Exception:
         import logging
 
         logging.getLogger(__name__).exception(
-            "Kunne ikke kontrollere færdigmelding "
-            "for projekt %s",
+            "Kunne ikke kontrollere færdigmelding " "for projekt %s",
             project_id,
         )
 
@@ -626,11 +591,7 @@ def get_installation_photo_status(
     installations = service.list_project_installations(project_id)
 
     installation = next(
-        (
-            item
-            for item in installations
-            if item["id"] == installation_id
-        ),
+        (item for item in installations if item["id"] == installation_id),
         None,
     )
 
@@ -640,10 +601,7 @@ def get_installation_photo_status(
             detail="Installationen blev ikke fundet.",
         )
 
-    manhole_ids = {
-        manhole["id"]
-        for manhole in installation["manholes"]
-    }
+    manhole_ids = {manhole["id"] for manhole in installation["manholes"]}
 
     if not manhole_ids:
         return {"manholes": {}}
@@ -663,10 +621,7 @@ def get_installation_photo_status(
             )
         ).all()
 
-    photo_types = {
-        manhole_id: set()
-        for manhole_id in manhole_ids
-    }
+    photo_types = {manhole_id: set() for manhole_id in manhole_ids}
 
     for manhole_id, photo_type in rows:
         photo_types[manhole_id].add(photo_type)
@@ -676,18 +631,15 @@ def get_installation_photo_status(
     return {
         "manholes": {
             str(manhole_id): {
-                "completed": len(
-                    photo_types[manhole_id] & required_types
-                ),
+                "completed": len(photo_types[manhole_id] & required_types),
                 "required": 3,
-                "complete": required_types.issubset(
-                    photo_types[manhole_id]
-                ),
+                "complete": required_types.issubset(photo_types[manhole_id]),
                 "has_photos": bool(photo_types[manhole_id]),
             }
             for manhole_id in manhole_ids
         }
     }
+
 
 @app.get("/projects/{project_id}/manholes/{manhole_id}/photos")
 def list_manhole_photos(
@@ -730,9 +682,7 @@ def list_manhole_photos(
                 detail="Brønden hører ikke til installationen.",
             )
         delivery = session.scalar(
-            select(VPManholeDelivery).where(
-                VPManholeDelivery.manhole_id == manhole_id
-            )
+            select(VPManholeDelivery).where(VPManholeDelivery.manhole_id == manhole_id)
         )
 
         if delivery is None:
@@ -740,9 +690,7 @@ def list_manhole_photos(
 
         photos = session.scalars(
             select(VPManholePhoto)
-            .where(
-                VPManholePhoto.delivery_id == delivery.id
-            )
+            .where(VPManholePhoto.delivery_id == delivery.id)
             .order_by(
                 VPManholePhoto.photo_type,
                 VPManholePhoto.sequence,
@@ -831,9 +779,7 @@ def get_manhole_photo(
 
         storage_root = photo_service.storage_root
 
-        image_path = (
-            storage_root / photo.relative_path
-        ).resolve()
+        image_path = (storage_root / photo.relative_path).resolve()
 
         if not image_path.is_relative_to(storage_root):
             raise HTTPException(
@@ -853,6 +799,7 @@ def get_manhole_photo(
             headers={"Cache-Control": "no-store"},
         )
 
+
 @app.get("/projects/{project_id}/export")
 def export_project_photos(
     project_id: str,
@@ -871,10 +818,7 @@ def export_project_photos(
 
     normalized_project_id = project_id.strip()
 
-    allowed_projects = {
-        str(project["id"])
-        for project in service.list_open_projects()
-    }
+    allowed_projects = {str(project["id"]) for project in service.list_open_projects()}
 
     if normalized_project_id not in allowed_projects:
         raise HTTPException(
@@ -883,7 +827,7 @@ def export_project_photos(
         )
 
     try:
-        zip_path = photo_service.create_export_zip(
+        zip_path, snapshot = photo_service.create_export_zip(
             project_id=normalized_project_id,
         )
     except PhotoServiceError as exc:
@@ -892,14 +836,20 @@ def export_project_photos(
             detail=str(exc),
         ) from exc
 
+    def finish_export() -> None:
+        try:
+            photo_service.record_export(
+                normalized_project_id,
+                snapshot,
+            )
+        finally:
+            zip_path.unlink(missing_ok=True)
+
     return FileResponse(
         path=zip_path,
         filename=f"Brønde-{normalized_project_id}.zip",
         media_type="application/zip",
-        background=BackgroundTask(
-            zip_path.unlink,
-            missing_ok=True,
-        ),
+        background=BackgroundTask(finish_export),
     )
 
 
@@ -922,10 +872,7 @@ async def export_selected_project_photos(
 
     normalized_project_id = project_id.strip()
 
-    allowed_projects = {
-        str(project["id"])
-        for project in service.list_open_projects()
-    }
+    allowed_projects = {str(project["id"]) for project in service.list_open_projects()}
 
     if normalized_project_id not in allowed_projects:
         raise HTTPException(
@@ -963,9 +910,7 @@ async def export_selected_project_photos(
 
     # Brug den samme installationsoversigt som VPManholes
     # projektvisning. Den understøtter også brønde uden stræk.
-    installations = service.list_project_installations(
-        normalized_project_id
-    )
+    installations = service.list_project_installations(normalized_project_id)
 
     available_ids = {
         manhole["id"]
@@ -983,8 +928,7 @@ async def export_selected_project_photos(
     # billedmapper, så tidligere billeder fortsat kan eksporteres.
     with SessionLocal() as session:
         deliveries = session.scalars(
-            select(VPManholeDelivery)
-            .where(
+            select(VPManholeDelivery).where(
                 VPManholeDelivery.manhole_id.in_(selected_ids)
             )
         ).all()
@@ -995,21 +939,19 @@ async def export_selected_project_photos(
                 detail="En eller flere valgte brønde har endnu ingen billeder.",
             )
 
-        selected_folders = sorted({
-            photo_service._folder(
-                session,
-                normalized_project_id,
-                delivery,
-            ).name
-            for delivery in deliveries
-        })
-    selected_folders = sorted({
-        f"{manhole_no} Inst. {installation_no}"
-        for _, manhole_no, installation_no in rows
-    })
+        selected_folders = sorted(
+            {
+                photo_service._folder(
+                    session,
+                    normalized_project_id,
+                    delivery,
+                ).name
+                for delivery in deliveries
+            }
+        )
 
     try:
-        zip_path = photo_service.create_export_zip(
+        zip_path, snapshot = photo_service.create_export_zip(
             project_id=normalized_project_id,
             selected_folders=selected_folders,
         )
@@ -1019,12 +961,18 @@ async def export_selected_project_photos(
             detail=str(exc),
         ) from exc
 
+    def finish_export() -> None:
+        try:
+            photo_service.record_export(
+                normalized_project_id,
+                snapshot,
+            )
+        finally:
+            zip_path.unlink(missing_ok=True)
+
     return FileResponse(
         path=zip_path,
         filename=f"Brønde-{normalized_project_id}.zip",
         media_type="application/zip",
-        background=BackgroundTask(
-            zip_path.unlink,
-            missing_ok=True,
-        ),
+        background=BackgroundTask(finish_export),
     )

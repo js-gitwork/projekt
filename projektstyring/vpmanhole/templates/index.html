@@ -420,6 +420,49 @@
           min-height: 170px;
         }
       }
+      .vp-user-menu {
+        position: relative;
+        z-index: 1100;
+        color: white;
+        margin-left: auto;
+        margin-right: 100px;
+      }
+
+      .vp-user-menu summary {
+        cursor: pointer;
+        padding: 8px 12px;
+        border: 1px solid rgba(255, 255, 255, 0.5);
+        border-radius: 6px;
+        list-style: none;
+      }
+
+      .vp-user-menu summary::-webkit-details-marker {
+        display: none;
+      }
+
+      .vp-user-menu-links {
+        position: absolute;
+        top: calc(100% + 6px);
+        right: 0;
+        min-width: 210px;
+        padding: 6px;
+        background: white;
+        border: 1px solid #ddd;
+        border-radius: 8px;
+        box-shadow: 0 4px 14px rgba(0, 0, 0, 0.18);
+      }
+
+      .vp-user-menu-links a {
+        display: block;
+        padding: 10px 12px;
+        color: #222;
+        text-decoration: none;
+        border-radius: 5px;
+      }
+
+      .vp-user-menu-links a:hover {
+        background: #edf2f7;
+      }
     </style>
   </head>
 
@@ -427,6 +470,21 @@
     <header class="vp-header">
       <div class="vp-header-inner">
         <h1>VPManhole</h1>
+
+        {% if current_user.role in ["admin", "kontor"] %}
+        <details class="vp-user-menu">
+          <summary>
+            {{ current_user.display_name or current_user.username }} ▾
+          </summary>
+          <div class="vp-user-menu-links">
+            <a href="/?view=field">Feltregistrering</a>
+            <a href="/?view=office">Kontor / ZIP-download</a>
+            {% if current_user.role == "admin" %}
+            <a href="https://roerbot.duckdns.org/login?next=/admin">Administration</a>
+            {% endif %}
+          </div>
+        </details>
+        {% endif %}
 
         <div class="languages">
           <button
@@ -1013,10 +1071,7 @@
                     ? "complete"
                     : "incomplete";
             } catch (error) {
-              console.error(
-                `Kunne ikke opdatere projekt ${projectId}:`,
-                error,
-              );
+              console.error(`Kunne ikke opdatere projekt ${projectId}:`, error);
             }
           }),
         );
@@ -1145,18 +1200,14 @@
           if (selectedInstallation) {
             selectedInstallation =
               currentInstallations.find(
-                (installation) =>
-                  installation.id === selectedInstallation.id,
+                (installation) => installation.id === selectedInstallation.id,
               ) || null;
           }
 
           renderInstallations();
           updateNavigation();
         } catch (error) {
-          console.error(
-            "Kunne ikke opdatere installationsstatus:",
-            error,
-          );
+          console.error("Kunne ikke opdatere installationsstatus:", error);
         }
       }
 

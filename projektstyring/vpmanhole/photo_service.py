@@ -1,20 +1,17 @@
 from __future__ import annotations
-
+import hashlib
 import os
 import re
 import shutil
 import tempfile
-
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 from io import BytesIO
 from pathlib import Path
+from uuid import uuid4
 from typing import Literal
-
 from PIL import Image, ImageOps, UnidentifiedImageError
-
 from sqlalchemy import exists, select
 from sqlalchemy.orm import Session
-
 from projektstyring.backend.db_models import (
     Installation,
     Manhole,
@@ -23,33 +20,23 @@ from projektstyring.backend.db_models import (
     VPManholePhoto,
 )
 from zipfile import ZIP_DEFLATED, ZipFile
-
-
+from projektstyring.backend.database.connection import SessionLocal
 PhotoType = Literal[
     "before",
     "during",
     "after",
     "cover",
 ]
-
-
 PHOTO_FILENAMES = {
     "before": "Før.jpg",
     "after": "Efter.jpg",
     "cover": "Dæksel.jpg",
 }
-
-
 MAX_UPLOAD_BYTES = 20 * 1024 * 1024
 MAX_IMAGE_PIXELS = 40_000_000
-
-
 class PhotoServiceError(Exception):
     """Fejl ved validering eller håndtering af brøndfotos."""
-
-
 class VPManholePhotoService:
-
     def __init__(
         self,
         storage_root: str | Path | None = None,
@@ -62,9 +49,7 @@ class VPManholePhotoService:
                 "/var/lib/vpmanhole/photos",
             )
         )
-
         self.storage_root = Path(configured_root).resolve()
-
     @staticmethod
     def _safe_component(value: str) -> str:
         """
@@ -72,18 +57,15 @@ class VPManholePhotoService:
         sikre at anvende som mappekomponenter.
         """
         value = re.sub(
-            r'[\\/:\*?"<>|\x00-\x1f]',
+            r'[\\\\/:\\*?"<>|\x00-\x1f]',
             "_",
             str(value),
         ).strip(" .")
-
         if not value or value in {".", ".."}:
             raise PhotoServiceError(
                 "Ugyldigt mappenavn"
             )
-
         return value
-
     @staticmethod
     def _filename(
         photo_type: PhotoType,
@@ -101,22 +83,17 @@ class VPManholePhotoService:
             raise PhotoServiceError(
                 "Ukendt billedtype"
             )
-
         if sequence < 1:
             raise PhotoServiceError(
                 "Ugyldigt billednummer"
             )
-
         if photo_type == "during":
             return f"Igangværende{sequence}.jpg"
-
         if sequence != 1:
             raise PhotoServiceError(
                 "Denne billedtype kan kun have ét billede"
             )
-
         return PHOTO_FILENAMES[photo_type]
-
     @staticmethod
     def _installation_contains_manhole(
         session: Session,
@@ -132,16 +109,12 @@ class VPManholePhotoService:
             Installation,
             installation_id,
         )
-
         if installation is None or not installation.active:
             return False
-
         from projektstyring.vpmanhole.service import VPManholeService
-
         installations = VPManholeService().list_project_installations(
             installation.project_id
         )
-
         return any(
             item["id"] == installation_id
             and any(
@@ -150,7 +123,6 @@ class VPManholePhotoService:
             )
             for item in installations
         )
-
     @staticmethod
     def _first_installation_id(
         session: Session,
@@ -160,10 +132,8 @@ class VPManholePhotoService:
         """
         Finder den første aktive installation,
         som brønden er knyttet til.
-
         EXISTS undgår dubletter fra strækninger
         og bevarer sortering efter installationsrækkefølge.
-
         Dette erstatter den tidligere kombination af
         SELECT DISTINCT og ORDER BY, som PostgreSQL
         ikke accepterede.
@@ -179,7 +149,6 @@ class VPManholePhotoService:
             )
             .exists()
         )
-
         statement = (
             select(Installation.id)
             .where(
@@ -193,16 +162,12 @@ class VPManholePhotoService:
             )
             .limit(1)
         )
-
         installation_id = session.scalar(statement)
-
         if installation_id is None:
             raise PhotoServiceError(
                 "Brønden har ingen aktiv installation"
             )
-
         return installation_id
-
     def _get_or_create_delivery(
         self,
         session: Session,
@@ -213,11 +178,9 @@ class VPManholePhotoService:
         """
         Finder eller opretter afleveringsregistreringen
         for en fysisk brønd.
-
         En brønd har kun én afleveringsregistrering,
         selvom den indgår i flere installationer.
         """
-
         # Lås brønden, så samtidige uploads ikke
         # opretter flere afleveringsregistreringer.
         manhole = session.scalar(
@@ -225,12 +188,10 @@ class VPManholePhotoService:
             .where(Manhole.id == manhole_id)
             .with_for_update()
         )
-
         installation = session.get(
             Installation,
             installation_id,
         )
-
         if (
             manhole is None
             or installation is None
@@ -242,7 +203,6 @@ class VPManholePhotoService:
             raise PhotoServiceError(
                 "Brønd eller installation findes ikke i projektet"
             )
-
         if not self._installation_contains_manhole(
             session,
             installation_id,
@@ -251,27 +211,21 @@ class VPManholePhotoService:
             raise PhotoServiceError(
                 "Brønden hører ikke til installationen"
             )
-
         delivery = session.scalar(
             select(VPManholeDelivery).where(
                 VPManholeDelivery.manhole_id == manhole_id
             )
         )
-
         if delivery is None:
             first_installation_id = installation_id
-
             delivery = VPManholeDelivery(
                 manhole_id=manhole_id,
                 folder_installation_id=first_installation_id,
                 is_completed=False,
             )
-
             session.add(delivery)
             session.flush()
-
         return delivery
-
     def _folder(
         self,
         session: Session,
@@ -280,7 +234,6 @@ class VPManholePhotoService:
     ) -> Path:
         """
         Returnerer brøndens faste lagermappe.
-
         Mappestruktur:
             <lager>/<projekt>/<brøndnr> Inst. <installationsnr>
         """
@@ -288,43 +241,35 @@ class VPManholePhotoService:
             Manhole,
             delivery.manhole_id,
         )
-
         installation = session.get(
             Installation,
             delivery.folder_installation_id,
         )
-
         if manhole is None or installation is None:
             raise PhotoServiceError(
                 "Manglende brønd eller installation"
             )
-
         folder_name = (
             f"{self._safe_component(manhole.manhole_no)} "
             f"Inst. "
             f"{self._safe_component(installation.installation_no)}"
         )
-
         folder = (
             self.storage_root
             / self._safe_component(project_id)
             / folder_name
         ).resolve()
-
         if not folder.is_relative_to(self.storage_root):
             raise PhotoServiceError(
                 "Ugyldig lagersti"
             )
-
         return folder
-
     @staticmethod
     def _convert_to_jpeg(
         image_bytes: bytes,
     ) -> bytes:
         """
         Kontrollerer og konverterer billedet til JPEG.
-
         - Maksimalt 20 MB upload
         - Maksimalt 40 millioner pixels
         - Korrekt orientering fra kameraets EXIF
@@ -338,12 +283,10 @@ class VPManholePhotoService:
             raise PhotoServiceError(
                 "Billedet er tomt eller større end 20 MB"
             )
-
         try:
             with Image.open(
                 BytesIO(image_bytes)
             ) as source:
-
                 if (
                     source.width * source.height
                     > MAX_IMAGE_PIXELS
@@ -351,22 +294,16 @@ class VPManholePhotoService:
                     raise PhotoServiceError(
                         "Billedets opløsning er for høj"
                     )
-
                 image = ImageOps.exif_transpose(source)
-
                 if image.mode != "RGB":
                     image = image.convert("RGB")
-
                 output = BytesIO()
-
                 image.save(
                     output,
                     format="JPEG",
                     quality=85,
                 )
-
                 return output.getvalue()
-
         except (
             UnidentifiedImageError,
             OSError,
@@ -376,116 +313,211 @@ class VPManholePhotoService:
             raise PhotoServiceError(
                 "Filen er ikke et gyldigt billede"
             ) from exc
-
     def create_export_zip(
         self,
         project_id: str,
         selected_folders: list[str] | None = None,
-    ) -> Path:
-        """
-        Opretter ZIP med brøndbilleder.
-
-        selected_folders:
-            None = alle brøndmapper
-            Liste = kun de valgte brøndmapper
-
-        ZIP-struktur:
-            Brønde-V999999/
-                381100S Inst. 8/
-                    Før.jpg
-                    Efter.jpg
-                    Dæksel.jpg
-        """
+    ) -> tuple[Path, dict[str, dict[str, tuple[str, int, str]]]]:
+        """Returner ZIP og et versionsbundet snapshot af præcis dens fotos."""
         safe_project_id = self._safe_component(project_id)
-
-        project_folder = (
-            self.storage_root / safe_project_id
-        ).resolve()
-
+        project_folder = (self.storage_root / safe_project_id).resolve()
         if not project_folder.is_relative_to(self.storage_root):
             raise PhotoServiceError("Ugyldig projektsti")
-
         if not project_folder.is_dir():
-            raise PhotoServiceError(
-                "Projektet har endnu ingen billedmapper"
-            )
+            raise PhotoServiceError("Projektet har endnu ingen billedmapper")
 
-        folders = sorted(
-            (
-                folder
-                for folder in project_folder.iterdir()
-                if folder.is_dir() and not folder.is_symlink()
-            ),
-            key=lambda folder: folder.name.casefold(),
+        selected = (
+            {self._safe_component(name) for name in selected_folders}
+            if selected_folders is not None else None
         )
-
-        if selected_folders is not None:
-            selected = {
-                self._safe_component(name)
-                for name in selected_folders
-            }
-
-            folders = [
-                folder
-                for folder in folders
-                if folder.name in selected
-            ]
-
-            if len(folders) != len(selected):
-                raise PhotoServiceError(
-                    "En eller flere valgte brøndmapper findes ikke"
-                )
-
-        if not folders:
-            raise PhotoServiceError(
-                "Ingen brøndmapper valgt til eksport"
-            )
-
         with tempfile.NamedTemporaryFile(
-            prefix="vpmanhole_export_",
-            suffix=".zip",
-            delete=False,
+            prefix="vpmanhole_export_", suffix=".zip", delete=False
         ) as temporary:
             zip_path = Path(temporary.name)
-
-        root_name = f"Brønde-{safe_project_id}"
-        image_count = 0
-
+        snapshot: dict[str, dict[str, tuple[str, int, str]]] = {}
         try:
-            with ZipFile(
-                zip_path,
-                mode="w",
-                compression=ZIP_DEFLATED,
-            ) as archive:
-                for folder in folders:
-                    for photo_path in sorted(folder.iterdir()):
-                        if (
-                            not photo_path.is_file()
-                            or photo_path.is_symlink()
-                            or photo_path.suffix.lower() != ".jpg"
-                        ):
+            with SessionLocal() as session:
+                deliveries = session.scalars(
+                    select(VPManholeDelivery)
+                    .join(Manhole, VPManholeDelivery.manhole_id == Manhole.id)
+                    .where(Manhole.project_id == project_id)
+                    .order_by(VPManholeDelivery.id)
+                    .with_for_update(of=VPManholeDelivery)
+                ).all()
+                with ZipFile(zip_path, "w", compression=ZIP_DEFLATED) as archive:
+                    found_folders: set[str] = set()
+                    for delivery in deliveries:
+                        folder = self._folder(session, project_id, delivery)
+                        if selected is not None and folder.name not in selected:
                             continue
-
-                        archive.write(
-                            photo_path,
-                            arcname=(
-                                f"{root_name}/"
-                                f"{folder.name}/"
-                                f"{photo_path.name}"
-                            ),
-                        )
-                        image_count += 1
-
-            if image_count == 0:
-                raise PhotoServiceError(
-                    "Ingen billeder fundet til eksport"
-                )
-
-            return zip_path
-
+                        found_folders.add(folder.name)
+                        if not folder.is_dir() or folder.is_symlink():
+                            continue
+                        photos = session.scalars(
+                            select(VPManholePhoto)
+                            .where(VPManholePhoto.delivery_id == delivery.id)
+                        ).all()
+                        by_name = {Path(p.relative_path).name: p for p in photos}
+                        files = {
+                            f.name: f for f in folder.iterdir()
+                            if f.is_file() and not f.is_symlink()
+                            and f.suffix.lower() == ".jpg"
+                        }
+                        if not files or set(files) != set(by_name):
+                            # Ukendte eller manglende filer må ikke godkendes.
+                            continue
+                        images: dict[str, tuple[str, int, str]] = {}
+                        for name, path in sorted(files.items()):
+                            photo = by_name[name]
+                            data = path.read_bytes()
+                            archive.writestr(
+                                f"Brønde-{safe_project_id}/{folder.name}/{name}", data
+                            )
+                            images[name] = (
+                                hashlib.sha256(data).hexdigest(),
+                                photo.id,
+                                photo.uploaded_at.isoformat(),
+                            )
+                        snapshot[folder.name] = images
+                    if selected is not None and found_folders != selected:
+                        raise PhotoServiceError("En eller flere valgte brøndmapper findes ikke")
+            if not snapshot:
+                raise PhotoServiceError("Ingen billeder fundet til eksport")
+            return zip_path, snapshot
         except Exception:
             zip_path.unlink(missing_ok=True)
             raise
+
+    def _snapshot_matches(self, session, project_id, delivery, expected):
+        """Kaldes kun mens afleveringens FOR UPDATE-lås holdes."""
+        folder = self._folder(session, project_id, delivery)
+        if not expected or not folder.is_dir() or folder.is_symlink():
+            return False
+        photos = session.scalars(
+            select(VPManholePhoto).where(VPManholePhoto.delivery_id == delivery.id)
+        ).all()
+        versions = {
+            Path(p.relative_path).name: (p.id, p.uploaded_at.isoformat())
+            for p in photos
+        }
+        if set(versions) != set(expected):
+            return False
+        files = {
+            f.name: f for f in folder.iterdir()
+            if f.is_file() and not f.is_symlink()
+            and f.suffix.lower() == ".jpg"
+        }
+        if set(files) != set(expected):
+            return False
+        for name, (digest, photo_id, uploaded_at) in expected.items():
+            if versions[name] != (photo_id, uploaded_at):
+                return False
+            if hashlib.sha256(files[name].read_bytes()).hexdigest() != digest:
+                return False
+        return True
+
+    def record_export(self, project_id: str, snapshot: dict) -> None:
+        """Start kun fristen for brønde med uændrede foto-versioner."""
+        with SessionLocal() as session:
+            deliveries = session.scalars(
+                select(VPManholeDelivery)
+                .join(Manhole, VPManholeDelivery.manhole_id == Manhole.id)
+                .where(Manhole.project_id == project_id)
+                .order_by(VPManholeDelivery.id)
+                .with_for_update(of=VPManholeDelivery)
+            ).all()
+            for delivery in deliveries:
+                folder = self._folder(session, project_id, delivery)
+                expected = snapshot.get(folder.name)
+                if expected and self._snapshot_matches(
+                    session, project_id, delivery, expected
+                ):
+                    delivery.last_exported_at = datetime.now(timezone.utc)
+                    delivery.photos_purged_at = None
+            session.commit()
+
+    def purge_expired_photos(self, *, dry_run: bool = True, now=None) -> dict:
+        """40 dage efter eksport. Dry-run er standard og ændrer intet.
+
+        Filer flyttes først til en privat karantæne, DB opdateres derefter.
+        Fejl før commit ruller flytningerne tilbage. Ved nedbrud efter
+        commit kan karantænen undersøges manuelt.
+        """
+        now = now or datetime.now(timezone.utc)
+        cutoff = now - timedelta(days=40)
+        result = {"eligible": 0, "purged": 0, "skipped": 0}
+        with SessionLocal() as session:
+            deliveries = session.scalars(
+                select(VPManholeDelivery)
+                .where(
+                    VPManholeDelivery.last_exported_at.is_not(None),
+                    VPManholeDelivery.last_exported_at <= cutoff,
+                    VPManholeDelivery.photos_purged_at.is_(None),
+                )
+                .order_by(VPManholeDelivery.id)
+                .with_for_update(skip_locked=True)
+            ).all()
+            for delivery in deliveries:
+                manhole = session.get(Manhole, delivery.manhole_id)
+                if manhole is None:
+                    result["skipped"] += 1
+                    continue
+                project_id = manhole.project_id
+                folder = self._folder(session, project_id, delivery)
+                photos = session.scalars(
+                    select(VPManholePhoto)
+                    .where(VPManholePhoto.delivery_id == delivery.id)
+                ).all()
+                paths = []
+                valid = bool(photos) and folder.is_dir() and not folder.is_symlink()
+                if valid:
+                    for photo in photos:
+                        path = (self.storage_root / photo.relative_path).resolve()
+                        if (not path.is_relative_to(folder)
+                            or path.parent != folder
+                            or not path.is_file() or path.is_symlink()
+                            or path.suffix.lower() != ".jpg"):
+                            valid = False
+                            break
+                        paths.append(path)
+                    actual = {p.name for p in folder.iterdir()
+                              if p.is_file() and p.suffix.lower() == ".jpg"}
+                    valid = valid and actual == {p.name for p in paths}
+                    # En upload efter eksport må aldrig slettes.
+                    valid = valid and all(
+                        photo.uploaded_at <= delivery.last_exported_at
+                        for photo in photos
+                    )
+                if not valid:
+                    result["skipped"] += 1
+                    continue
+                result["eligible"] += 1
+                if dry_run:
+                    continue
+                quarantine = self.storage_root / ".purge_quarantine" / uuid4().hex
+                moved = []
+                committed = False
+                try:
+                    quarantine.mkdir(parents=True, exist_ok=False)
+                    for path in paths:
+                        dest = quarantine / path.name
+                        os.replace(path, dest)
+                        moved.append((path, dest))
+                    delivery.photos_purged_at = now
+                    # Metadata beholdes som revisionsspor.
+                    session.commit()
+                    committed = True
+                    result["purged"] += 1
+                except Exception:
+                    if not committed:
+                        session.rollback()
+                        for original, dest in reversed(moved):
+                            if dest.exists():
+                                os.replace(dest, original)
+                    raise
+                # Karantænen bevares med vilje: ingen irreversibel
+                # sletning uden separat, verificeret backup-politik.
+        return result
 
     def save_photo(
         self,
@@ -501,34 +533,26 @@ class VPManholePhotoService:
     ) -> VPManholePhoto:
         """
         Gemmer et brøndfoto og dets metadata.
-
         Sessionen skal være dedikeret til denne operation.
-
         Metoden håndterer selv commit og rollback.
-
         API-ruten er ansvarlig for:
         - Login
         - Rolle
         - CSRF
         - Begrænsning af uploadstørrelse
         """
-
         filename = self._filename(
             photo_type,
             sequence,
         )
-
         jpeg_bytes = self._convert_to_jpeg(
             image_bytes
         )
-
         temporary_path: Path | None = None
         backup_path: Path | None = None
         target: Path | None = None
-
         replaced = False
         committed = False
-
         try:
             delivery = self._get_or_create_delivery(
                 session,
@@ -536,24 +560,36 @@ class VPManholePhotoService:
                 installation_id,
                 manhole_id,
             )
-
+            # Lås brøndens aflevering indtil uploaden
+            # og databaseændringen er gennemført.
+            #
+            # Dermed kan record_export() ikke markere
+            # en samtidig upload som allerede eksporteret.
+            delivery = session.scalar(
+                select(VPManholeDelivery)
+                .where(
+                    VPManholeDelivery.id == delivery.id
+                )
+                .with_for_update()
+                .execution_options(populate_existing=True)
+            )
+            if delivery is None:
+                raise PhotoServiceError(
+                    "Brøndens billedaflevering findes ikke"
+                )
             folder = self._folder(
                 session,
                 project_id,
                 delivery,
             )
-
             folder.mkdir(
                 parents=True,
                 exist_ok=True,
             )
-
             target = folder / filename
-
             relative_path = target.relative_to(
                 self.storage_root
             ).as_posix()
-
             photo = session.scalar(
                 select(VPManholePhoto).where(
                     VPManholePhoto.delivery_id == delivery.id,
@@ -561,7 +597,6 @@ class VPManholePhotoService:
                     VPManholePhoto.sequence == sequence,
                 )
             )
-
             if photo is None:
                 photo = VPManholePhoto(
                     delivery_id=delivery.id,
@@ -570,16 +605,13 @@ class VPManholePhotoService:
                     relative_path=relative_path,
                     uploaded_by_user_id=user_id,
                 )
-
                 session.add(photo)
-
             else:
                 photo.relative_path = relative_path
                 photo.uploaded_by_user_id = user_id
                 photo.uploaded_at = datetime.now(
                     timezone.utc
                 )
-
             # Skriv først billedet til en midlertidig fil
             # i samme mappe som den endelige fil.
             with tempfile.NamedTemporaryFile(
@@ -589,13 +621,10 @@ class VPManholePhotoService:
                 suffix=".tmp",
                 delete=False,
             ) as temporary:
-
                 temporary.write(jpeg_bytes)
-
                 temporary_path = Path(
                     temporary.name
                 )
-
             # Hvis billedet allerede findes, bevarer vi
             # en sikkerhedskopi indtil database-commit.
             if target.exists():
@@ -606,62 +635,53 @@ class VPManholePhotoService:
                     suffix=".tmp",
                     delete=False,
                 ) as backup:
-
                     backup_path = Path(
                         backup.name
                     )
-
                 shutil.copy2(
                     target,
                     backup_path,
                 )
-
             # Udskift billedet atomisk.
             os.replace(
                 temporary_path,
                 target,
             )
-
             temporary_path = None
             replaced = True
-
+            # Et nyt eller udskiftet billede betyder, at den
+            # tidligere eksport ikke længere er dækkende.
+            # Billederne må først ryddes op efter ny eksport.
+            photo.uploaded_at = datetime.now(timezone.utc)
+            delivery.last_exported_at = None
+            delivery.photos_purged_at = None
             # Gem metadata i databasen.
             session.commit()
             committed = True
-
             session.refresh(photo)
-
             return photo
-
         except Exception:
             if not committed:
                 session.rollback()
-
                 # Genskab det tidligere billede,
                 # hvis databaseoperationen fejlede.
                 if replaced and target is not None:
-
                     if backup_path is not None:
                         os.replace(
                             backup_path,
                             target,
                         )
-
                         backup_path = None
-
                     else:
                         target.unlink(
                             missing_ok=True
                         )
-
             raise
-
         finally:
             if temporary_path is not None:
                 temporary_path.unlink(
                     missing_ok=True
                 )
-
             if backup_path is not None:
                 backup_path.unlink(
                     missing_ok=True

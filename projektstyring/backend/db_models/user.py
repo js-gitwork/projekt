@@ -61,6 +61,12 @@ class User(Base):
         default="",
     )
 
+    email: Mapped[str | None] = mapped_column(
+        String(254),
+        nullable=True,
+        unique=True,
+    )
+
     role: Mapped[str] = mapped_column(
         String(20),
         nullable=False,

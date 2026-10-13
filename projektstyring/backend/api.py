@@ -83,10 +83,7 @@ async def require_login(request: Request, call_next):
     path = request.url.path
 
     # Login-siden og statiske filer skal kunne bruges uden login.
-    public_path = (
-        path == "/login"
-        or path.startswith("/static/")
-    )
+    public_path = path == "/login" or path.startswith("/static/")
 
     if public_path:
         return await call_next(request)
@@ -110,10 +107,7 @@ async def require_login(request: Request, call_next):
     with SessionLocal() as session:
         user = session.get(User, user_id)
 
-        if (
-            request.session.get("session_version")
-            != user.session_version
-        ):
+        if request.session.get("session_version") != user.session_version:
             request.session.clear()
 
             if request.method == "GET":
@@ -131,13 +125,10 @@ async def require_login(request: Request, call_next):
 
         role = user.role
 
-        if (
-            user.must_change_password
-            and path not in {
-                "/change-password",
-                "/logout",
-            }
-        ):
+        if user.must_change_password and path not in {
+            "/change-password",
+            "/logout",
+        }:
             if request.method == "GET":
                 return RedirectResponse(
                     url="/change-password",
@@ -147,10 +138,7 @@ async def require_login(request: Request, call_next):
             return JSONResponse(
                 status_code=403,
                 content={
-                    "detail": (
-                        "Adgangskoden skal ændres, "
-                        "før systemet kan bruges."
-                    ),
+                    "detail": ("Adgangskoden skal ændres, " "før systemet kan bruges."),
                 },
             )
 
@@ -177,10 +165,7 @@ async def require_login(request: Request, call_next):
             return JSONResponse(
                 status_code=403,
                 content={
-                    "detail": (
-                        "Du har ikke adgang til "
-                        "denne del af systemet."
-                    ),
+                    "detail": ("Du har ikke adgang til " "denne del af systemet."),
                 },
             )
 
@@ -210,29 +195,29 @@ app.mount(
     name="static",
 )
 
-templates = Jinja2Templates(
-    directory="projektstyring/frontend/templates"
-)
+templates = Jinja2Templates(directory="projektstyring/frontend/templates")
 
 templates.env.globals["csrf_token"] = get_csrf_token
 
 repo = ProjectRepository()
 team_repo = TeamRepository()
-technical_asset_import_service = (
-    TechnicalAssetImportService(
-        TechnicalAssetImportExecutor()
-    )
+technical_asset_import_service = TechnicalAssetImportService(
+    TechnicalAssetImportExecutor()
 )
 
-deviation_import_service = (
-    DeviationImportService()
-)
+deviation_import_service = DeviationImportService()
+
 
 @app.get("/login")
-def login_page(request: Request):
+def login_page(request: Request, next: str | None = None):
+    if next and (not next.startswith("/") or next.startswith("//") or "\\" in next):
+        next = None
+
     if request.session.get("user_id"):
         if request.session.get("must_change_password"):
             redirect_url = "/change-password"
+        elif next:
+            redirect_url = next
         elif request.session.get("role") == "felt":
             redirect_url = "/vpmanhole/"
         else:
@@ -287,16 +272,30 @@ def login(
         request.session["username"] = user.username
         request.session["display_name"] = user.display_name
         request.session["role"] = user.role
+        request.session["must_change_password"] = user.must_change_password
+
+
         request.session["must_change_password"] = (
             user.must_change_password
         )
 
-        if user.must_change_password:
-            redirect_url = "/change-password"
-        elif user.role == "felt":
-            redirect_url = "/vpmanhole/"
-        else:
-            redirect_url = "/"
+    next_url = request.query_params.get("next")
+
+    if next_url and (
+        not next_url.startswith("/")
+        or next_url.startswith("//")
+        or "\\" in next_url
+    ):
+        next_url = None
+
+    if request.session["must_change_password"]:
+        redirect_url = "/change-password"
+    elif next_url:
+        redirect_url = next_url
+    elif request.session["role"] == "felt":
+        redirect_url = "/vpmanhole/"
+    else:
+        redirect_url = "/"
 
     return RedirectResponse(
         url=redirect_url,
@@ -319,6 +318,7 @@ def logout(
         url="/login",
         status_code=303,
     )
+
 
 @app.get("/change-password")
 def change_password_page(request: Request):
@@ -409,9 +409,7 @@ def change_password(
                 status_code=400,
             )
 
-        user.password_hash = hash_password(
-            new_password
-        )
+        user.password_hash = hash_password(new_password)
         user.must_change_password = False
         user.session_version += 1
 
@@ -433,8 +431,10 @@ def change_password(
         status_code=303,
     )
 
+
 def get_teams():
     return team_repo.load_team_map()
+
 
 def to_int(value, default=0):
     try:
@@ -443,6 +443,7 @@ def to_int(value, default=0):
         return int(value)
     except (TypeError, ValueError):
         return default
+
 
 def installation_sort_key(installation):
     return (
@@ -464,11 +465,7 @@ def parse_installation_list(value):
     if not value:
         return []
 
-    return [
-        item.strip()
-        for item in value.split(",")
-        if item.strip()
-    ]
+    return [item.strip() for item in value.split(",") if item.strip()]
 
 
 def validate_task_assignments(assignments):
@@ -527,8 +524,7 @@ def build_work_cards_by_week(activities):
             )
 
     return {
-        hold: dict(sorted(weeks.items()))
-        for hold, weeks in sorted(work_cards.items())
+        hold: dict(sorted(weeks.items())) for hold, weeks in sorted(work_cards.items())
     }
 
 
@@ -540,16 +536,10 @@ def build_gantt_data(activities):
         }
 
     start_dates = [
-        activity.start_dato
-        for activity in activities
-        if activity.start_dato
+        activity.start_dato for activity in activities if activity.start_dato
     ]
 
-    end_dates = [
-        activity.slut_dato
-        for activity in activities
-        if activity.slut_dato
-    ]
+    end_dates = [activity.slut_dato for activity in activities if activity.slut_dato]
 
     if not start_dates or not end_dates:
         return {
@@ -651,10 +641,7 @@ def build_progress_report(project, activities):
                 if percent is None:
                     complete = False
 
-                    if (
-                        activity.slut_dato
-                        and activity.slut_dato < today
-                    ):
+                    if activity.slut_dato and activity.slut_dato < today:
                         overdue = True
                     else:
                         in_progress = True
@@ -664,10 +651,7 @@ def build_progress_report(project, activities):
                 if percent < 100:
                     complete = False
 
-                    if (
-                        activity.slut_dato
-                        and activity.slut_dato < today
-                    ):
+                    if activity.slut_dato and activity.slut_dato < today:
                         overdue = True
                     else:
                         in_progress = True
@@ -767,6 +751,7 @@ def create_project(
         status_code=303,
     )
 
+
 @app.get("/planning")
 def planning_board_page(
     request: Request,
@@ -813,9 +798,8 @@ def planning_board_data(
         scenario_id=scenario_id,
     )
 
-    return JSONResponse(
-        content=board
-    )
+    return JSONResponse(content=board)
+
 
 @app.get("/projects/{project_id}")
 def project_detail(request: Request, project_id: str):
@@ -838,6 +822,7 @@ def project_detail(request: Request, project_id: str):
             "errors": [],
         },
     )
+
 
 @app.post("/projects/{project_id}/start")
 def start_project_route(
@@ -877,6 +862,7 @@ def start_project_route(
         url=f"/projects/{project_id}",
         status_code=303,
     )
+
 
 @app.post("/projects/{project_id}/save")
 async def save_project_detail(request: Request, project_id: str):
@@ -924,21 +910,11 @@ async def save_project_detail(request: Request, project_id: str):
                 "id": installation_id,
                 "active": form.get(f"active_{index}") == "on",
                 "hoveddato": hoveddato or None,
-                "expected_stik": to_int(
-                    form.get(f"expected_stik_{index}")
-                ),
-                "active_stik": to_int(
-                    form.get(f"active_stik_{index}")
-                ),
-                "langhatte": to_int(
-                    form.get(f"langhatte_{index}")
-                ),
-                "korthatte_extra": to_int(
-                    form.get(f"korthatte_extra_{index}")
-                ),
-                "broende": to_int(
-                    form.get(f"broende_{index}")
-                ),
+                "expected_stik": to_int(form.get(f"expected_stik_{index}")),
+                "active_stik": to_int(form.get(f"active_stik_{index}")),
+                "langhatte": to_int(form.get(f"langhatte_{index}")),
+                "korthatte_extra": to_int(form.get(f"korthatte_extra_{index}")),
+                "broende": to_int(form.get(f"broende_{index}")),
                 "notes": form.get(f"notes_{index}", "").strip(),
             }
         )
@@ -967,9 +943,7 @@ async def save_project_detail(request: Request, project_id: str):
         assignments[task_type].append(
             {
                 "team": team,
-                "installations": parse_installation_list(
-                    installation_list
-                ),
+                "installations": parse_installation_list(installation_list),
             }
         )
 
@@ -1002,6 +976,7 @@ async def save_project_detail(request: Request, project_id: str):
         status_code=303,
     )
 
+
 @app.post("/projects/{project_id}/complete-survey")
 def complete_project_survey(
     request: Request,
@@ -1028,6 +1003,7 @@ def complete_project_survey(
         url=f"/projects/{project_id}",
         status_code=303,
     )
+
 
 @app.post("/projects/{project_id}/installations/add")
 def add_project_installations(
@@ -1087,17 +1063,14 @@ def project_plan(
 
     if selected_holds:
         activities = [
-            activity
-            for activity in activities
-            if activity.hold in selected_holds
+            activity for activity in activities if activity.hold in selected_holds
         ]
 
     if year:
         activities = [
             activity
             for activity in activities
-            if activity.start_dato
-            and activity.start_dato.isocalendar().year == year
+            if activity.start_dato and activity.start_dato.isocalendar().year == year
         ]
 
     if week_from and week_to:
@@ -1130,8 +1103,7 @@ def project_plan(
         activities = [
             activity
             for activity in activities
-            if activity.start_dato
-            and activity.start_dato.isocalendar().week <= week_to
+            if activity.start_dato and activity.start_dato.isocalendar().week <= week_to
         ]
 
     work_cards = build_work_cards_by_week(activities)
@@ -1176,6 +1148,7 @@ def project_work_cards(request: Request, project_id: str):
         },
     )
 
+
 def build_c5_import_report(preview_result):
     """
     Bygger en deterministisk kontrolrapport til Rørbot
@@ -1185,21 +1158,11 @@ def build_c5_import_report(preview_result):
     og ændrer ingen data.
     """
 
-    conflicts = list(
-        preview_result.conflicts
-    )
+    conflicts = list(preview_result.conflicts)
 
-    blocking = [
-        conflict
-        for conflict in conflicts
-        if conflict.blocks_import
-    ]
+    blocking = [conflict for conflict in conflicts if conflict.blocks_import]
 
-    non_blocking = [
-        conflict
-        for conflict in conflicts
-        if not conflict.blocks_import
-    ]
+    non_blocking = [conflict for conflict in conflicts if not conflict.blocks_import]
 
     if blocking:
         status = "blocked"
@@ -1236,10 +1199,7 @@ def build_c5_import_report(preview_result):
     work_entries = [
         action.key
         for action in preview_result.actions
-        if (
-            action.entity_type == "manhole_work"
-            and action.action == "create"
-        )
+        if (action.entity_type == "manhole_work" and action.action == "create")
     ]
 
     return {
@@ -1252,11 +1212,10 @@ def build_c5_import_report(preview_result):
         "created": preview_result.created,
         "updated": preview_result.updated,
         "unchanged": preview_result.unchanged,
-        "work_entries_created": (
-            preview_result.work_entries_created
-        ),
+        "work_entries_created": (preview_result.work_entries_created),
         "work_entries": work_entries,
     }
+
 
 @app.get("/projects/{project_id}/c5-import")
 def c5_import_form(request: Request, project_id: str):
@@ -1272,6 +1231,7 @@ def c5_import_form(request: Request, project_id: str):
         },
     )
 
+
 @app.post("/projects/{project_id}/c5-import/preview")
 async def c5_import_preview(
     request: Request,
@@ -1285,22 +1245,16 @@ async def c5_import_preview(
         str(form.get("csrf_token", "")),
     )
 
-    csv_text = str(
-        form.get("csv_text", "")
-    )
+    csv_text = str(form.get("csv_text", ""))
 
-    selected_import_type = str(
-        form.get("import_type", "")
-    ).strip()
+    selected_import_type = str(form.get("import_type", "")).strip()
 
     if selected_import_type:
         import_type = selected_import_type
     else:
         # Bagudkompatibilitet med den eksisterende formular,
         # indtil den nye importside er på plads.
-        import_type = detect_c5_csv_type(
-            csv_text
-        )
+        import_type = detect_c5_csv_type(csv_text)
 
     try:
         import_data = parse_c5_import(
@@ -1328,42 +1282,27 @@ async def c5_import_preview(
     ):
         updates = []
 
-        preview_result = (
-            deviation_import_service.preview(
-                import_data
-            )
-        )
+        preview_result = deviation_import_service.preview(import_data)
 
     else:
         if import_type == "project_overview":
             # Den eksisterende detaljerede preview-visning
             # gælder kun produktionsoversigten.
-            updates = parse_c5_csv(
-                csv_text
-            )
+            updates = parse_c5_csv(csv_text)
 
             updates = [
                 update
                 for update in updates
-                if (
-                    update.get("project_id")
-                    == project_id.upper()
-                )
+                if (update.get("project_id") == project_id.upper())
             ]
         else:
             # Opmålings- og brøndoversigter bruger den
             # fælles tekniske import-preview.
             updates = []
 
-        preview_result = (
-            technical_asset_import_service.preview(
-                import_data
-            )
-        )
+        preview_result = technical_asset_import_service.preview(import_data)
 
-    roerbot_import_report = build_c5_import_report(
-        preview_result
-    )
+    roerbot_import_report = build_c5_import_report(preview_result)
 
     return templates.TemplateResponse(
         request,
@@ -1378,6 +1317,7 @@ async def c5_import_preview(
         },
     )
 
+
 @app.post("/projects/{project_id}/c5-import/apply")
 async def c5_import_apply(
     request: Request,
@@ -1390,22 +1330,16 @@ async def c5_import_apply(
         str(form.get("csrf_token", "")),
     )
 
-    csv_text = str(
-        form.get("csv_text", "")
-    )
+    csv_text = str(form.get("csv_text", ""))
 
-    selected_import_type = str(
-        form.get("import_type", "")
-    ).strip()
+    selected_import_type = str(form.get("import_type", "")).strip()
 
     if selected_import_type:
         import_type = selected_import_type
     else:
         # Bagudkompatibilitet med den eksisterende formular,
         # indtil den nye importside er på plads.
-        import_type = detect_c5_csv_type(
-            csv_text
-        )
+        import_type = detect_c5_csv_type(csv_text)
 
     try:
         import_data = parse_c5_import(
@@ -1432,19 +1366,16 @@ async def c5_import_apply(
         import_data,
         DeviationImport,
     ):
-        deviation_import_service.import_deviations(
-            import_data
-        )
+        deviation_import_service.import_deviations(import_data)
 
     else:
-        technical_asset_import_service.import_assets(
-            import_data
-        )
+        technical_asset_import_service.import_assets(import_data)
 
     return RedirectResponse(
         url=f"/projects/{project_id}",
         status_code=303,
     )
+
 
 def roerbot_user_key(request: Request) -> str:
     return f"user:{request.state.user.id}"
@@ -1463,14 +1394,10 @@ def roerbot_list_conversations(
     return {
         "conversations": [
             {
-                "conversation_key": (
-                    conversation.conversation_key
-                ),
+                "conversation_key": (conversation.conversation_key),
                 "title": conversation.title,
                 "kind": conversation.kind,
-                "updated_at": (
-                    conversation.updated_at.isoformat()
-                ),
+                "updated_at": (conversation.updated_at.isoformat()),
             }
             for conversation in conversations
         ]
@@ -1552,10 +1479,7 @@ def roerbot_global_ask(
         question,
         user_key=user_key,
         conversation_key=conversation_key,
-        actor_name=(
-            user.display_name
-            or user.username
-        ),
+        actor_name=(user.display_name or user.username),
     )
 
     conversation = get_active_conversation(

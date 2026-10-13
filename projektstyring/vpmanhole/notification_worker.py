@@ -1,4 +1,3 @@
-
 from __future__ import annotations
 
 import logging
@@ -20,7 +19,6 @@ from projektstyring.vpmanhole.notification_service import (
     notification_service,
 )
 
-
 logging.basicConfig(
     level=logging.INFO,
     format="%(asctime)s %(levelname)s %(message)s",
@@ -37,29 +35,28 @@ def get_recipients(
     project: Project,
     settings: VPManholeNotificationSettings,
 ) -> list[str]:
-    rows = session.execute(
-        select(User)
-        .join(
-            VPManholeNotificationRecipient,
-            VPManholeNotificationRecipient.user_id == User.id,
+    rows = (
+        session.execute(
+            select(User)
+            .join(
+                VPManholeNotificationRecipient,
+                VPManholeNotificationRecipient.user_id == User.id,
+            )
+            .where(
+                User.is_active.is_(True),
+                User.role.in_(("kontor", "admin")),
+                User.email.is_not(None),
+            )
         )
-        .where(
-            User.is_active.is_(True),
-            User.role.in_(("kontor", "admin")),
-            User.email.is_not(None),
-        )
-    ).scalars().all()
+        .scalars()
+        .all()
+    )
 
     emails = {
-        user.email.strip().lower()
-        for user in rows
-        if user.email and user.email.strip()
+        user.email.strip().lower() for user in rows if user.email and user.email.strip()
     }
 
-    if (
-        settings.include_site_manager
-        and project.site_manager_user_id is not None
-    ):
+    if settings.include_site_manager and project.site_manager_user_id is not None:
         manager = session.get(
             User,
             project.site_manager_user_id,
@@ -84,9 +81,7 @@ def process_event(event_id: int) -> None:
         )
 
         if settings is None or not settings.enabled:
-            logger.info(
-                "Mailfunktionen er deaktiveret."
-            )
+            logger.info("Mailfunktionen er deaktiveret.")
             return
 
         event = session.get(
@@ -130,11 +125,7 @@ def process_event(event_id: int) -> None:
 
     # Kontroller billederne igen umiddelbart
     # inden færdigmeldingen.
-    completion = (
-        notification_service.check_project_completion(
-            project_id
-        )
-    )
+    completion = notification_service.check_project_completion(project_id)
 
     if not completion.is_complete:
         logger.info(
@@ -149,18 +140,14 @@ def process_event(event_id: int) -> None:
             update(VPManholeNotificationEvent)
             .where(
                 VPManholeNotificationEvent.id == event_id,
-                VPManholeNotificationEvent.status.in_(
-                    ("pending", "failed")
-                ),
+                VPManholeNotificationEvent.status.in_(("pending", "failed")),
             )
             .values(
                 status="sending",
                 last_attempt_at=now_utc(),
                 last_error=None,
             )
-            .returning(
-                VPManholeNotificationEvent.id
-            )
+            .returning(VPManholeNotificationEvent.id)
         ).scalar_one_or_none()
 
         session.commit()
@@ -173,10 +160,7 @@ def process_event(event_id: int) -> None:
         "https://vpmanhole.duckdns.org",
     ).rstrip("/")
 
-    subject = (
-        f"VPManhole: Billeddokumentation færdig "
-        f"– {project_id}"
-    )
+    subject = f"VPManhole: Billeddokumentation færdig " f"– {project_id}"
 
     body = (
         "Billeddokumentationen er registreret som "
@@ -208,15 +192,11 @@ def process_event(event_id: int) -> None:
                 update(VPManholeNotificationEvent)
                 .where(
                     VPManholeNotificationEvent.id == event_id,
-                    VPManholeNotificationEvent.status
-                    == "sending",
+                    VPManholeNotificationEvent.status == "sending",
                 )
                 .values(
                     status="failed",
-                    attempt_count=(
-                        VPManholeNotificationEvent.attempt_count
-                        + 1
-                    ),
+                    attempt_count=(VPManholeNotificationEvent.attempt_count + 1),
                     last_error=str(exc)[:2000],
                     recipient_emails=", ".join(recipients),
                     updated_at=now_utc(),
@@ -231,15 +211,11 @@ def process_event(event_id: int) -> None:
             update(VPManholeNotificationEvent)
             .where(
                 VPManholeNotificationEvent.id == event_id,
-                VPManholeNotificationEvent.status
-                == "sending",
+                VPManholeNotificationEvent.status == "sending",
             )
             .values(
                 status="sent",
-                attempt_count=(
-                    VPManholeNotificationEvent.attempt_count
-                    + 1
-                ),
+                attempt_count=(VPManholeNotificationEvent.attempt_count + 1),
                 recipient_emails=", ".join(recipients),
                 sent_at=now_utc(),
                 updated_at=now_utc(),
@@ -261,24 +237,21 @@ def main() -> None:
         )
 
         if settings is None or not settings.enabled:
-            logger.info(
-                "VPManhole-mail er deaktiveret. "
-                "Ingen mails sendes."
-            )
+            logger.info("VPManhole-mail er deaktiveret. " "Ingen mails sendes.")
             return
 
-        event_ids = session.execute(
-            select(VPManholeNotificationEvent.id)
-            .where(
-                VPManholeNotificationEvent.status.in_(
-                    ("pending", "failed")
+        event_ids = (
+            session.execute(
+                select(VPManholeNotificationEvent.id)
+                .where(VPManholeNotificationEvent.status.in_(("pending", "failed")))
+                .order_by(
+                    VPManholeNotificationEvent.created_at,
+                    VPManholeNotificationEvent.id,
                 )
             )
-            .order_by(
-                VPManholeNotificationEvent.created_at,
-                VPManholeNotificationEvent.id,
-            )
-        ).scalars().all()
+            .scalars()
+            .all()
+        )
 
     logger.info(
         "Fandt %s færdigmeldinger i kø.",

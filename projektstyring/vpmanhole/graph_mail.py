@@ -1,29 +1,17 @@
-
 from __future__ import annotations
 
+import logging
 import os
-from urllib.parse import quote
+import smtplib
+import ssl
+from email.message import EmailMessage
+from email.utils import formatdate, make_msgid
 
-import httpx
-
-
-GRAPH_SCOPE = "https://graph.microsoft.com/.default"
-GRAPH_BASE_URL = "https://graph.microsoft.com/v1.0"
+logger = logging.getLogger(__name__)
 
 
 class GraphMailError(RuntimeError):
-    """Fejl ved autentificering eller mailafsendelse."""
-
-
-def _required_environment(name: str) -> str:
-    value = os.environ.get(name, "").strip()
-
-    if not value:
-        raise GraphMailError(
-            f"Miljøvariablen {name} mangler."
-        )
-
-    return value
+    """Fejl ved afsendelse gennem SMTP-relay."""
 
 
 def send_mail(
@@ -32,114 +20,73 @@ def send_mail(
     body: str,
 ) -> None:
     """
-    Sender en tekstmail gennem Microsoft Graph.
+    Sender mail gennem IP-godkendt Microsoft 365 SMTP-relay.
 
-    Funktionen kræver en Entra-app med Mail.Send
-    Application permission og adgang til afsenderen.
+    Ingen brugernavn eller adgangskode.
+    STARTTLS kræves.
     """
 
     if not recipients:
+        raise GraphMailError("Der er ingen modtagere.")
+
+    host = os.environ.get(
+        "VPMANHOLE_SMTP_HOST", ""
+    ).strip()
+    sender = os.environ.get(
+        "VPMANHOLE_SMTP_FROM", ""
+    ).strip()
+
+    try:
+        port = int(os.environ.get("VPMANHOLE_SMTP_PORT", "25"))
+    except ValueError as exc:
+        raise GraphMailError("Ugyldig SMTP-port.") from exc
+
+    if not host or not sender:
         raise GraphMailError(
-            "Der er ingen modtagere."
+            "SMTP-server eller afsenderadresse mangler."
         )
 
-    tenant_id = _required_environment(
-        "VPMANHOLE_GRAPH_TENANT_ID"
-    )
-    client_id = _required_environment(
-        "VPMANHOLE_GRAPH_CLIENT_ID"
-    )
-    client_secret = _required_environment(
-        "VPMANHOLE_GRAPH_CLIENT_SECRET"
-    )
-    sender = _required_environment(
-        "VPMANHOLE_GRAPH_SENDER"
-    )
+    message = EmailMessage()
+    message["From"] = sender
+    message["To"] = ", ".join(recipients)
+    message["Subject"] = subject
+    message["Date"] = formatdate(localtime=False)
+    message["Message-ID"] = make_msgid()
+    message.set_content(body)
 
-    token_url = (
-        f"https://login.microsoftonline.com/"
-        f"{quote(tenant_id, safe='')}/oauth2/v2.0/token"
-    )
+    try:
+        with smtplib.SMTP(
+            host=host,
+            port=port,
+            timeout=30,
+        ) as smtp:
+            smtp.ehlo()
 
-    with httpx.Client(timeout=30.0) as client:
-        try:
-            token_response = client.post(
-                token_url,
-                data={
-                    "client_id": client_id,
-                    "client_secret": client_secret,
-                    "scope": GRAPH_SCOPE,
-                    "grant_type": "client_credentials",
-                },
-            )
-            token_response.raise_for_status()
-
-            access_token = token_response.json()[
-                "access_token"
-            ]
-
-        except (
-            httpx.HTTPError,
-            ValueError,
-            KeyError,
-        ) as exc:
-            raise GraphMailError(
-                "Kunne ikke hente Microsoft Graph-token."
-            ) from exc
-
-        payload = {
-            "message": {
-                "subject": subject,
-                "body": {
-                    "contentType": "Text",
-                    "content": body,
-                },
-                "toRecipients": [
-                    {
-                        "emailAddress": {
-                            "address": address,
-                        }
-                    }
-                    for address in recipients
-                ],
-            },
-            "saveToSentItems": True,
-        }
-
-        url = (
-            f"{GRAPH_BASE_URL}/users/"
-            f"{quote(sender, safe='')}/sendMail"
-        )
-
-        try:
-            response = client.post(
-                url,
-                headers={
-                    "Authorization": (
-                        f"Bearer {access_token}"
-                    ),
-                },
-                json=payload,
-            )
-            response.raise_for_status()
-
-            if response.status_code != 202:
+            if not smtp.has_extn("starttls"):
                 raise GraphMailError(
-                    "Microsoft Graph bekræftede ikke "
-                    "modtagelsen af mailen."
+                    "SMTP-serveren understøtter ikke STARTTLS."
                 )
 
-        except httpx.HTTPError as exc:
-            status = (
-                exc.response.status_code
-                if isinstance(
-                    exc,
-                    httpx.HTTPStatusError,
-                )
-                else "ukendt"
+            smtp.starttls(context=ssl.create_default_context())
+            smtp.ehlo()
+
+            refused = smtp.send_message(
+                message,
+                from_addr=sender,
+                to_addrs=recipients,
             )
 
-            raise GraphMailError(
-                "Microsoft Graph-mailafsendelse "
-                f"fejlede (HTTP {status})."
-            ) from exc
+            if refused:
+                raise GraphMailError(
+                    f"SMTP afviste modtagere: {refused}"
+                )
+
+    except (smtplib.SMTPException, OSError) as exc:
+        raise GraphMailError(
+            f"SMTP-afsendelse fejlede: {exc}"
+        ) from exc
+
+    logger.info(
+        "SMTP-relay accepterede mail til %s modtager(e).",
+        len(recipients),
+    )

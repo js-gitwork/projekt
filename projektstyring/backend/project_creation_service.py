@@ -21,6 +21,10 @@ from projektstyring.backend.repositories.conversation_state_repository import (
     get_active_conversation,
     save_active_conversation,
 )
+from sqlalchemy import func, select
+
+from projektstyring.backend.database.connection import SessionLocal
+from projektstyring.backend.db_models.user import User
 
 
 PROJECT_CREATION_WORKFLOW = "project_creation"
@@ -210,6 +214,26 @@ def normalize_project_creation_fields(
 
     return result
 
+def resolve_site_manager_user_id(
+    site_manager_name: str,
+) -> int | None:
+    name = site_manager_name.strip()
+
+    if not name:
+        return None
+
+    with SessionLocal() as session:
+        matches = session.scalars(
+            select(User).where(
+                User.is_active.is_(True),
+                func.lower(User.display_name) == name.lower(),
+            )
+        ).all()
+
+        if len(matches) == 1:
+            return matches[0].id
+
+    return None
 
 def build_project_from_creation_data(
     data: dict[str, Any],
@@ -232,6 +256,9 @@ def build_project_from_creation_data(
         site_manager=data.get(
             "site_manager",
             "",
+        ),
+        site_manager_user_id=resolve_site_manager_user_id(
+            data.get("site_manager", ""),
         ),
         city=data.get("city", ""),
         start_date=data.get("start_date", ""),

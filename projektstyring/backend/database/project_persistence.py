@@ -141,10 +141,23 @@ def get_or_create_project(
         or ""
     )
 
-    project.site_manager = str(
+    new_site_manager = str(
         project_data.get("site_manager")
         or ""
     )
+
+    site_manager_changed = (
+        project.site_manager != new_site_manager
+    )
+
+    project.site_manager = new_site_manager
+
+    if "site_manager_user_id" in project_data:
+        project.site_manager_user_id = project_data[
+            "site_manager_user_id"
+        ]
+    elif site_manager_changed:
+        project.site_manager_user_id = None
 
     project.city = str(
         project_data.get("city")

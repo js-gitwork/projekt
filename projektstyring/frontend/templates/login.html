@@ -94,7 +94,7 @@
             </div>
             {% endif %}
 
-            <form method="post" action="/login">
+            <form method="post" action="/login{% if request.query_params.get('next') == '/admin' %}?next=/admin{% endif %}">
                 <input
                     type="hidden"
                     name="csrf_token"

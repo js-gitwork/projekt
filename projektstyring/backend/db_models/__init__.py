@@ -53,6 +53,11 @@ from projektstyring.backend.db_models.vpmanhole import (
     VPManholeDelivery,
     VPManholePhoto,
 )
+from projektstyring.backend.db_models.vpmanhole_notification import (
+    VPManholeNotificationSettings,
+    VPManholeNotificationRecipient,
+    VPManholeNotificationEvent,
+)
 
 __all__ = [
     "CalendarException",
@@ -65,6 +70,9 @@ __all__ = [
     "Manhole",
     "VPManholeDelivery",
     "VPManholePhoto",
+    "VPManholeNotificationSettings",
+    "VPManholeNotificationRecipient",
+    "VPManholeNotificationEvent",
     "ManholeWork",
     "PlanningScenario",
     "Project",
