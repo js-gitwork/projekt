@@ -47,6 +47,10 @@ from projektstyring.backend.remaining_work_service import (
 from projektstyring.backend.repositories.project_constraint_repository import (
     ProjectConstraintRepository,
 )
+from projektstyring.backend.database.connection import SessionLocal
+from projektstyring.backend.repositories.technical_asset_repository import (
+    TechnicalAssetRepository,
+)
 
 project_repository = ProjectRepository()
 team_repository = TeamRepository()
@@ -1266,6 +1270,95 @@ def load_project_watchdog_resource(
 
     return result
 
+def load_manhole_renovations_resource(
+    interpretation: dict[str, Any],
+) -> list[dict[str, Any]]:
+    """
+    Henter brøndrenoveringer fra PostgreSQL.
+
+    Bruger seneste arbejdsregistrering pr. brønd,
+    så historiske statusændringer ikke dobbelttælles.
+
+    Understøtter projekter både med og uden brøndstræk.
+    """
+    result = []
+
+    with SessionLocal() as session:
+        repo = TechnicalAssetRepository(session)
+
+        for project_id in requested_project_ids(interpretation):
+            manholes = repo.list_manholes(project_id)
+
+            renovations = []
+
+            for manhole in manholes:
+                if not manhole.get("active", True):
+                    continue
+
+                work_entries = [
+                    work
+                    for work in manhole.get("work_entries", [])
+                    if work.get("work_type") == "broendrenovering"
+                ]
+
+                if not work_entries:
+                    continue
+
+                latest = max(
+                    work_entries,
+                    key=lambda work: work["id"],
+                )
+
+                metadata = latest.get("metadata") or {}
+
+                renovation_type = str(
+                    metadata.get("renovation_type") or ""
+                ).strip().casefold()
+
+                if renovation_type not in {"ds437", "total"}:
+                    continue
+
+                renovations.append(
+                    {
+                        "manhole_no": manhole["manhole_no"],
+                        "installation_no": metadata.get(
+                            "installation_no"
+                        ),
+                        "renovation_type": renovation_type,
+                        "status": latest.get("status"),
+                        "performed_date": latest.get("performed_date"),
+                        "performed_by": latest.get("performed_by"),
+                    }
+                )
+
+            completed = sum(
+                item["status"] == "completed"
+                for item in renovations
+            )
+
+            result.append(
+                {
+                    "project_id": project_id,
+                    "total": len(renovations),
+                    "completed": completed,
+                    "remaining": len(renovations) - completed,
+                    "ds437": sum(
+                        item["renovation_type"] == "ds437"
+                        for item in renovations
+                    ),
+                    "total_renovation": sum(
+                        item["renovation_type"] == "total"
+                        for item in renovations
+                    ),
+                    "manholes": sorted(
+                        renovations,
+                        key=lambda item: item["manhole_no"],
+                    ),
+                }
+            )
+
+    return result
+
 def build_resource(
     resource: str,
     interpretation: dict[str, Any],
@@ -1336,6 +1429,11 @@ def build_resource(
 
     if resource == "project_constraints":
         return load_project_constraints_resource(
+            interpretation
+        )
+
+    if resource == "manhole_renovations":
+        return load_manhole_renovations_resource(
             interpretation
         )
 

@@ -64,6 +64,7 @@ ALLOWED_PROJECT_CREATION_FIELDS = {
 }
 
 ALLOWED_RESOURCES = {
+    "manhole_renovations",
     "projects",
     "project",
     "installations",
@@ -87,20 +88,28 @@ ALLOWED_RESOURCES = {
 }
 
 RESOURCE_DESCRIPTIONS = {
-"projects": (
-    "Oversigt over projekter og deres centrale projektfelter. "
-    "Bruges ikke til at hente eller tælle installationer."
-),
-"project": (
-    "Komplette projektdata for et eller flere konkrete projekter. "
-    "Brug den relevante særskilte resource, når spørgsmålet handler "
-    "om installationer, opgaver, fremdrift eller andre underdata."
-),
-"installations": (
-    "Installationernes grunddata. Brug denne resource, når brugeren "
-    "spørger om installationer, herunder hvilke installationer et "
-    "projekt har eller hvor mange installationer der findes."
-),
+    "manhole_renovations": (
+        "Brøndrenoveringer registreret i C5, herunder DS437 "
+        "og Total. Indeholder antal brønde, installationsnumre, "
+        "renoveringstype og udførelsesstatus. Brug denne resource "
+        "ved spørgsmål om hvor mange brønde der skal renoveres, "
+        "hvilke der er udført, og hvilke der mangler. "
+        "Kræver ikke brøndstræk."
+    ),
+    "projects": (
+        "Oversigt over projekter og deres centrale projektfelter. "
+        "Bruges ikke til at hente eller tælle installationer."
+    ),
+    "project": (
+        "Komplette projektdata for et eller flere konkrete projekter. "
+        "Brug den relevante særskilte resource, når spørgsmålet handler "
+        "om installationer, opgaver, fremdrift eller andre underdata."
+    ),
+    "installations": (
+        "Installationernes grunddata. Brug denne resource, når brugeren "
+        "spørger om installationer, herunder hvilke installationer et "
+        "projekt har eller hvor mange installationer der findes."
+    ),
     "tasks": (
         "Projektets opgaver og opgavetyper."
     ),

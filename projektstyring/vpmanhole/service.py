@@ -22,6 +22,7 @@ OPEN_PROJECT_STATUSES = {
     "active",
 }
 
+
 def normalize_installation_no(value: object) -> str:
     """
     Normaliserer installationsnumre fra C5.
@@ -47,6 +48,7 @@ def normalize_installation_no(value: object) -> str:
 
     return text.casefold()
 
+
 class VPManholeService:
     def __init__(self) -> None:
         self.project_repository = DatabaseProjectRepository()
@@ -54,11 +56,22 @@ class VPManholeService:
     def list_open_projects(self) -> list[dict[str, Any]]:
         projects = self.project_repository.list_projects()
 
-        return [
-            project
-            for project in projects
-            if project.get("status") in OPEN_PROJECT_STATUSES
-        ]
+        result = []
+
+        for project in projects:
+            if project.get("status") not in OPEN_PROJECT_STATUSES:
+                continue
+
+            project_id = project.get("id")
+            if not project_id:
+                continue
+
+            installations = self.list_project_installations(project_id)
+
+            if any(installation["manholes"] for installation in installations):
+                result.append(project)
+
+        return result
 
     def list_project_installations(
         self,
@@ -67,40 +80,36 @@ class VPManholeService:
         """
         Henter aktive installationer og deres renoveringsbrønde.
 
-        En brønd vises kun under den installation,
-        hvor renoveringen er registreret i C5.
+        Brøndene knyttes til installationen via installationsnummeret
+        i C5-arbejdsregistreringen.
+
+        Der kræves ikke brøndstræk. Funktionen understøtter derfor
+        både almindelige projekter og rene brøndrenoveringsprojekter.
         """
         with SessionLocal() as session:
-            statement = (
+            installations = session.scalars(
                 select(Installation)
                 .where(
                     Installation.project_id == project_id,
                     Installation.active.is_(True),
                 )
-                .options(
-                    selectinload(Installation.stretches)
-                    .selectinload(Stretch.bottom_manhole),
-                    selectinload(Installation.stretches)
-                    .selectinload(Stretch.top_manhole),
-                )
                 .order_by(Installation.sequence.asc())
-            )
-
-            installations = session.scalars(statement).all()
+            ).all()
 
             renovation_works = session.scalars(
                 select(ManholeWork)
                 .join(ManholeWork.manhole)
                 .where(
                     ManholeWork.work_type == "broendrenovering",
-                    ManholeWork.manhole.has(
-                        project_id=project_id
-                    ),
+                    ManholeWork.manhole.has(project_id=project_id),
+                )
+                .options(
+                    selectinload(ManholeWork.manhole)
                 )
                 .order_by(ManholeWork.id.desc())
             ).all()
 
-            # Seneste registrering pr. brønd.
+            # Behold kun den seneste registrering for hver brønd.
             latest_work_by_manhole = {}
 
             for work in renovation_works:
@@ -109,6 +118,40 @@ class VPManholeService:
                     work,
                 )
 
+            # Fordel brøndene efter C5-installationsnummer.
+            manholes_by_installation: dict[
+                str, dict[int, dict[str, Any]]
+            ] = {}
+
+            for work in latest_work_by_manhole.values():
+                manhole = work.manhole
+
+                if manhole is None or not manhole.active:
+                    continue
+
+                metadata = work.metadata_data or {}
+
+                renovation_type = str(
+                    metadata.get("renovation_type") or ""
+                ).strip().casefold()
+
+                if renovation_type not in {"total", "ds437"}:
+                    continue
+
+                installation_no = normalize_installation_no(
+                    metadata.get("installation_no")
+                )
+
+                if not installation_no:
+                    continue
+
+                manholes_by_installation.setdefault(
+                    installation_no, {}
+                )[manhole.id] = {
+                    "id": manhole.id,
+                    "manhole_no": manhole.manhole_no,
+                }
+
             result: list[dict[str, Any]] = []
 
             for installation in installations:
@@ -116,51 +159,10 @@ class VPManholeService:
                     installation.installation_no
                 )
 
-                manholes_by_id: dict[int, dict[str, Any]] = {}
-
-                for stretch in installation.stretches:
-                    for manhole in (
-                        stretch.bottom_manhole,
-                        stretch.top_manhole,
-                    ):
-                        if manhole is None or not manhole.active:
-                            continue
-
-                        work = latest_work_by_manhole.get(
-                            manhole.id
-                        )
-
-                        if work is None:
-                            continue
-
-                        metadata = work.metadata_data or {}
-
-                        renovation_type = str(
-                            metadata.get("renovation_type") or ""
-                        ).strip().casefold()
-
-                        if renovation_type not in {
-                            "total",
-                            "ds437",
-                        }:
-                            continue
-
-                        work_installation_no = (
-                            normalize_installation_no(
-                                metadata.get("installation_no")
-                            )
-                        )
-
-                        if work_installation_no != installation_no:
-                            continue
-
-                        manholes_by_id[manhole.id] = {
-                            "id": manhole.id,
-                            "manhole_no": manhole.manhole_no,
-                        }
-
                 manholes = sorted(
-                    manholes_by_id.values(),
+                    manholes_by_installation.get(
+                        installation_no, {}
+                    ).values(),
                     key=lambda item: item["manhole_no"],
                 )
 
