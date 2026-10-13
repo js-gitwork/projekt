@@ -1,7 +1,11 @@
 <!doctype html>
 <html lang="da">
   <head>
-    <link rel="icon" type="image/png" href="/vpmanhole-static/images/vpmanhole.png" />
+    <link
+      rel="icon"
+      type="image/png"
+      href="/vpmanhole-static/images/vpmanhole.png"
+    />
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
 
@@ -524,6 +528,14 @@
           autocomplete="off"
           data-placeholder="searchProject"
         />
+        <button
+          id="toggle-completed-projects"
+          class="back-button"
+          type="button"
+          aria-pressed="false"
+        >
+          Vis alle
+        </button>
 
         <div id="project-list" class="selection-list">
           {% for project in projects %}
@@ -532,6 +544,7 @@
             type="button"
             data-project-id="{{ project.id }}"
             data-search="{{ project.id }} {{ project.name or '' }} {{ project.city or '' }}"
+            data-photo-status="{{ 'complete' if (project_completion | default({})).get(project.id, {}).get('complete') else 'incomplete' if (project_completion | default({})).get(project.id, {}).get('has_manholes') else 'unknown' }}"
           >
             <span class="project-id"> {{ project.id }} </span>
 
@@ -554,6 +567,15 @@
           </button>
         </div>
 
+        <button
+          id="toggle-completed-installations"
+          class="back-button"
+          type="button"
+          aria-pressed="false"
+        >
+          Vis alle
+        </button>
+
         <div id="installation-list" class="selection-list"></div>
       </section>
 
@@ -572,8 +594,9 @@
           type="button"
           class="back-button"
           style="margin-bottom: 14px"
+          aria-pressed="false"
         >
-          Vis manglende billeder først
+          Vis alle
         </button>
 
         <div id="manhole-list" class="selection-list"></div>
@@ -678,6 +701,12 @@
           optional: "Valgfrit",
           takePhoto: "Tag billede",
           addPhoto: "Tilføj billede",
+          showAllManholes: "Vis alle",
+          showIncompleteManholes: "Vis kun ufærdige",
+          loadingPhotoStatus: "Henter billedstatus...",
+          allManholesCompleted: "Alle brønde er færdigregistreret.",
+          noManholes: "Ingen brønde fundet.",
+          photoStatusError: "Kunne ikke hente billedstatus. Prøv igen senere.",
         },
 
         pl: {
@@ -702,6 +731,13 @@
           optional: "Opcjonalne",
           takePhoto: "Zrób zdjęcie",
           addPhoto: "Dodaj zdjęcie",
+          showAllManholes: "Pokaż wszystkie",
+          showIncompleteManholes: "Pokaż tylko nieukończone",
+          loadingPhotoStatus: "Wczytywanie statusu zdjęć...",
+          allManholesCompleted: "Wszystkie studnie zostały udokumentowane.",
+          noManholes: "Nie znaleziono studni.",
+          photoStatusError:
+            "Nie udało się pobrać statusu zdjęć. Spróbuj ponownie później.",
         },
 
         de: {
@@ -727,6 +763,13 @@
           optional: "Optional",
           takePhoto: "Foto aufnehmen",
           addPhoto: "Foto hinzufügen",
+          showAllManholes: "Alle anzeigen",
+          showIncompleteManholes: "Nur unvollständige anzeigen",
+          loadingPhotoStatus: "Fotostatus wird geladen...",
+          allManholesCompleted: "Alle Schächte sind vollständig dokumentiert.",
+          noManholes: "Keine Schächte gefunden.",
+          photoStatusError:
+            "Fotostatus konnte nicht geladen werden. Bitte später erneut versuchen.",
         },
 
         en: {
@@ -751,6 +794,13 @@
           optional: "Optional",
           takePhoto: "Take photo",
           addPhoto: "Add photo",
+          showAllManholes: "Show all",
+          showIncompleteManholes: "Show incomplete only",
+          loadingPhotoStatus: "Loading photo status...",
+          allManholesCompleted: "All manholes have been fully documented.",
+          noManholes: "No manholes found.",
+          photoStatusError:
+            "Could not load photo status. Please try again later.",
         },
       };
 
@@ -921,17 +971,102 @@
 
         renderSelectionStatus();
         updateNavigation();
+        updateManholeFilterButton();
       }
 
-      projectSearch.addEventListener("input", () => {
+      async function refreshProjectStatuses() {
+        const buttons = Array.from(projectButtons);
+
+        await Promise.all(
+          buttons.map(async (button) => {
+            const projectId = button.dataset.projectId;
+
+            try {
+              const response = await fetch(
+                `/projects/${encodeURIComponent(projectId)}/installations`,
+                { cache: "no-store" },
+              );
+
+              if (!response.ok) {
+                throw new Error(`HTTP ${response.status}`);
+              }
+
+              const data = await response.json();
+              const installations = data.installations || [];
+
+              const total = installations.reduce(
+                (sum, installation) =>
+                  sum + (installation.photo_status?.total || 0),
+                0,
+              );
+
+              const missing = installations.reduce(
+                (sum, installation) =>
+                  sum + (installation.photo_status?.missing || 0),
+                0,
+              );
+
+              button.dataset.photoStatus =
+                total === 0
+                  ? "unknown"
+                  : missing === 0
+                    ? "complete"
+                    : "incomplete";
+            } catch (error) {
+              console.error(
+                `Kunne ikke opdatere projekt ${projectId}:`,
+                error,
+              );
+            }
+          }),
+        );
+
+        renderProjectVisibility();
+      }
+
+      let showAllProjects = false;
+
+      const toggleCompletedProjects = document.getElementById(
+        "toggle-completed-projects",
+      );
+
+      function renderProjectVisibility() {
         const query = projectSearch.value.trim().toLowerCase();
 
         projectButtons.forEach((button) => {
-          const searchText = button.dataset.search.toLowerCase();
+          const matchesSearch = button.dataset.search
+            .toLowerCase()
+            .includes(query);
 
-          button.classList.toggle("hidden", !searchText.includes(query));
+          const photoStatus = button.dataset.photoStatus;
+
+          const isVisibleByStatus =
+            showAllProjects || photoStatus !== "complete";
+
+          button.classList.toggle(
+            "hidden",
+            !matchesSearch || !isVisibleByStatus,
+          );
         });
+
+        toggleCompletedProjects.textContent = showAllProjects
+          ? t("showIncompleteManholes")
+          : t("showAllManholes");
+
+        toggleCompletedProjects.setAttribute(
+          "aria-pressed",
+          String(showAllProjects),
+        );
+      }
+
+      toggleCompletedProjects.addEventListener("click", () => {
+        showAllProjects = !showAllProjects;
+        renderProjectVisibility();
       });
+
+      projectSearch.addEventListener("input", renderProjectVisibility);
+
+      renderProjectVisibility();
 
       projectButtons.forEach((button) => {
         button.addEventListener("click", async () => {
@@ -980,16 +1115,92 @@
         });
       });
 
+      async function refreshInstallations() {
+        if (!selectedProjectId) {
+          return;
+        }
+
+        const projectId = selectedProjectId;
+
+        try {
+          const response = await fetch(
+            `/projects/${encodeURIComponent(projectId)}/installations`,
+            { cache: "no-store" },
+          );
+
+          if (!response.ok) {
+            throw new Error(`HTTP ${response.status}`);
+          }
+
+          const data = await response.json();
+
+          // Undgå at et gammelt svar overskriver et nyt projekt.
+          if (selectedProjectId !== projectId) {
+            return;
+          }
+
+          currentInstallations = data.installations;
+
+          // Bevar den valgte installation med opdaterede data.
+          if (selectedInstallation) {
+            selectedInstallation =
+              currentInstallations.find(
+                (installation) =>
+                  installation.id === selectedInstallation.id,
+              ) || null;
+          }
+
+          renderInstallations();
+          updateNavigation();
+        } catch (error) {
+          console.error(
+            "Kunne ikke opdatere installationsstatus:",
+            error,
+          );
+        }
+      }
+
+      let showAllInstallations = false;
+
+      const toggleCompletedInstallations = document.getElementById(
+        "toggle-completed-installations",
+      );
+
+      function updateInstallationFilterButton() {
+        toggleCompletedInstallations.textContent = showAllInstallations
+          ? t("showIncompleteManholes")
+          : t("showAllManholes");
+
+        toggleCompletedInstallations.setAttribute(
+          "aria-pressed",
+          String(showAllInstallations),
+        );
+      }
+
+      toggleCompletedInstallations.addEventListener("click", () => {
+        showAllInstallations = !showAllInstallations;
+        updateInstallationFilterButton();
+        renderInstallations();
+      });
+
       function renderInstallations() {
         installationList.innerHTML = "";
 
-        if (!currentInstallations.length) {
+        updateInstallationFilterButton();
+
+        const visibleInstallations = showAllInstallations
+          ? currentInstallations
+          : currentInstallations.filter(
+              (installation) => installation.photo_status?.missing > 0,
+            );
+
+        if (!visibleInstallations.length) {
           installationList.innerHTML =
             `<div class="status">` + `${t("noInstallations")}` + `</div>`;
           return;
         }
 
-        currentInstallations.forEach((installation) => {
+        visibleInstallations.forEach((installation) => {
           const button = document.createElement("button");
 
           button.type = "button";
@@ -1003,7 +1214,10 @@
           }
 
           button.textContent =
-            `${t("installation")} ` + installation.installation_no;
+            `${t("installation")} ` +
+            installation.installation_no +
+            ` (${installation.photo_status.completed}/` +
+            `${installation.photo_status.total})`;
 
           button.addEventListener("click", () => {
             const changed =
@@ -1027,19 +1241,25 @@
         });
       }
 
-      let sortManholesByStatus = false;
+      let showAllManholes = false;
       let manholePhotoStatuses = {};
       let manholeStatusRequestVersion = 0;
+      let manholeStatusesLoaded = false;
 
       const sortManholeButton = document.getElementById("sort-manhole-status");
 
+      function updateManholeFilterButton() {
+        sortManholeButton.textContent = showAllManholes
+          ? t("showIncompleteManholes")
+          : t("showAllManholes");
+
+        sortManholeButton.setAttribute("aria-pressed", String(showAllManholes));
+      }
+
       sortManholeButton.addEventListener("click", () => {
-        sortManholesByStatus = !sortManholesByStatus;
-
-        sortManholeButton.textContent = sortManholesByStatus
-          ? "Vis normal rækkefølge"
-          : "Vis manglende billeder først";
-
+        showAllManholes = !showAllManholes;
+        updateManholeFilterButton();
+        renderProjectVisibility();
         renderManholes(false);
       });
 
@@ -1074,12 +1294,24 @@
           }
 
           manholePhotoStatuses = data.manholes || {};
+          manholeStatusesLoaded = true;
 
           // Tegn listen igen med de nye statusdata.
           // false betyder: hent IKKE data igen.
           renderManholes(false);
         } catch (error) {
+          if (
+            requestVersion !== manholeStatusRequestVersion ||
+            selectedProjectId !== projectId ||
+            selectedInstallation?.id !== installationId
+          ) {
+            return;
+          }
+
           console.error("Kunne ikke hente billedstatus:", error);
+
+          manholeStatusesLoaded = false;
+          manholeList.innerHTML = `<div class="status">${t("photoStatusError")}</div>`;
         }
       }
 
@@ -1090,24 +1322,33 @@
           return;
         }
 
-        const manholes = [...selectedInstallation.manholes];
-
-        if (sortManholesByStatus) {
-          manholes.sort((a, b) => {
-            const statusA = manholePhotoStatuses[a.id]?.completed ?? 0;
-
-            const statusB = manholePhotoStatuses[b.id]?.completed ?? 0;
-
-            return statusA - statusB;
-          });
+        if (fetchStatuses) {
+          manholePhotoStatuses = {};
+          manholeStatusesLoaded = false;
+          loadManholePhotoStatuses();
         }
+
+        if (!manholeStatusesLoaded) {
+          manholeList.innerHTML = `<div class="status">${t("loadingPhotoStatus")}</div>`;
+          return;
+        }
+
+        const allManholes = [...selectedInstallation.manholes];
+
+        const manholes = showAllManholes
+          ? allManholes
+          : allManholes.filter((manhole) => {
+              const completed =
+                manholePhotoStatuses[manhole.id]?.completed ?? 0;
+
+              return completed < 3;
+            });
 
         manholes.forEach((manhole) => {
           const button = document.createElement("button");
 
           button.type = "button";
           button.className = "selection-button manhole-list-item";
-
           button.dataset.manholeId = manhole.id;
 
           if (selectedManhole && selectedManhole.id === manhole.id) {
@@ -1115,19 +1356,15 @@
           }
 
           const name = document.createElement("span");
-
           name.textContent = `${t("manhole")} ${manhole.manhole_no}`;
 
           const status = document.createElement("span");
-
           status.className = "manhole-photo-status";
 
           const completed = manholePhotoStatuses[manhole.id]?.completed ?? 0;
 
           status.textContent = `${completed}/3`;
-
           status.classList.toggle("complete", completed === 3);
-
           status.classList.toggle("incomplete", completed > 0 && completed < 3);
 
           status.setAttribute("aria-label", "Dokumentationsstatus");
@@ -1149,21 +1386,34 @@
           manholeList.appendChild(button);
         });
 
-        if (fetchStatuses) {
-          manholePhotoStatuses = {};
-          loadManholePhotoStatuses();
+        if (!manholes.length) {
+          manholeList.innerHTML = showAllManholes
+            ? `<div class="status">${t("noManholes")}</div>`
+            : `<div class="status">${t("allManholesCompleted")}</div>`;
+        }
+      }
+
+      function navigateToStep(stepName) {
+        showStep(stepName);
+
+        if (stepName === "installation") {
+          refreshInstallations();
+        }
+
+        if (stepName === "project") {
+          refreshProjectStatuses();
         }
       }
 
       Object.entries(navButtons).forEach(([stepName, button]) => {
         button.addEventListener("click", () => {
-          showStep(stepName);
+          navigateToStep(stepName);
         });
       });
 
       document.querySelectorAll("[data-go-step]").forEach((button) => {
         button.addEventListener("click", () => {
-          showStep(button.dataset.goStep);
+          navigateToStep(button.dataset.goStep);
         });
       });
 
@@ -1477,6 +1727,14 @@
         }
 
         showStep(state.step, false);
+
+        if (state.step === "installation") {
+          refreshInstallations();
+        }
+
+        if (state.step === "project") {
+          refreshProjectStatuses();
+        }
       });
 
       updateNavigation();

@@ -42,6 +42,9 @@ from projektstyring.backend.db_models import (
     VPManholePhoto,
 )
 from projektstyring.vpmanhole.service import VPManholeService
+from projektstyring.vpmanhole.notification_service import (
+    notification_service,
+)
 from projektstyring.vpmanhole.photo_service import (
     MAX_UPLOAD_BYTES,
     PhotoServiceError,
@@ -404,7 +407,6 @@ def change_password(
         status_code=303,
     )
 
-
 @app.get("/")
 def vpmanhole_home(request: Request):
     projects = service.list_open_projects()
@@ -415,11 +417,28 @@ def vpmanhole_home(request: Request):
     else:
         template_name = "index.html"
 
+    project_completion = {}
+
+    if template_name == "index.html":
+        try:
+            project_completion = (
+                notification_service.get_project_completion_overview(
+                    projects
+                )
+            )
+        except Exception:
+            import logging
+
+            logging.getLogger(__name__).exception(
+                "Kunne ikke hente projektstatus"
+            )
+
     return vpmanhole_templates.TemplateResponse(
         request=request,
         name=template_name,
         context={
             "projects": projects,
+            "project_completion": project_completion,
         },
     )
 
@@ -433,14 +452,32 @@ def vpmanhole_project_installations(
         normalized_project_id,
     )
 
+    completion = (
+        notification_service.get_installation_completion(
+            normalized_project_id
+        )
+    )
+
     return {
         "project_id": normalized_project_id,
         "installations": [
-            installation
+            {
+                **installation,
+                "photo_status": completion.get(
+                    installation["id"],
+                    {
+                        "total": 0,
+                        "completed": 0,
+                        "missing": 0,
+                        "complete": False,
+                    },
+                ),
+            }
             for installation in installations
             if installation["manholes"]
         ],
     }
+
 
 @app.post("/projects/{project_id}/manholes/{manhole_id}/photos")
 async def upload_manhole_photo(
@@ -555,7 +592,24 @@ async def upload_manhole_photo(
             detail=str(exc),
         ) from exc
 
+    # Billedet er allerede gemt og committet.
+    # Fejl i notifikationssystemet må ikke
+    # gøre en vellykket upload til en fejl.
+    try:
+        notification_service.enqueue_if_complete(
+            project_id.strip()
+        )
+    except Exception:
+        import logging
+
+        logging.getLogger(__name__).exception(
+            "Kunne ikke kontrollere færdigmelding "
+            "for projekt %s",
+            project_id,
+        )
+
     return result
+
 
 @app.get("/projects/{project_id}/installations/{installation_id}/photo-status")
 def get_installation_photo_status(
@@ -564,47 +618,37 @@ def get_installation_photo_status(
     installation_id: int,
 ):
     """
-    Returnerer dokumentationsstatus for alle brønde
-    tilknyttet en installation.
+    Returnerer billedstatus for installationens
+    C5-registrerede renoveringsbrønde (Total/DS437).
 
-    Kun før, efter og dæksel tæller som obligatoriske.
+    Kun før, efter og dæksel er obligatoriske.
     """
+    installations = service.list_project_installations(project_id)
+
+    installation = next(
+        (
+            item
+            for item in installations
+            if item["id"] == installation_id
+        ),
+        None,
+    )
+
+    if installation is None:
+        raise HTTPException(
+            status_code=404,
+            detail="Installationen blev ikke fundet.",
+        )
+
+    manhole_ids = {
+        manhole["id"]
+        for manhole in installation["manholes"]
+    }
+
+    if not manhole_ids:
+        return {"manholes": {}}
 
     with SessionLocal() as session:
-        installation = session.get(Installation, installation_id)
-
-        if (
-            installation is None
-            or installation.project_id != project_id
-            or not installation.active
-        ):
-            raise HTTPException(
-                status_code=404,
-                detail="Installationen blev ikke fundet.",
-            )
-
-        manhole_ids = set(
-            session.scalars(
-                select(Stretch.bottom_manhole_id).where(
-                    Stretch.installation_id == installation_id,
-                    Stretch.bottom_manhole_id.is_not(None),
-                )
-            ).all()
-        )
-
-        manhole_ids.update(
-            session.scalars(
-                select(Stretch.top_manhole_id).where(
-                    Stretch.installation_id == installation_id,
-                    Stretch.top_manhole_id.is_not(None),
-                )
-            ).all()
-        )
-
-        if not manhole_ids:
-            return {"manholes": {}}
-
-
         rows = session.execute(
             select(
                 VPManholeDelivery.manhole_id,
@@ -619,31 +663,31 @@ def get_installation_photo_status(
             )
         ).all()
 
-        photo_types = {
-            manhole_id: set()
+    photo_types = {
+        manhole_id: set()
+        for manhole_id in manhole_ids
+    }
+
+    for manhole_id, photo_type in rows:
+        photo_types[manhole_id].add(photo_type)
+
+    required_types = {"before", "after", "cover"}
+
+    return {
+        "manholes": {
+            str(manhole_id): {
+                "completed": len(
+                    photo_types[manhole_id] & required_types
+                ),
+                "required": 3,
+                "complete": required_types.issubset(
+                    photo_types[manhole_id]
+                ),
+                "has_photos": bool(photo_types[manhole_id]),
+            }
             for manhole_id in manhole_ids
         }
-
-        for manhole_id, photo_type in rows:
-            photo_types[manhole_id].add(photo_type)
-
-        required_types = {"before", "after", "cover"}
-
-        return {
-            "manholes": {
-                str(manhole_id): {
-                    "completed": len(
-                        photo_types[manhole_id] & required_types
-                    ),
-                    "required": 3,
-                    "complete": required_types.issubset(
-                        photo_types[manhole_id]
-                    ),
-                    "has_photos": bool(photo_types[manhole_id]),
-                }
-                for manhole_id in manhole_ids
-            }
-        }
+    }
 
 @app.get("/projects/{project_id}/manholes/{manhole_id}/photos")
 def list_manhole_photos(
@@ -676,24 +720,15 @@ def list_manhole_photos(
                 detail="Brønd eller installation blev ikke fundet.",
             )
 
-        linked = session.scalar(
-            select(Stretch.id)
-            .where(
-                Stretch.installation_id == installation_id,
-                (
-                    (Stretch.bottom_manhole_id == manhole_id)
-                    | (Stretch.top_manhole_id == manhole_id)
-                ),
-            )
-            .limit(1)
-        )
-
-        if linked is None:
+        if not photo_service._installation_contains_manhole(
+            session,
+            installation_id,
+            manhole_id,
+        ):
             raise HTTPException(
                 status_code=404,
                 detail="Brønden hører ikke til installationen.",
             )
-
         delivery = session.scalar(
             select(VPManholeDelivery).where(
                 VPManholeDelivery.manhole_id == manhole_id
@@ -767,24 +802,15 @@ def get_manhole_photo(
                 detail="Brønd eller installation blev ikke fundet.",
             )
 
-        linked = session.scalar(
-            select(Stretch.id)
-            .where(
-                Stretch.installation_id == installation_id,
-                (
-                    (Stretch.bottom_manhole_id == manhole_id)
-                    | (Stretch.top_manhole_id == manhole_id)
-                ),
-            )
-            .limit(1)
-        )
-
-        if linked is None:
+        if not photo_service._installation_contains_manhole(
+            session,
+            installation_id,
+            manhole_id,
+        ):
             raise HTTPException(
                 status_code=404,
                 detail="Brønden hører ikke til installationen.",
             )
-
         photo = session.scalar(
             select(VPManholePhoto)
             .join(
@@ -935,41 +961,48 @@ async def export_selected_project_photos(
 
     selected_ids = set(manhole_ids)
 
-    with SessionLocal() as session:
-        rows = session.execute(
-            select(
-                Manhole.id,
-                Manhole.manhole_no,
-                Installation.installation_no,
-            )
-            .join(
-                Stretch,
-                (
-                    (Stretch.bottom_manhole_id == Manhole.id)
-                    | (Stretch.top_manhole_id == Manhole.id)
-                ),
-            )
-            .join(
-                Installation,
-                Installation.id == Stretch.installation_id,
-            )
-            .where(
-                Manhole.id.in_(selected_ids),
-                Manhole.project_id == normalized_project_id,
-                Installation.project_id == normalized_project_id,
-                Manhole.active.is_(True),
-                Installation.active.is_(True),
-            )
-        ).all()
+    # Brug den samme installationsoversigt som VPManholes
+    # projektvisning. Den understøtter også brønde uden stræk.
+    installations = service.list_project_installations(
+        normalized_project_id
+    )
 
-    found_ids = {row[0] for row in rows}
+    available_ids = {
+        manhole["id"]
+        for installation in installations
+        for manhole in installation["manholes"]
+    }
 
-    if found_ids != selected_ids:
+    if not selected_ids.issubset(available_ids):
         raise HTTPException(
             status_code=400,
             detail="En eller flere brønde findes ikke på projektet.",
         )
 
+    # Eksisterende afleveringer bestemmer de faktiske
+    # billedmapper, så tidligere billeder fortsat kan eksporteres.
+    with SessionLocal() as session:
+        deliveries = session.scalars(
+            select(VPManholeDelivery)
+            .where(
+                VPManholeDelivery.manhole_id.in_(selected_ids)
+            )
+        ).all()
+
+        if {d.manhole_id for d in deliveries} != selected_ids:
+            raise HTTPException(
+                status_code=400,
+                detail="En eller flere valgte brønde har endnu ingen billeder.",
+            )
+
+        selected_folders = sorted({
+            photo_service._folder(
+                session,
+                normalized_project_id,
+                delivery,
+            ).name
+            for delivery in deliveries
+        })
     selected_folders = sorted({
         f"{manhole_no} Inst. {installation_no}"
         for _, manhole_no, installation_no in rows

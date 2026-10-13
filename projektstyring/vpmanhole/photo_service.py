@@ -124,22 +124,32 @@ class VPManholePhotoService:
         manhole_id: int,
     ) -> bool:
         """
-        Kontrollerer at brønden er knyttet til
-        installationen via en strækning.
+        Kontrollerer brøndens tilhørsforhold ud fra
+        VPManholes fælles installationsoversigt.
+        Understøtter også renoveringer uden stræk.
         """
-        statement = (
-            select(Stretch.id)
-            .where(
-                Stretch.installation_id == installation_id,
-                (
-                    (Stretch.bottom_manhole_id == manhole_id)
-                    | (Stretch.top_manhole_id == manhole_id)
-                ),
-            )
-            .limit(1)
+        installation = session.get(
+            Installation,
+            installation_id,
         )
 
-        return session.scalar(statement) is not None
+        if installation is None or not installation.active:
+            return False
+
+        from projektstyring.vpmanhole.service import VPManholeService
+
+        installations = VPManholeService().list_project_installations(
+            installation.project_id
+        )
+
+        return any(
+            item["id"] == installation_id
+            and any(
+                manhole["id"] == manhole_id
+                for manhole in item["manholes"]
+            )
+            for item in installations
+        )
 
     @staticmethod
     def _first_installation_id(
@@ -249,13 +259,7 @@ class VPManholePhotoService:
         )
 
         if delivery is None:
-            first_installation_id = (
-                self._first_installation_id(
-                    session,
-                    project_id,
-                    manhole_id,
-                )
-            )
+            first_installation_id = installation_id
 
             delivery = VPManholeDelivery(
                 manhole_id=manhole_id,
