@@ -51,6 +51,7 @@ from projektstyring.vpmanhole.photo_service import (
     VPManholePhotoService,
 )
 from starlette.background import BackgroundTask
+import time
 
 BASE_DIR = Path(__file__).resolve().parent
 PROJECT_ROOT = BASE_DIR.parent.parent
@@ -703,11 +704,15 @@ def list_manhole_photos(
                     "id": photo.id,
                     "photo_type": photo.photo_type,
                     "sequence": photo.sequence,
+                    "id": photo.id,
+                    "photo_type": photo.photo_type,
+                    "sequence": photo.sequence,
                     "url": (
                         f"/projects/{project_id}"
                         f"/manholes/{manhole_id}"
                         f"/photos/{photo.id}"
                         f"?installation_id={installation_id}"
+                        f"&v={time.time_ns()}"
                     ),
                 }
                 for photo in photos
