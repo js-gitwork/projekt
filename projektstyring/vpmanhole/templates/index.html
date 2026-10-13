@@ -33,8 +33,44 @@
         margin: 0 auto;
         display: flex;
         align-items: center;
-        justify-content: space-between;
         gap: 20px;
+      }
+
+      .vp-header-actions {
+        display: flex;
+        align-items: center;
+        justify-content: flex-end;
+        gap: 12px;
+        margin-left: auto;
+        flex-shrink: 0;
+      }
+
+      .vp-header-actions .vp-user-menu,
+      .vp-header-actions .vp-field-user {
+        margin-left: 0;
+        white-space: nowrap;
+      }
+
+      .vp-header-actions .vp-logout-form {
+        margin: 0;
+      }
+
+      .vp-header-actions .back-button {
+        white-space: nowrap;
+      }
+
+      @media (max-width: 700px) {
+        .vp-header-inner {
+          flex-wrap: wrap;
+        }
+
+        .vp-header-actions {
+          margin-left: auto;
+        }
+
+        .languages {
+          flex-wrap: wrap;
+        }
       }
 
       .vp-header h1 {
@@ -420,14 +456,13 @@
           min-height: 170px;
         }
       }
+
       .vp-user-menu {
         position: relative;
         z-index: 1100;
         color: white;
-        margin-left: auto;
-        margin-right: 100px;
+        margin: 0;
       }
-
       .vp-user-menu summary {
         cursor: pointer;
         padding: 8px 12px;
@@ -463,6 +498,43 @@
       .vp-user-menu-links a:hover {
         background: #edf2f7;
       }
+
+            .photo-slot {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+      }
+
+      .photo-source-actions {
+        display: flex;
+        gap: 8px;
+        width: 100%;
+        margin-top: auto;
+        padding-top: 12px;
+      }
+
+      .photo-source-button {
+        flex: 1;
+        min-width: 0;
+        padding: 12px 6px;
+        border: 1px solid #003366;
+        border-radius: 6px;
+        background: white;
+        color: #003366;
+        font-size: 0.9rem;
+        font-weight: bold;
+        cursor: pointer;
+        touch-action: manipulation;
+      }
+
+      .photo-source-button:active {
+        background: #dce8f4;
+      }
+
+      .photo-source-button:disabled {
+        opacity: 0.5;
+        cursor: wait;
+      }
     </style>
   </head>
 
@@ -470,21 +542,6 @@
     <header class="vp-header">
       <div class="vp-header-inner">
         <h1>VPManhole</h1>
-
-        {% if current_user.role in ["admin", "kontor"] %}
-        <details class="vp-user-menu">
-          <summary>
-            {{ current_user.display_name or current_user.username }} ▾
-          </summary>
-          <div class="vp-user-menu-links">
-            <a href="/?view=field">Feltregistrering</a>
-            <a href="/?view=office">Kontor / ZIP-download</a>
-            {% if current_user.role == "admin" %}
-            <a href="https://roerbot.duckdns.org/login?next=/admin">Administration</a>
-            {% endif %}
-          </div>
-        </details>
-        {% endif %}
 
         <div class="languages">
           <button
@@ -523,9 +580,40 @@
             <img src="/static/images/flags/uk.png" alt="English" />
           </button>
         </div>
+
+        <div class="vp-header-actions">
+          {% if current_user.role in ["admin", "kontor"] %}
+          <details class="vp-user-menu">
+            <summary>
+              {{ current_user.display_name or current_user.username }} ▾
+            </summary>
+            <div class="vp-user-menu-links">
+              <a href="/?view=field">Feltregistrering</a>
+              <a href="/?view=office">Kontor / ZIP-download</a>
+              {% if current_user.role == "admin" %}
+              <a href="https://roerbot.duckdns.org/login?next=/admin"
+                >Administration</a
+              >
+              {% endif %}
+            </div>
+          </details>
+          {% else %}
+          <span class="vp-field-user">
+            {{ current_user.display_name or current_user.username }}
+          </span>
+          {% endif %}
+
+          <form action="/logout" method="post" class="vp-logout-form">
+            <input
+              type="hidden"
+              name="csrf_token"
+              value="{{ csrf_token(request) }}"
+            />
+            <button type="submit" class="back-button">Log ud</button>
+          </form>
+        </div>
       </div>
     </header>
-
     <main class="vp-page">
       <nav class="step-navigation" aria-label="VPManhole navigation">
         <button
@@ -673,49 +761,68 @@
         <div id="selected-status" class="photo-location"></div>
 
         <div class="photo-grid">
-          <button class="photo-slot" type="button" data-photo-type="before">
-            <span class="photo-label" data-text="before"> Før </span>
+          <div class="photo-slot" data-photo-type="before">
+            <span class="photo-label" data-text="before">Før</span>
+            <span class="photo-placeholder">＋</span>
+            <span class="photo-help" data-text="takePhoto">Tag billede</span>
 
-            <span class="photo-placeholder"> ＋ </span>
+            <div class="photo-source-actions">
+              <button type="button" class="photo-source-button" data-source="camera">
+                📷 <span data-text="camera">Kamera</span>
+              </button>
+              <button type="button" class="photo-source-button" data-source="library">
+                📁 <span data-text="library">Bibliotek</span>
+              </button>
+            </div>
+          </div>
 
-            <span class="photo-help" data-text="takePhoto"> Tag billede </span>
-          </button>
-
-          <button
-            class="photo-slot optional"
-            type="button"
-            data-photo-type="during"
-          >
+          <div class="photo-slot optional" data-photo-type="during">
             <span class="photo-label">
-              <span data-text="during"> Igangværende </span>
-
-              <span class="optional-label" data-text="optional">
-                Valgfrit
-              </span>
+              <span data-text="during">Igangværende</span>
+              <span class="optional-label" data-text="optional">Valgfrit</span>
             </span>
+            <span class="photo-placeholder">＋</span>
+            <span class="photo-help" data-text="addPhoto">Tilføj billede</span>
 
-            <span class="photo-placeholder"> ＋ </span>
+            <div class="photo-source-actions">
+              <button type="button" class="photo-source-button" data-source="camera">
+                📷 <span data-text="camera">Kamera</span>
+              </button>
+              <button type="button" class="photo-source-button" data-source="library">
+                📁 <span data-text="library">Bibliotek</span>
+              </button>
+            </div>
+          </div>
 
-            <span class="photo-help" data-text="addPhoto">
-              Tilføj billede
-            </span>
-          </button>
+          <div class="photo-slot" data-photo-type="after">
+            <span class="photo-label" data-text="after">Efter</span>
+            <span class="photo-placeholder">＋</span>
+            <span class="photo-help" data-text="takePhoto">Tag billede</span>
 
-          <button class="photo-slot" type="button" data-photo-type="after">
-            <span class="photo-label" data-text="after"> Efter </span>
+            <div class="photo-source-actions">
+              <button type="button" class="photo-source-button" data-source="camera">
+                📷 <span data-text="camera">Kamera</span>
+              </button>
+              <button type="button" class="photo-source-button" data-source="library">
+                📁 <span data-text="library">Bibliotek</span>
+              </button>
+            </div>
+          </div>
 
-            <span class="photo-placeholder"> ＋ </span>
+          <div class="photo-slot" data-photo-type="cover">
+            <span class="photo-label" data-text="cover">Dæksel</span>
+            <span class="photo-placeholder">＋</span>
+            <span class="photo-help" data-text="takePhoto">Tag billede</span>
 
-            <span class="photo-help" data-text="takePhoto"> Tag billede </span>
-          </button>
-
-          <button class="photo-slot" type="button" data-photo-type="cover">
-            <span class="photo-label" data-text="cover"> Dæksel </span>
-
-            <span class="photo-placeholder"> ＋ </span>
-
-            <span class="photo-help" data-text="takePhoto"> Tag billede </span>
-          </button>
+            <div class="photo-source-actions">
+              <button type="button" class="photo-source-button" data-source="camera">
+                📷 <span data-text="camera">Kamera</span>
+              </button>
+              <button type="button" class="photo-source-button" data-source="library">
+                📁 <span data-text="library">Bibliotek</span>
+              </button>
+            </div>
+          </div>
         </div>
 
         <input
@@ -726,6 +833,12 @@
           class="hidden"
         />
 
+        <input
+          id="photo-library-input"
+          type="file"
+          accept="image/*"
+          class="hidden"
+        />
         <div
           id="photo-upload-status"
           role="status"
@@ -738,6 +851,8 @@
     <script>
       const translations = {
         da: {
+          camera: "Kamera",
+          library: "Bibliotek",
           project: "Projekt",
           chooseProject: "Vælg projekt",
           searchProject: "Søg V-nummer eller projektnavn",
@@ -768,6 +883,8 @@
         },
 
         pl: {
+          camera: "Aparat",
+          library: "Galeria",
           project: "Projekt",
           chooseProject: "Wybierz projekt",
           searchProject: "Szukaj numeru V lub nazwy projektu",
@@ -799,6 +916,8 @@
         },
 
         de: {
+          camera: "Kamera",
+          library: "Galerie",
           project: "Projekt",
           chooseProject: "Projekt auswählen",
           searchProject: "V-Nummer oder Projektname suchen",
@@ -831,6 +950,8 @@
         },
 
         en: {
+          camera: "Camera",
+          library: "Photo library",
           project: "Project",
           chooseProject: "Select project",
           searchProject: "Search V-number or project name",
@@ -1475,6 +1596,7 @@
       });
 
       const photoFileInput = document.getElementById("photo-file-input");
+      const photoLibraryInput = document.getElementById("photo-library-input");
 
       const photoUploadStatus = document.getElementById("photo-upload-status");
 
@@ -1651,7 +1773,7 @@
         photoUploadStatus.style.color = isError ? "#842029" : "#003366";
       }
 
-      document.querySelectorAll(".photo-slot").forEach((button) => {
+      document.querySelectorAll(".photo-source-button").forEach((button) => {
         button.addEventListener("click", () => {
           if (photoUploading) {
             return;
@@ -1662,14 +1784,26 @@
             return;
           }
 
-          pendingPhotoType = button.dataset.photoType;
-          photoFileInput.value = "";
-          photoFileInput.click();
+          const slot = button.closest(".photo-slot");
+
+          if (!slot) {
+            return;
+          }
+
+          pendingPhotoType = slot.dataset.photoType;
+
+          const input =
+            button.dataset.source === "camera"
+              ? photoFileInput
+              : photoLibraryInput;
+
+          input.value = "";
+          input.click();
         });
       });
 
-      photoFileInput.addEventListener("change", async () => {
-        const file = photoFileInput.files[0];
+      async function handlePhotoSelection(event) {
+        const file = event.target.files[0];
 
         if (!file || !pendingPhotoType || photoUploading) {
           return;
@@ -1757,9 +1891,13 @@
           });
 
           photoFileInput.value = "";
+          photoLibraryInput.value = "";
           pendingPhotoType = null;
         }
-      });
+      }
+
+      photoFileInput.addEventListener("change", handlePhotoSelection);
+      photoLibraryInput.addEventListener("change", handlePhotoSelection);
 
       window.history.replaceState(
         {
@@ -1790,17 +1928,5 @@
 
       updateNavigation();
     </script>
-    <form
-      action="/logout"
-      method="post"
-      style="position: fixed; top: 12px; right: 12px; z-index: 1000"
-    >
-      <input
-        type="hidden"
-        name="csrf_token"
-        value="{{ csrf_token(request) }}"
-      />
-      <button type="submit" class="back-button">Log ud</button>
-    </form>
   </body>
 </html>
