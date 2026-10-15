@@ -836,6 +836,7 @@ def parse_c5_csv(
 
     return result
 
+
 def parse_c5_manhole_work(
     csv_text: str,
     project_id: str,
@@ -843,13 +844,16 @@ def parse_c5_manhole_work(
     """
     Læser brøndrenoveringsstatus fra C5-CSV.
 
-    En brønd registreres som planlagt arbejde, når
-    renoveringsfeltet er "Ja".
+    Alle forekomster af samme brønd samles.
+    En aktiv renoveringsmarkering har forrang
+    frem for en umarkeret forekomst.
 
-    Hvis der samtidig findes udført-dato og initialer,
-    registreres arbejdet som completed.
+    Total har forrang frem for DS437.
+
+    Manglende renoveringsmarkering registreres
+    som cancelled, så tidligere C5-arbejde
+    kan ophæves uden at slette historikken.
     """
-
     normalized_project_id = normalize_project_id(
         project_id
     )
@@ -886,8 +890,22 @@ def parse_c5_manhole_work(
 
         reader.fieldnames = normalized_fieldnames
 
-    result: list[ImportedManholeWork] = []
-    seen: set[tuple[str, str]] = set()
+    work_by_manhole: dict[
+        str, ImportedManholeWork
+    ] = {}
+
+    yes_values = {
+        "ja",
+        "yes",
+        "1",
+        "true",
+    }
+
+    priority = {
+        None: 0,
+        "ds437": 1,
+        "total": 2,
+    }
 
     for row in reader:
         row = {
@@ -895,140 +913,127 @@ def parse_c5_manhole_work(
             for key, value in row.items()
         }
 
-        row_project_id = normalize_project_id(
+        if normalize_project_id(
             row.get("Projekt")
-        )
-
-        if (
-            row_project_id
-            != normalized_project_id
-        ):
+        ) != normalized_project_id:
             continue
 
-        for side in (
-            "1",
-            "2",
-        ):
+        for side in ("1", "2"):
             manhole_no = normalize_c5_manhole_no(
-                row.get(
-                    f"Brønd {side}"
-                )
+                row.get(f"Brønd {side}")
             )
 
             if not manhole_no:
                 continue
 
             renovation_value = str(
-                row.get(
-                    f"Brønd {side} renov."
-                )
-                or row.get(
-                    f"Brønd {side} renov"
-                )
+                row.get(f"Brønd {side} renov.")
+                or row.get(f"Brønd {side} renov")
                 or ""
             ).strip().casefold()
 
             ds437_value = str(
-                row.get(
-                    f"Brønd {side} DS437"
-                )
+                row.get(f"Brønd {side} DS437")
                 or ""
             ).strip().casefold()
 
-            yes_values = {
-                "ja",
-                "yes",
-                "1",
-                "true",
-            }
-
-            is_total = (
-                renovation_value in yes_values
-            )
-            is_ds437 = (
-                ds437_value in yes_values
-            )
-
-            if is_total:
+            if renovation_value in yes_values:
                 renovation_type = "total"
-            elif is_ds437:
+            elif ds437_value in yes_values:
                 renovation_type = "ds437"
             else:
-                continue
+                renovation_type = None
 
             performed_date = parse_c5_date(
-                row.get(
-                    f"Brønd {side} udført"
-                )
+                row.get(f"Brønd {side} udført")
             )
 
             performed_by = str(
-                row.get(
-                    f"Brønd {side} init"
-                )
+                row.get(f"Brønd {side} init")
                 or ""
             ).strip()
 
             status = (
-                "completed"
-                if (
-                    performed_date is not None
+                "cancelled"
+                if renovation_type is None
+                else (
+                    "completed"
+                    if performed_date is not None
                     and performed_by
+                    else "planned"
                 )
-                else "planned"
             )
 
-            source_reference = (
-                f"{normalized_project_id}:"
-                f"{manhole_no}:"
-                "broendrenovering"
+            candidate = ImportedManholeWork(
+                manhole_no=manhole_no,
+                work_type="broendrenovering",
+                status=status,
+                quantity=Decimal("1"),
+                unit="stk",
+                performed_date=performed_date,
+                performed_by=performed_by or None,
+                source_reference=(
+                    f"{normalized_project_id}:"
+                    f"{manhole_no}:broendrenovering"
+                ),
+                metadata={
+                    "source": "c5_csv",
+                    "renovation_flag": renovation_value,
+                    "ds437_flag": ds437_value,
+                    "renovation_type": renovation_type,
+                    "installation_no": str(
+                        row.get("Inst.nr") or ""
+                    ).strip(),
+                },
             )
 
-            key = (
-                manhole_no,
-                source_reference,
+            previous = work_by_manhole.get(
+                manhole_no
             )
 
-            if key in seen:
+            if previous is None:
+                work_by_manhole[manhole_no] = (
+                    candidate
+                )
                 continue
 
-            seen.add(key)
-
-            result.append(
-                ImportedManholeWork(
-                    manhole_no=manhole_no,
-                    work_type="broendrenovering",
-                    status=status,
-                    quantity=Decimal("1"),
-                    unit="stk",
-                    performed_date=performed_date,
-                    performed_by=(
-                        performed_by
-                        or None
-                    ),
-                    source_reference=(
-                        source_reference
-                    ),
-                    metadata={
-                        "source": "c5_csv",
-                        "renovation_flag": (
-                            renovation_value
-                        ),
-                        "ds437_flag": (
-                            ds437_value
-                        ),
-                        "renovation_type": (
-                            renovation_type
-                        ),
-                        "installation_no": str(
-                            row.get("Inst.nr")
-                            or ""
-                        ).strip(),
-                    },
+            previous_type = (
+                previous.metadata.get(
+                    "renovation_type"
                 )
             )
 
-    return result
+            previous_priority = priority.get(
+                previous_type, 0
+            )
+            candidate_priority = priority.get(
+                renovation_type, 0
+            )
+
+            if (
+                candidate_priority
+                > previous_priority
+            ):
+                work_by_manhole[manhole_no] = (
+                    candidate
+                )
+            elif (
+                candidate_priority
+                == previous_priority
+                and candidate.status == "completed"
+                and previous.status != "completed"
+            ):
+                work_by_manhole[manhole_no] = (
+                    candidate
+                )
+
+    return [
+        work_by_manhole[manhole_no]
+        for manhole_no in sorted(
+            work_by_manhole
+        )
+    ]
+
 
 def parse_c5_availability_permits(
     csv_text: str,

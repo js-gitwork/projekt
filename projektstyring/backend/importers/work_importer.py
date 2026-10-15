@@ -100,6 +100,12 @@ class WorkImporter:
             )
 
             if (
+                previous is None
+                and source.status == "cancelled"
+            ):
+                continue
+
+            if (
                 previous is not None
                 and self._same_work_state(
                     previous,
@@ -369,8 +375,23 @@ class WorkImporter:
         existing: dict[str, Any],
         source: Any,
     ) -> bool:
+        existing_metadata = (
+            existing.get("metadata") or {}
+        )
+        incoming_metadata = (
+            source.metadata or {}
+        )
+
         return (
             str(
+                existing_metadata.get("renovation_type")
+                or ""
+            ).strip().casefold()
+            == str(
+                incoming_metadata.get("renovation_type")
+                or ""
+            ).strip().casefold()
+            and str(
                 existing.get("status")
                 or ""
             ).strip()
