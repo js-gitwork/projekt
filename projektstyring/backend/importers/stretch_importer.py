@@ -55,8 +55,10 @@ class StretchImporter:
                     length_m=item.source.length_m,
                     dimension=item.source.dimension,
                     material=item.source.material,
-                    stik=len(
-                        item.source.service_connections
+                    stik=(
+                        int(item.source.metadata["expected_stik"])
+                        if "expected_stik" in item.source.metadata
+                        else len(item.source.service_connections)
                     ),
                     notes=item.source.notes,
                     metadata=item.source.metadata,
@@ -110,8 +112,10 @@ class StretchImporter:
                     item.source.material
                 )
 
-            expected_stik = len(
-                item.source.service_connections
+            expected_stik = (
+                int(item.source.metadata["expected_stik"])
+                if "expected_stik" in item.source.metadata
+                else len(item.source.service_connections)
             )
 
             if existing["stik"] != expected_stik:

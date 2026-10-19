@@ -401,6 +401,49 @@ class TechnicalAssetRepository:
                 "active": installation.active,
             }
 
+    def update_installation_expected_stik(
+        self,
+        project_id: str,
+        installation_no: str,
+        expected_stik: int,
+    ) -> None:
+        normalized_installation_no = str(
+            installation_no
+        ).strip()
+
+        expected_stik = int(expected_stik)
+
+        if expected_stik < 0:
+            raise ValueError(
+                "Forventede stik kan ikke være negative."
+            )
+
+        with self._session_scope() as session:
+            installation = session.scalar(
+                select(Installation).where(
+                    Installation.project_id == project_id,
+                    Installation.installation_no
+                    == normalized_installation_no,
+                )
+            )
+
+            if installation is None:
+                raise FileNotFoundError(
+                    f"Installation '{normalized_installation_no}' "
+                    f"findes ikke på projekt '{project_id}'."
+                )
+
+            if installation.expected_stik == expected_stik:
+                return
+
+            installation.expected_stik = expected_stik
+
+            try:
+                self._save_changes(session)
+            except Exception:
+                self._rollback(session)
+                raise
+
     def create_installation(
         self,
         project_id: str,
