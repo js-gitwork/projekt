@@ -58,6 +58,9 @@ from projektstyring.backend.db_models.vpmanhole_notification import (
     VPManholeNotificationRecipient,
     VPManholeNotificationEvent,
 )
+from projektstyring.backend.db_models.manhole_connection import (
+    ManholeConnection,
+)
 
 __all__ = [
     "CalendarException",

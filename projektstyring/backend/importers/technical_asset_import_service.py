@@ -74,19 +74,13 @@ class TechnicalAssetImportConflictError(
 
 class TechnicalAssetImportService:
     """
-    Orkestrerer import af tekniske objekter.
+    Validerer, mapper og importerer tekniske C5-data.
 
-    Servicen har kun ansvar for:
+    Eksisterende brønde på projektet indgår i
+    referencevalideringen.
 
-    1. validering
-    2. mapping
-    3. database-transaktion
-    4. udførelse af importplanen
-
-    Den konkrete create/update/upsert-logik ligger i executoren.
-
-    Hele importen er atomisk:
-    enten gemmes alle ændringer, eller også gemmes ingen.
+    Preview rulles altid tilbage.
+    Import gennemføres atomisk.
     """
 
     def __init__(
@@ -113,14 +107,11 @@ class TechnicalAssetImportService:
     def prepare(
         self,
         import_data: TechnicalAssetImport,
+        session: Session | None = None,
     ) -> TechnicalAssetImportPlan:
-        """
-        Validerer og mapper importdata uden at ændre databasen.
-
-        Kan bruges af både preview og egentlig import.
-        """
         validation = self.validator.validate(
-            import_data
+            import_data,
+            session=session,
         )
 
         if not validation.valid:
@@ -128,34 +119,25 @@ class TechnicalAssetImportService:
                 validation.issues
             )
 
-        return self.mapper.map(
-            import_data
-        )
+        return self.mapper.map(import_data)
 
     def preview(
         self,
         import_data: TechnicalAssetImport,
     ) -> Any:
-        """
-        Udfører hele importen i en database-transaktion,
-        men ruller altid transaktionen tilbage.
-
-        Resultatet kan derfor bruges til at vise, hvad
-        importen ville ændre.
-        """
-        plan = self.prepare(
-            import_data
-        )
-
         with SessionLocal() as session:
             try:
+                plan = self.prepare(
+                    import_data,
+                    session=session,
+                )
+
                 result = self.executor.execute(
                     session,
                     plan,
                 )
 
                 session.rollback()
-
                 return result
 
             except Exception:
@@ -166,30 +148,24 @@ class TechnicalAssetImportService:
         self,
         import_data: TechnicalAssetImport,
     ) -> Any:
-        """
-        Validerer, mapper og gennemfører hele importen
-        i én samlet database-transaktion.
-        """
-        plan = self.prepare(
-            import_data
-        )
-
         with SessionLocal() as session:
             try:
+                plan = self.prepare(
+                    import_data,
+                    session=session,
+                )
+
                 result = self.executor.execute(
                     session,
                     plan,
                 )
 
                 if result.has_blocking_conflicts:
-                    session.rollback()
-
                     raise TechnicalAssetImportConflictError(
                         result
                     )
 
                 session.commit()
-
                 return result
 
             except Exception:

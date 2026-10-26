@@ -401,22 +401,40 @@ class TechnicalAssetRepository:
                 "active": installation.active,
             }
 
-    def update_installation_expected_stik(
+    def update_installation_stik_counts(
         self,
         project_id: str,
         installation_no: str,
-        expected_stik: int,
-    ) -> None:
+        *,
+        expected_stik: int | None = None,
+        active_stik: int | None = None,
+    ) -> bool:
+        """
+        Opdaterer kun de stikantal, som importen leverer.
+
+        None betyder, at feltet skal bevares uændret.
+        Returnerer True, hvis noget faktisk blev ændret.
+        """
+        if expected_stik is None and active_stik is None:
+            return False
+
+        if expected_stik is not None:
+            expected_stik = int(expected_stik)
+            if expected_stik < 0:
+                raise ValueError(
+                    "Forventede stik kan ikke være negative."
+                )
+
+        if active_stik is not None:
+            active_stik = int(active_stik)
+            if active_stik < 0:
+                raise ValueError(
+                    "Aktive stik kan ikke være negative."
+                )
+
         normalized_installation_no = str(
             installation_no
         ).strip()
-
-        expected_stik = int(expected_stik)
-
-        if expected_stik < 0:
-            raise ValueError(
-                "Forventede stik kan ikke være negative."
-            )
 
         with self._session_scope() as session:
             installation = session.scalar(
@@ -433,16 +451,42 @@ class TechnicalAssetRepository:
                     f"findes ikke på projekt '{project_id}'."
                 )
 
-            if installation.expected_stik == expected_stik:
-                return
+            changed = False
 
-            installation.expected_stik = expected_stik
+            if (
+                expected_stik is not None
+                and installation.expected_stik != expected_stik
+            ):
+                installation.expected_stik = expected_stik
+                changed = True
 
-            try:
-                self._save_changes(session)
-            except Exception:
-                self._rollback(session)
-                raise
+            if (
+                active_stik is not None
+                and installation.active_stik != active_stik
+            ):
+                installation.active_stik = active_stik
+                changed = True
+
+            if changed:
+                try:
+                    self._save_changes(session)
+                except Exception:
+                    self._rollback(session)
+                    raise
+
+            return changed
+
+    def update_installation_expected_stik(
+        self,
+        project_id: str,
+        installation_no: str,
+        expected_stik: int,
+    ) -> None:
+        self.update_installation_stik_counts(
+            project_id,
+            installation_no,
+            expected_stik=expected_stik,
+        )
 
     def create_installation(
         self,

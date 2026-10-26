@@ -139,6 +139,18 @@ class Stretch(Base):
         index=True,
     )
 
+    bottom_connection_id: Mapped[int | None] = mapped_column(
+        ForeignKey("manhole_connections.id", ondelete="RESTRICT"),
+        nullable=True,
+        index=True,
+    )
+
+    top_connection_id: Mapped[int | None] = mapped_column(
+        ForeignKey("manhole_connections.id", ondelete="RESTRICT"),
+        nullable=True,
+        index=True,
+    )
+
     sequence: Mapped[int] = mapped_column(
         Integer,
         nullable=False,
@@ -223,6 +235,16 @@ class Stretch(Base):
         "Manhole",
         foreign_keys=[top_manhole_id],
         back_populates="top_stretches",
+    )
+
+    bottom_connection = relationship(
+        "ManholeConnection",
+        foreign_keys=[bottom_connection_id],
+    )
+
+    top_connection = relationship(
+        "ManholeConnection",
+        foreign_keys=[top_connection_id],
     )
 
     service_connections = relationship(

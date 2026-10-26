@@ -14,13 +14,10 @@ from projektstyring.backend.repositories.technical_asset_repository import (
 
 class InstallationImporter:
     """
-    Sikrer at installationer fra den tekniske import findes.
+    Opretter manglende installationer og synkroniserer
+    stikantal fra importerede strækninger.
 
-    Når importen indeholder expected_stik fra C5,
-    opdateres installationens forventede stikantal.
-
-    Importer uden expected_stik ændrer ikke dette felt.
-    Øvrige installations- og produktionsdata bevares.
+    Kun felter, som importen leverer, bliver opdateret.
     """
 
     def execute(
@@ -31,7 +28,7 @@ class InstallationImporter:
         result: ImportExecutionResult,
     ) -> None:
         installation_numbers: list[str] = []
-        expected_stik_by_installation: dict[str, int] = {}
+        stik_counts: dict[str, dict[str, int]] = {}
 
         for stretch in plan.stretches:
             installation_no = str(
@@ -46,26 +43,38 @@ class InstallationImporter:
 
             metadata = stretch.source.metadata or {}
 
-            if "expected_stik" in metadata:
-                expected_stik = int(
-                    metadata["expected_stik"]
+            if not any(
+                field in metadata
+                for field in ("expected_stik", "active_stik")
+            ):
+                continue
+
+            counts = stik_counts.setdefault(
+                installation_no,
+                {},
+            )
+
+            discontinued = bool(
+                metadata.get("c5_discontinued", False)
+            )
+
+            for field in ("expected_stik", "active_stik"):
+                if field not in metadata:
+                    continue
+
+                value = (
+                    0
+                    if discontinued
+                    else int(metadata[field])
                 )
 
-                if expected_stik < 0:
+                if value < 0:
                     raise ValueError(
-                        "Negativt stikantal på installation "
+                        f"Negativt {field} på installation "
                         f"'{installation_no}'."
                     )
 
-                expected_stik_by_installation[
-                    installation_no
-                ] = (
-                    expected_stik_by_installation.get(
-                        installation_no,
-                        0,
-                    )
-                    + expected_stik
-                )
+                counts[field] = counts.get(field, 0) + value
 
         for installation_no in installation_numbers:
             created = False
@@ -75,13 +84,11 @@ class InstallationImporter:
                     plan.project_id,
                     installation_no,
                 )
-
             except FileNotFoundError:
                 repo.create_installation(
                     plan.project_id,
                     installation_no,
                 )
-
                 created = True
 
                 result.created += 1
@@ -93,23 +100,36 @@ class InstallationImporter:
                     )
                 )
 
-            if installation_no in expected_stik_by_installation:
-                expected_stik = expected_stik_by_installation[
-                    installation_no
-                ]
+            counts = stik_counts.get(
+                installation_no,
+                {},
+            )
 
-                repo.update_installation_expected_stik(
+            if counts:
+                changed = repo.update_installation_stik_counts(
                     plan.project_id,
                     installation_no,
-                    expected_stik,
+                    expected_stik=counts.get("expected_stik"),
+                    active_stik=counts.get("active_stik"),
                 )
 
-                if not created:
+                if changed and not created:
                     result.updated += 1
                     result.actions.append(
                         ImportAction(
                             entity_type="installation",
                             action="update",
+                            key=installation_no,
+                            fields=list(counts),
+                        )
+                    )
+
+                elif not changed and not created:
+                    result.unchanged += 1
+                    result.actions.append(
+                        ImportAction(
+                            entity_type="installation",
+                            action="unchanged",
                             key=installation_no,
                         )
                     )

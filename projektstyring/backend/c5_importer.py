@@ -266,6 +266,36 @@ def clean_c5_fraction(value: Any) -> str:
 
     return value.strip()
 
+def parse_c5_korthat_count(value: Any) -> int:
+    """
+    Første tal i C5's Korthat-felt er antallet
+    af aktive stik.
+
+    Eksempler:
+        ="8/0" -> 8
+        "3/3"  -> 3
+        ""     -> 0
+    """
+    cleaned = clean_c5_fraction(value)
+
+    if not cleaned:
+        return 0
+
+    first_number = cleaned.split("/", 1)[0].strip()
+
+    try:
+        count = int(first_number)
+    except ValueError as exc:
+        raise ValueError(
+            f"Ugyldigt Korthat-antal fra C5: {value!r}"
+        ) from exc
+
+    if count < 0:
+        raise ValueError(
+            "Korthat-antal kan ikke være negativt."
+        )
+
+    return count
 
 def get_length_m(
     row: dict[str, Any],
@@ -752,8 +782,24 @@ def parse_c5_csv(
         if to_brond:
             item["_manhole_numbers"].add(to_brond)
 
-        expected_stik = to_int(
-            row.get("Stik antal")
+        row_type = str(
+            row.get("Type") or ""
+        ).strip().casefold()
+
+        is_discontinued = row_type == "udgår"
+
+        expected_stik = (
+            0
+            if is_discontinued
+            else to_int(row.get("Stik antal"))
+        )
+
+        active_stik = (
+            0
+            if is_discontinued
+            else parse_c5_korthat_count(
+                row.get("Korthat")
+            )
         )
 
         length_m = get_length_m(row)
@@ -796,6 +842,8 @@ def parse_c5_csv(
                     ).strip(),
                     "stik": expected_stik,
                     "expected_stik": expected_stik,
+                    "active_stik": active_stik,
+                    "c5_discontinued": is_discontinued,
                     "progress": {
                         progress_key:
                             parse_optional_percent(
@@ -1272,6 +1320,16 @@ def parse_c5_missing_permit_references(
             normalize_column_name(key): value
             for key, value in row.items()
         }
+
+        # C5 tilføjer opsummeringsrækker nederst i
+        # projektoversigten. De er ikke installationsdata
+        # og har derfor intet projektnummer.
+        row_type = str(
+            row.get("Type") or ""
+        ).strip().lower()
+
+        if row_type == "total pr. dim":
+            continue
 
         csv_project_id = normalize_project_id(
             row.get("Projekt")
@@ -2031,6 +2089,14 @@ def parse_c5_project_overview_import(
                 "expected_stik": stretch.get(
                     "expected_stik",
                     0,
+                ),
+                "active_stik": stretch.get(
+                    "active_stik",
+                    0,
+                ),
+                "c5_discontinued": stretch.get(
+                    "c5_discontinued",
+                    False,
                 ),
                 "progress": dict(
                     stretch.get("progress") or {}

@@ -33,7 +33,9 @@ from projektstyring.backend.importers.work_importer import (
 from projektstyring.backend.repositories.technical_asset_repository import (
     TechnicalAssetRepository,
 )
-
+from projektstyring.backend.importers.stretch_identity_validator import (
+    StretchIdentityValidator,
+)
 
 class TechnicalAssetImportExecutor:
     """
@@ -106,6 +108,15 @@ class TechnicalAssetImportExecutor:
             project_id=plan.project_id,
             source=plan.source,
         )
+
+        StretchIdentityValidator().validate(
+            session=session,
+            plan=plan,
+            result=result,
+        )
+
+        if result.has_blocking_conflicts:
+            return result
 
         self.installation_importer.execute(
             repo=repo,

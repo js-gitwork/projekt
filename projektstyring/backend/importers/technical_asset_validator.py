@@ -11,7 +11,10 @@ from projektstyring.backend.importers.technical_asset_import import (
     ImportedStretch,
     TechnicalAssetImport,
 )
+from sqlalchemy import select
+from sqlalchemy.orm import Session
 
+from projektstyring.backend.db_models.technical_assets import Manhole
 
 @dataclass(slots=True)
 class ValidationIssue:
@@ -69,6 +72,7 @@ class TechnicalAssetValidator:
     def validate(
         self,
         import_data: TechnicalAssetImport,
+        session: Session | None = None,
     ) -> ValidationResult:
         result = ValidationResult()
 
@@ -87,9 +91,21 @@ class TechnicalAssetValidator:
             result,
         )
 
+        existing_manhole_numbers: set[str] = set()
+
+        if session is not None and import_data.project_id.strip():
+            existing_manhole_numbers = set(
+                session.scalars(
+                    select(Manhole.manhole_no).where(
+                        Manhole.project_id == import_data.project_id
+                    )
+                ).all()
+            )
+
         self._validate_cross_references(
             import_data,
             result,
+            existing_manhole_numbers,
         )
 
         return result
@@ -401,12 +417,17 @@ class TechnicalAssetValidator:
     def _validate_cross_references(
         import_data: TechnicalAssetImport,
         result: ValidationResult,
+        existing_manhole_numbers: set[str] | None = None,
     ) -> None:
         manhole_numbers = {
             manhole.manhole_no.strip()
             for manhole in import_data.manholes
             if manhole.manhole_no.strip()
         }
+
+        manhole_numbers.update(
+            existing_manhole_numbers or set()
+        )
 
         service_connection_ids: set[str] = set()
 
