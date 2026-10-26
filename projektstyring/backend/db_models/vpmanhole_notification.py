@@ -106,6 +106,8 @@ class VPManholeNotificationEvent(Base):
       sending  - afsendelse påbegyndt
       sent     - mailudbyderen har accepteret beskeden
       failed   - afsendelse fejlede
+      exported - dokumentationen var allerede fuldt eksporteret;
+                 ingen mail nødvendig
     """
 
     __tablename__ = "vpmanhole_notification_events"
@@ -116,7 +118,7 @@ class VPManholeNotificationEvent(Base):
             name="uq_vpmanhole_notification_event_project",
         ),
         CheckConstraint(
-            "status IN ('pending', 'sending', 'sent', 'failed')",
+            "status IN ('pending', 'sending', 'sent', 'failed', 'exported')",
             name="ck_vpmanhole_notification_event_status",
         ),
         CheckConstraint(

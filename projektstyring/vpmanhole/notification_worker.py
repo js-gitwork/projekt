@@ -154,7 +154,27 @@ def process_event(event_id: int) -> None:
         return
 
     if not project_needs_notification(project_id):
-        logger.info("Projekt %s er allerede fuldt eksporteret; ingen mail.", project_id)
+        with SessionLocal() as session:
+            session.execute(
+                update(VPManholeNotificationEvent)
+                .where(
+                    VPManholeNotificationEvent.id == event_id,
+                    VPManholeNotificationEvent.status.in_(
+                        ("pending", "failed")
+                    ),
+                )
+                .values(
+                    status="exported",
+                    last_error=None,
+                )
+            )
+            session.commit()
+
+        logger.info(
+            "Projekt %s er allerede fuldt eksporteret; "
+            "mailhændelse markeret som exported uden afsendelse.",
+            project_id,
+        )
         return
 
     # En hændelse kan kun overtages én gang.
