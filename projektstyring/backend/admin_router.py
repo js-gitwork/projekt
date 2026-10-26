@@ -179,17 +179,6 @@ def update_vpmanhole_notifications(
                 detail="En eller flere valgte mailmodtagere er ugyldige.",
             )
 
-        # Indtil Microsoft Graph er konfigureret og
-        # afsendelsesservicen er testet, må mail ikke aktiveres.
-        if enabled:
-            raise HTTPException(
-                status_code=400,
-                detail=(
-                    "Automatiske mails kan først aktiveres, "
-                    "når Microsoft 365-afsendelsen er klar."
-                ),
-            )
-
         settings = session.get(
             VPManholeNotificationSettings, 1
         )
@@ -198,7 +187,7 @@ def update_vpmanhole_notifications(
             settings = VPManholeNotificationSettings(id=1)
             session.add(settings)
 
-        settings.enabled = False
+        settings.enabled = enabled
         settings.include_site_manager = include_site_manager
 
         existing_recipients = session.scalars(

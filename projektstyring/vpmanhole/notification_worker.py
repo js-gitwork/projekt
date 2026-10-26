@@ -5,10 +5,18 @@ import logging
 import os
 from datetime import datetime, timezone
 
-from sqlalchemy import select, update
+from sqlalchemy import func, select, update
+from sqlalchemy.dialects.postgresql import insert
 
 from projektstyring.backend.database.connection import SessionLocal
 from projektstyring.backend.db_models.project import Project
+from projektstyring.backend.db_models.vpmanhole import (
+    VPManholeDelivery,
+    VPManholePhoto,
+)
+from projektstyring.backend.repositories.database_project_repository import (
+    DatabaseProjectRepository,
+)
 from projektstyring.backend.db_models.user import User
 from projektstyring.backend.db_models.vpmanhole_notification import (
     VPManholeNotificationEvent,
@@ -115,6 +123,9 @@ def process_event(event_id: int) -> None:
             return
 
         project_id = project.id
+        if project_id in excluded_project_ids():
+            logger.info("Projekt %s er udelukket fra mailafsendelse.", project_id)
+            return
         project_name = project.name or project_id
 
         recipients = get_recipients(
@@ -139,10 +150,11 @@ def process_event(event_id: int) -> None:
     )
 
     if not completion.is_complete:
-        logger.info(
-            "Projekt %s er ikke længere komplet.",
-            project_id,
-        )
+        logger.info("Projekt %s er ikke længere komplet.", project_id)
+        return
+
+    if not project_needs_notification(project_id):
+        logger.info("Projekt %s er allerede fuldt eksporteret; ingen mail.", project_id)
         return
 
     # En hændelse kan kun overtages én gang.
@@ -254,21 +266,185 @@ def process_event(event_id: int) -> None:
         project_id,
     )
 
+def excluded_project_ids() -> set[str]:
+    """Projekter som ikke må få automatiske færdigmeldinger."""
+    return {
+        value.strip()
+        for value in os.environ.get(
+            "VPMANHOLE_NOTIFICATION_EXCLUDED_PROJECT_IDS", ""
+        ).split(",")
+        if value.strip()
+    }
+
+
+def project_needs_notification(project_id: str) -> bool:
+    """
+    True hvis projektet har komplette billeder,
+    men ikke alle aktuelle billeder er eksporteret.
+    """
+    installations = (
+        notification_service.vpmanhole_service
+        .list_project_installations(project_id)
+    )
+
+    manhole_ids = {
+        manhole["id"]
+        for installation in installations
+        for manhole in installation["manholes"]
+    }
+
+    if not manhole_ids:
+        return False
+
+    with SessionLocal() as session:
+        deliveries = session.scalars(
+            select(VPManholeDelivery).where(
+                VPManholeDelivery.manhole_id.in_(manhole_ids)
+            )
+        ).all()
+
+        if {d.manhole_id for d in deliveries} != manhole_ids:
+            return True
+
+        for delivery in deliveries:
+            if delivery.last_exported_at is None:
+                return True
+
+            latest_upload = session.scalar(
+                select(func.max(VPManholePhoto.uploaded_at))
+                .where(VPManholePhoto.delivery_id == delivery.id)
+            )
+
+            if (
+                latest_upload is not None
+                and latest_upload > delivery.last_exported_at
+            ):
+                return True
+
+    return False
+
+def find_historical_notifications() -> list[str]:
+    """
+    Find komplette projekter uden eksisterende mailhændelse.
+
+    Funktionen ændrer ikke databasen og sender ingen mails.
+    """
+    projects = DatabaseProjectRepository().list_projects()
+
+    with SessionLocal() as session:
+        notified_project_ids = set(
+            session.scalars(
+                select(VPManholeNotificationEvent.project_id)
+            ).all()
+        )
+
+    candidates = []
+    excluded = excluded_project_ids()
+
+    for project in projects:
+        project_id = project["id"]
+
+        if project_id in notified_project_ids or project_id in excluded:
+            continue
+
+        completion = notification_service.check_project_completion(
+            project_id
+        )
+
+        if not completion.is_complete:
+            continue
+
+        if not project_needs_notification(project_id):
+            continue
+
+        candidates.append(project_id)
+
+    return candidates
+
+
+def enqueue_historical_notifications() -> int:
+    """Opret manglende hændelser uden dubletter; send ikke mails her."""
+    candidates = find_historical_notifications()
+    created = 0
+    for project_id in candidates:
+        # Genkontrollér, da billeder kan ændres under gennemgangen.
+        if not notification_service.check_project_completion(project_id).is_complete:
+            continue
+        if not project_needs_notification(project_id):
+            continue
+        if project_id in excluded_project_ids():
+            continue
+        with SessionLocal() as session:
+            stmt = (
+                insert(VPManholeNotificationEvent)
+                .values(project_id=project_id, status="pending")
+                .on_conflict_do_nothing(
+                    constraint="uq_vpmanhole_notification_event_project"
+                )
+                .returning(VPManholeNotificationEvent.id)
+            )
+            if session.scalar(stmt) is not None:
+                created += 1
+            session.commit()
+    return created
+
+def cleanup_exported_notifications() -> int:
+    """Fjern usendte færdigmeldinger for fuldt eksporterede projekter."""
+    from sqlalchemy import delete
+
+    with SessionLocal() as session:
+        project_ids = session.scalars(
+            select(VPManholeNotificationEvent.project_id)
+            .where(
+                VPManholeNotificationEvent.status == "pending",
+                VPManholeNotificationEvent.attempt_count == 0,
+            )
+        ).all()
+
+    removed = 0
+
+    for project_id in project_ids:
+        completion = notification_service.check_project_completion(project_id)
+
+        if not completion.is_complete:
+            continue
+
+        if project_needs_notification(project_id):
+            continue
+
+        with SessionLocal() as session:
+            result = session.execute(
+                delete(VPManholeNotificationEvent).where(
+                    VPManholeNotificationEvent.project_id == project_id,
+                    VPManholeNotificationEvent.status == "pending",
+                    VPManholeNotificationEvent.attempt_count == 0,
+                )
+            )
+            session.commit()
+            removed += result.rowcount
+
+    return removed
 
 def main() -> None:
     with SessionLocal() as session:
-        settings = session.get(
-            VPManholeNotificationSettings,
-            1,
-        )
+        settings = session.get(VPManholeNotificationSettings, 1)
 
         if settings is None or not settings.enabled:
             logger.info(
-                "VPManhole-mail er deaktiveret. "
-                "Ingen mails sendes."
+                "VPManhole-mail er deaktiveret. Ingen mails sendes."
             )
             return
 
+    # Find historiske, komplette projekter, som endnu
+    # ikke har en mailhændelse.
+    created = enqueue_historical_notifications()
+    logger.info(
+        "Oprettede %s historiske færdigmeldinger.",
+        created,
+    )
+
+    # Hent ventende og tidligere fejlede mailhændelser.
+    with SessionLocal() as session:
         event_ids = session.execute(
             select(VPManholeNotificationEvent.id)
             .where(
@@ -298,4 +474,17 @@ def main() -> None:
 
 
 if __name__ == "__main__":
-    main()
+    import sys
+
+    if "--dry-run" in sys.argv:
+        candidates = find_historical_notifications()
+
+        print(
+            "Historiske projekter klar til færdigmelding: "
+            f"{len(candidates)}"
+        )
+
+        for project_id in candidates:
+            print(f"  {project_id}")
+    else:
+        main()

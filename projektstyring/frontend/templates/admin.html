@@ -409,7 +409,7 @@
         type="checkbox"
         name="enabled"
         value="true"
-        disabled
+        {% if notification_enabled %}checked{% endif %}
       />
       <span>
         Send automatiske færdigmeldinger
@@ -417,9 +417,9 @@
     </label>
 
     <p class="note">
-      Mailafsendelse er endnu ikke aktiveret.
-      Først skal Microsoft 365-forbindelsen konfigureres
-      og testes.
+      Når automatisk afsendelse er aktiveret, sender VPManhole
+      én færdigmelding pr. projekt, når billeddokumentationen
+      er komplet. Mislykkede afsendelser forsøges igen.
     </p>
 
     <button type="submit">

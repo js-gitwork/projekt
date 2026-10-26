@@ -3,6 +3,7 @@ from __future__ import annotations
 import logging
 import os
 import smtplib
+import socket
 import ssl
 from email.message import EmailMessage
 from email.utils import formatdate, make_msgid
@@ -12,6 +13,40 @@ logger = logging.getLogger(__name__)
 
 class GraphMailError(RuntimeError):
     """Fejl ved afsendelse gennem SMTP-relay."""
+
+
+class IPv4SMTP(smtplib.SMTP):
+    """SMTP-forbindelse, der udelukkende bruger IPv4."""
+
+    def _get_socket(self, host, port, timeout):
+        addresses = socket.getaddrinfo(
+            host,
+            port,
+            family=socket.AF_INET,
+            type=socket.SOCK_STREAM,
+        )
+
+        last_error = None
+
+        for family, socktype, proto, _, address in addresses:
+            sock = socket.socket(family, socktype, proto)
+
+            try:
+                sock.settimeout(timeout)
+
+                if self.source_address:
+                    sock.bind(self.source_address)
+
+                sock.connect(address)
+                return sock
+
+            except OSError as exc:
+                last_error = exc
+                sock.close()
+
+        raise OSError(
+            f"Kunne ikke oprette IPv4-forbindelse til {host}:{port}"
+        ) from last_error
 
 
 def send_mail(
@@ -32,12 +67,15 @@ def send_mail(
     host = os.environ.get(
         "VPMANHOLE_SMTP_HOST", ""
     ).strip()
+
     sender = os.environ.get(
         "VPMANHOLE_SMTP_FROM", ""
     ).strip()
 
     try:
-        port = int(os.environ.get("VPMANHOLE_SMTP_PORT", "25"))
+        port = int(
+            os.environ.get("VPMANHOLE_SMTP_PORT", "25")
+        )
     except ValueError as exc:
         raise GraphMailError("Ugyldig SMTP-port.") from exc
 
@@ -55,7 +93,7 @@ def send_mail(
     message.set_content(body)
 
     try:
-        with smtplib.SMTP(
+        with IPv4SMTP(
             host=host,
             port=port,
             timeout=30,
@@ -67,7 +105,9 @@ def send_mail(
                     "SMTP-serveren understøtter ikke STARTTLS."
                 )
 
-            smtp.starttls(context=ssl.create_default_context())
+            smtp.starttls(
+                context=ssl.create_default_context()
+            )
             smtp.ehlo()
 
             refused = smtp.send_message(
