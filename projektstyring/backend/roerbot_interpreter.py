@@ -1347,6 +1347,19 @@ Vigtige regler:
 
 Regler for struktureret projektoprettelse:
 
+- Når brugeren beder om at oprette et projekt fra C5,
+  skal intent være "project_creation" og
+  project_creation_action være "update".
+
+- Medtag V-nummeret i project_creation_fields.project_id,
+  hvis brugeren har angivet det.
+
+- Du må ikke selv gætte oplysninger fra C5.
+  Python-servicen foretager det faktiske C5-opslag.
+
+- Projektet må først oprettes efter brugerens
+  udtrykkelige godkendelse.
+
 - Brug kun project_creation_action, når intent er
   "project_creation".
 

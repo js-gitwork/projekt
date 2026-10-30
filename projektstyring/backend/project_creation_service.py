@@ -25,6 +25,13 @@ from sqlalchemy import func, select
 
 from projektstyring.backend.database.connection import SessionLocal
 from projektstyring.backend.db_models.user import User
+import re
+
+from projektstyring.backend.c5_sync.reader import (
+    connect as connect_c5,
+    read_project,
+)
+from projektstyring.backend.db_models.project import Project
 
 
 PROJECT_CREATION_WORKFLOW = "project_creation"
@@ -142,6 +149,35 @@ def analyze_project_creation(
             }
         )
 
+    if data.get("_creation_source") == "c5":
+        c5_required_fields = (
+            (
+                "project_manager",
+                "Hvem er projektleder?",
+            ),
+            (
+                "site_manager",
+                "Hvem er entrepriseleder?",
+            ),
+            (
+                "start_date",
+                "Hvornår er den planlagte opstart?",
+            ),
+        )
+
+        for field_name, prompt in c5_required_fields:
+            if data.get(field_name):
+                continue
+
+            missing.append(
+                {
+                    "field": field_name,
+                    "label": FIELD_LABELS[field_name],
+                    "prompt": prompt,
+                    "reason": "",
+                }
+            )
+            
     return {
         "workflow": PROJECT_CREATION_WORKFLOW,
         "complete": not missing,
@@ -277,6 +313,80 @@ def build_project_from_creation_data(
     )
 
     return project
+
+
+def prefill_project_from_c5(
+    text: str,
+    fields: dict[str, Any],
+) -> tuple[dict[str, Any], str | None]:
+    """
+    Henter stamoplysninger fra C5, når brugeren
+    udtrykkeligt beder om projektoprettelse fra C5.
+
+    Opretter eller ændrer aldrig databaseposter.
+    """
+    if not re.search(
+        r"\bfra\s+c5\b",
+        text,
+        flags=re.IGNORECASE,
+    ):
+        return fields, None
+
+    project_id = fields.get("project_id")
+
+    if not project_id:
+        match = re.search(
+            r"\bV\d+\b",
+            text,
+            flags=re.IGNORECASE,
+        )
+        if match:
+            project_id = match.group().upper()
+
+    if not project_id:
+        return fields, (
+            "Jeg mangler V-nummeret for at kunne "
+            "hente projektet fra C5."
+        )
+
+    project_id = str(project_id).strip().upper()
+
+    with SessionLocal() as session:
+        if session.get(Project, project_id) is not None:
+            return fields, (
+                f"Projekt {project_id} findes allerede "
+                "i Rørbot og er ikke oprettet igen."
+            )
+
+    try:
+        connection = connect_c5()
+        try:
+            c5_project = read_project(
+                connection,
+                project_id,
+            )
+        finally:
+            connection.close()
+    except Exception:
+        return fields, (
+            "Jeg kunne ikke hente projektet fra C5. "
+            "Projektudkastet er ikke ændret. "
+            "Kontrollér C5-forbindelsen."
+        )
+
+    if c5_project is None:
+        return fields, (
+            f"Projekt {project_id} blev ikke fundet "
+            "i C5 under datasættet VPO. "
+            "Der er ikke oprettet noget projekt."
+        )
+
+    result = dict(fields)
+    result["project_id"] = project_id
+    result["customer"] = c5_project["customer"]
+    result["_creation_source"] = "c5"
+
+    return result, None
 
 
 def handle_project_creation_message(
@@ -434,6 +544,18 @@ def handle_project_creation_message(
                 "Jeg kunne ikke udlede en sikker "
                 "projektændring. Udkastet er uændret."
             ),
+        }
+
+    fields, c5_error = prefill_project_from_c5(
+        text,
+        fields,
+    )
+
+    if c5_error:
+        return {
+            "analysis": existing_analysis,
+            "data": existing_data,
+            "answer": c5_error,
         }
 
     merged_data = merge_data(

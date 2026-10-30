@@ -1,348 +1,264 @@
+
 from __future__ import annotations
 
+from datetime import date, datetime
+from decimal import Decimal, InvalidOperation
 from typing import Any
 
-from projektstyring.backend.repositories.technical_asset_repository import (
-    TechnicalAssetRepository,
+from projektstyring.backend.c5_sync.reader import (
+    MAINLINE_TYPES,
+    clean,
+    connect,
+    read_service_work,
+    read_stretches,
 )
 
 
-def _parse_fraction(
-    value: str,
-) -> tuple[int, int] | None:
-    """
-    Parser C5-fraktioner som:
+def _has_valid_date(value: Any) -> bool:
+    if isinstance(value, (datetime, date)):
+        return value.year > 1900
+    return False
 
-        3/3
-        5/1
-        2/0
-        0/0
 
-    C5-formatet er:
-
-        planlagt / udført
-
-    Funktionen returnerer:
-
-        (udført, planlagt)
-    """
-    raw = str(value or "").strip()
-
-    if not raw or "/" not in raw:
-        return None
-
-    left, right = raw.split("/", 1)
+def _positive_quantity(value: Any) -> bool:
+    if value is None:
+        return False
 
     try:
-        planned = int(
-            float(left.strip())
-        )
-
-        completed = int(
-            float(right.strip())
-        )
-
-    except (TypeError, ValueError):
-        return None
-
-    return completed, planned
+        return Decimal(
+            str(value).strip().replace(",", ".")
+        ) > 0
+    except (InvalidOperation, ValueError):
+        return False
 
 
-def _summarize_fraction_values(
-    values: list[str],
+def _summary(
+    planned: int,
+    completed: int,
 ) -> dict[str, int]:
-    completed = 0
-    total = 0
-
-    for value in values:
-        parsed = _parse_fraction(
-            value
-        )
-
-        if parsed is None:
-            continue
-
-        row_completed, row_total = parsed
-
-        completed += row_completed
-        total += row_total
-
     return {
+        "total": planned,
         "completed": completed,
-        "total": total,
-        "missing": max(
-            0,
-            total - completed,
-        ),
+        "missing": max(0, planned - completed),
     }
 
 
-def _empty_fraction_summary() -> dict[str, int]:
-    return {
-        "completed": 0,
-        "total": 0,
-        "missing": 0,
-    }
+def _installation_number(value: Any) -> str:
+    return clean(value).replace(",", ".")
 
 
 class ProductionStatusService:
     """
-    Bygger en produktionsrestliste direkte fra de tekniske
-    objekter i PostgreSQL.
+    Læser aktuel produktion direkte fra C5 SQL Server.
 
-    Servicen ændrer ingen data.
+    Ingen import og ingen lokal kopi af C5-data.
 
-    Følgende C5-arbejdsarter behandles selvstændigt:
+    Brøndstræk knyttes til installationer gennem POSITIONTXT.
 
-    - langhat
-    - korthat
-    - brøndskud
-    - punktreparation
-
-    Arbejdsarterne lægges ikke sammen. Produktionsmæssige
-    sammenhænge håndteres separat gennem produktionsgrupper.
+    Stikarbejder opgøres på projektniveau, indtil
+    REFID-relationen er verificeret. Der gættes ikke på
+    installationsfordelingen.
     """
-
-    def __init__(
-        self,
-        repository: TechnicalAssetRepository | None = None,
-    ) -> None:
-        self.repository = (
-            repository
-            if repository is not None
-            else TechnicalAssetRepository()
-        )
 
     def build_project_report(
         self,
         project_id: str,
     ) -> dict[str, Any]:
-        assets = self.repository.load_project_assets(
-            project_id
+        connection = connect()
+
+        try:
+            stretches = read_stretches(
+                connection,
+                project_id,
+            )
+            service_work = read_service_work(
+                connection,
+                project_id,
+            )
+        finally:
+            connection.close()
+
+        return self._build_report(
+            project_id=project_id,
+            stretches=stretches,
+            service_work=service_work,
         )
+
+    def _build_report(
+        self,
+        *,
+        project_id: str,
+        stretches: list[dict[str, Any]],
+        service_work: list[dict[str, Any]],
+    ) -> dict[str, Any]:
+        installation_rows: dict[
+            str, list[dict[str, Any]]
+        ] = {}
+
+        all_mainline = []
+
+        for stretch in stretches:
+            if stretch.get("INSTEJER") not in MAINLINE_TYPES:
+                continue
+
+            all_mainline.append(stretch)
+
+            number = _installation_number(
+                stretch.get("POSITIONTXT")
+            )
+
+            if number:
+                installation_rows.setdefault(
+                    number, []
+                ).append(stretch)
 
         installations = []
-
-        project_langhat = (
-            _empty_fraction_summary()
-        )
-
-        project_korthat = (
-            _empty_fraction_summary()
-        )
-
-        project_broendskud = (
-            _empty_fraction_summary()
-        )
-
-        project_pkt_rep = (
-            _empty_fraction_summary()
-        )
-
         missing_main_stretches = []
 
-        for installation in assets.get(
-            "installations",
-            [],
+        for number, rows in sorted(
+            installation_rows.items()
         ):
-            installation_report = (
-                self._build_installation_report(
-                    installation
-                )
-            )
+            missing = []
 
-            installations.append(
-                installation_report
-            )
-
-            for (
-                report_key,
-                project_summary,
-            ) in (
-                (
-                    "langhat",
-                    project_langhat,
-                ),
-                (
-                    "korthat",
-                    project_korthat,
-                ),
-                (
-                    "broendskud",
-                    project_broendskud,
-                ),
-                (
-                    "pkt_rep",
-                    project_pkt_rep,
-                ),
-            ):
-                status = installation_report[
-                    report_key
-                ]
-
-                for key in (
-                    "completed",
-                    "total",
-                    "missing",
+            for row in rows:
+                if _has_valid_date(
+                    row.get("INSTALLATIONDATO")
                 ):
-                    project_summary[key] += (
-                        status[key]
-                    )
+                    continue
 
-            missing_main_stretches.extend(
-                installation_report[
-                    "missing_main_stretches"
-                ]
+                stretch = {
+                    "installation_no": number,
+                    "bottom_manhole_no": clean(
+                        row.get("BRXND1")
+                    ),
+                    "top_manhole_no": clean(
+                        row.get("BRXND2")
+                    ),
+                    "length_m": (
+                        row.get("NYLEDTVLXNGDE")
+                    ),
+                    "dimension": (
+                        row.get("NYLEDDIM")
+                    ),
+                    "material": None,
+                    "progress": None,
+                }
+
+                missing.append(stretch)
+
+            missing_main_stretches.extend(missing)
+
+            mainline_completed = sum(
+                _has_valid_date(
+                    row.get("INSTALLATIONDATO")
+                )
+                for row in rows
             )
+
+            preparation_completed = sum(
+                self._approved(
+                    row.get("TVKONTROLGODKENDT")
+                )
+                for row in rows
+            )
+
+            installations.append({
+                "installation_no": number,
+                "forarbejde": _summary(
+                    len(rows),
+                    preparation_completed,
+                ),
+                "hovedledning": _summary(
+                    len(rows),
+                    mainline_completed,
+                ),
+                "langhat": _summary(0, 0),
+                "korthat": _summary(0, 0),
+                "broendskud": _summary(0, 0),
+                "pkt_rep": _summary(0, 0),
+                "missing_main_stretches": missing,
+            })
+
+        # Disse tal er pr. projekt.
+        # REFID -> installation er endnu ikke verificeret.
+        work_fields = {
+            "langhat": "STIKLH",
+            "korthat": "STIKKH",
+            "broendskud": "STIKBRXND",
+        }
+
+        work_summaries = {}
+
+        for work_type, field in work_fields.items():
+            relevant = [
+                row
+                for row in service_work
+                if _positive_quantity(row.get(field))
+            ]
+
+            completed = sum(
+                _has_valid_date(
+                    row.get("FXRDIGDATO")
+                )
+                for row in relevant
+            )
+
+            work_summaries[work_type] = _summary(
+                len(relevant),
+                completed,
+            )
+
+        mainline = _summary(
+            len(all_mainline),
+            sum(
+                _has_valid_date(
+                    row.get("INSTALLATIONDATO")
+                )
+                for row in all_mainline
+            ),
+        )
+
+        preparation = _summary(
+            len(all_mainline),
+            sum(
+                self._approved(
+                    row.get("TVKONTROLGODKENDT")
+                )
+                for row in all_mainline
+            ),
+        )
 
         return {
             "project_id": project_id,
-            "langhat": project_langhat,
-            "korthat": project_korthat,
-            "broendskud": project_broendskud,
-            "pkt_rep": project_pkt_rep,
+            "source": "c5_sql_live",
+            "forarbejde": preparation,
+            "hovedledning": mainline,
+            "langhat": work_summaries["langhat"],
+            "korthat": work_summaries["korthat"],
+            "broendskud": work_summaries["broendskud"],
+            "pkt_rep": _summary(0, 0),
             "missing_main_stretches": (
                 missing_main_stretches
             ),
             "installations": installations,
+            "service_work_installation_mapping_known": False,
         }
 
-    def _build_installation_report(
-        self,
-        installation: dict[str, Any],
-    ) -> dict[str, Any]:
-        installation_no = str(
-            installation.get(
-                "installation_no",
-                "",
-            )
-        )
+    @staticmethod
+    def _approved(value: Any) -> bool:
+        if value is None:
+            return False
 
-        langhat_values: list[str] = []
-        korthat_values: list[str] = []
-        broendskud_values: list[str] = []
-        pkt_rep_values: list[str] = []
+        if isinstance(value, bool):
+            return value
 
-        missing_main_stretches = []
+        if isinstance(value, (int, float, Decimal)):
+            return value != 0
 
-        for stretch in installation.get(
-            "stretches",
-            [],
-        ):
-            metadata = (
-                stretch.get("metadata")
-                or {}
-            )
-
-            c5_values = (
-                metadata.get("c5_values")
-                or {}
-            )
-
-            langhat_values.extend(
-                c5_values.get(
-                    "langhat",
-                    [],
-                )
-            )
-
-            korthat_values.extend(
-                c5_values.get(
-                    "korthat",
-                    [],
-                )
-            )
-
-            broendskud_values.extend(
-                c5_values.get(
-                    "broendskud",
-                    [],
-                )
-            )
-
-            pkt_rep_values.extend(
-                c5_values.get(
-                    "pkt_rep",
-                    [],
-                )
-            )
-
-            progress = (
-                metadata.get("progress")
-                or {}
-            )
-
-            hovedledning_progress = (
-                progress.get(
-                    "hovedledning"
-                )
-            )
-
-            if (
-                hovedledning_progress is None
-                or hovedledning_progress < 100
-            ):
-                missing_main_stretches.append(
-                    {
-                        "installation_no": (
-                            installation_no
-                        ),
-                        "bottom_manhole_no": (
-                            stretch.get(
-                                "bottom_manhole_no"
-                            )
-                        ),
-                        "top_manhole_no": (
-                            stretch.get(
-                                "top_manhole_no"
-                            )
-                        ),
-                        "length_m": (
-                            stretch.get(
-                                "length_m"
-                            )
-                        ),
-                        "dimension": (
-                            stretch.get(
-                                "dimension"
-                            )
-                        ),
-                        "material": (
-                            stretch.get(
-                                "material"
-                            )
-                        ),
-                        "progress": (
-                            hovedledning_progress
-                        ),
-                    }
-                )
-
-        return {
-            "installation_no": (
-                installation_no
-            ),
-            "langhat": (
-                _summarize_fraction_values(
-                    langhat_values
-                )
-            ),
-            "korthat": (
-                _summarize_fraction_values(
-                    korthat_values
-                )
-            ),
-            "broendskud": (
-                _summarize_fraction_values(
-                    broendskud_values
-                )
-            ),
-            "pkt_rep": (
-                _summarize_fraction_values(
-                    pkt_rep_values
-                )
-            ),
-            "missing_main_stretches": (
-                missing_main_stretches
-            ),
+        return str(value).strip().casefold() in {
+            "1",
+            "ja",
+            "yes",
+            "true",
+            "godkendt",
         }

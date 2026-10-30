@@ -20,11 +20,6 @@ from projektstyring.backend.auth import (
 )
 from projektstyring.backend.database.connection import SessionLocal
 from projektstyring.backend.db_models.user import User
-from projektstyring.backend.c5_importer import (
-    detect_c5_csv_type,
-    parse_c5_csv,
-    parse_c5_import,
-)
 from projektstyring.backend.project_operations import add_installations
 from projektstyring.backend.project_planner import (
     generate_plan_for_active_projects,
@@ -46,18 +41,6 @@ from projektstyring.backend.survey_model import default_survey
 from projektstyring.backend.project_workflow import (
     complete_survey,
     start_project,
-)
-from projektstyring.backend.importers.technical_asset_import_executor import (
-    TechnicalAssetImportExecutor,
-)
-from projektstyring.backend.importers.technical_asset_import_service import (
-    TechnicalAssetImportService,
-)
-from projektstyring.backend.importers.deviation_import import (
-    DeviationImport,
-)
-from projektstyring.backend.importers.deviation_import_service import (
-    DeviationImportService,
 )
 from projektstyring.backend.task_assignments import (
     TASK_TYPES,
@@ -201,11 +184,7 @@ templates.env.globals["csrf_token"] = get_csrf_token
 
 repo = ProjectRepository()
 team_repo = TeamRepository()
-technical_asset_import_service = TechnicalAssetImportService(
-    TechnicalAssetImportExecutor()
-)
 
-deviation_import_service = DeviationImportService()
 
 
 @app.get("/login")
@@ -608,87 +587,165 @@ def progress_for_activity(activity_type, progress):
     return 0
 
 
-def build_progress_report(project, activities):
-    planned = {}
 
-    for activity in activities:
-        installation_id = str(activity.installation_id)
-        planned.setdefault(installation_id, [])
-        planned[installation_id].append(activity)
+def build_project_overview(
+    *,
+    show_closed: bool = False,
+) -> list[dict]:
+    """
+    Bygger projektoversigten med aktuelle C5-data.
+    C5-produktionsdata gemmes ikke lokalt.
+    """
+    import logging
 
-    report = []
-    today = date.today()
+    from sqlalchemy import select
 
-    for installation in project.get("installations", []):
-        installation_id = str(installation.get("id"))
-        progress = installation.get("progress", {})
-        planned_activities = planned.get(installation_id, [])
+    from projektstyring.backend.db_models.project import Project
+    from projektstyring.backend.production_status_service import (
+        ProductionStatusService,
+    )
 
-        status = "Ingen plan"
-        status_class = "status-muted"
+    projects = repo.list_projects()
 
-        if planned_activities:
-            overdue = False
-            in_progress = False
-            complete = True
-
-            for activity in planned_activities:
-                percent = progress_for_activity(
-                    activity.type,
-                    progress,
+    with SessionLocal() as session:
+        closed_ids = set(
+            session.scalars(
+                select(Project.id).where(
+                    Project.is_closed.is_(True)
                 )
-
-                if percent is None:
-                    complete = False
-
-                    if activity.slut_dato and activity.slut_dato < today:
-                        overdue = True
-                    else:
-                        in_progress = True
-
-                    continue
-
-                if percent < 100:
-                    complete = False
-
-                    if activity.slut_dato and activity.slut_dato < today:
-                        overdue = True
-                    else:
-                        in_progress = True
-
-            if complete:
-                status = "Færdig"
-                status_class = "status-ok"
-            elif overdue:
-                status = "Bagud"
-                status_class = "status-error"
-            elif in_progress:
-                status = "Planlagt"
-                status_class = "status-warning"
-
-        report.append(
-            {
-                "installation_id": installation_id,
-                "active_stik": installation.get("active_stik", 0),
-                "planned_activities": planned_activities,
-                "progress": progress,
-                "status": status,
-                "status_class": status_class,
-                "notes": installation.get("notes", ""),
-            }
+            ).all()
         )
 
-    return report
+    service = ProductionStatusService()
+    result = []
+
+    for item in projects:
+        project = dict(item)
+        project_id = str(project["id"])
+        is_closed = project_id in closed_ids
+
+        if is_closed and not show_closed:
+            continue
+
+        project["is_closed"] = is_closed
+        project["production"] = {}
+        project["production_error"] = False
+
+        try:
+            report = service.build_project_report(
+                project_id
+            )
+
+            for work_type in (
+                "forarbejde",
+                "hovedledning",
+                "langhat",
+                "korthat",
+                "broendskud",
+            ):
+                project["production"][work_type] = (
+                    report.get(work_type)
+                )
+
+        except Exception:
+            logging.getLogger(__name__).exception(
+                "C5-produktionsstatus fejlede for %s",
+                project_id,
+            )
+            project["production_error"] = True
+
+        result.append(project)
+
+    return result
 
 
-@app.get("/")
-def index(request: Request):
-    projects = repo.list_projects()
+def render_project_overview(
+    request: Request,
+):
+    show_closed = (
+        request.query_params.get("show_closed") == "1"
+    )
 
     return templates.TemplateResponse(
         request,
         "project_list.html",
-        {"projects": projects},
+        {
+            "projects": build_project_overview(
+                show_closed=show_closed
+            ),
+            "show_closed": show_closed,
+        },
+    )
+
+@app.get("/portal")
+def office_portal(request: Request):
+    return templates.TemplateResponse(
+        request,
+        "portal.html",
+        {
+            "current_user": request.state.user,
+        },
+    )
+
+@app.get("/projects")
+def project_overview(request: Request):
+    return render_project_overview(request)
+
+
+@app.get("/")
+def index(request: Request):
+    return render_project_overview(request)
+
+
+@app.post("/projects/{project_id}/closure")
+def set_project_closure(
+    request: Request,
+    project_id: str,
+    csrf_token: str = Form(...),
+    closed: str = Form(...),
+):
+    """
+    Afslutter eller genåbner et projekt i Rørbot.
+    Ændrer ikke C5.
+    """
+    from sqlalchemy import select
+
+    from projektstyring.backend.db_models.project import Project
+
+    validate_csrf_token(
+        request,
+        csrf_token,
+    )
+
+    if closed not in {"0", "1"}:
+        raise HTTPException(
+            status_code=400,
+            detail="Ugyldig afslutningsstatus.",
+        )
+
+    with SessionLocal() as session:
+        project = session.scalar(
+            select(Project)
+            .where(Project.id == project_id)
+            .with_for_update()
+        )
+
+        if project is None:
+            raise HTTPException(
+                status_code=404,
+                detail="Projektet findes ikke.",
+            )
+
+        project.is_closed = closed == "1"
+        session.commit()
+
+    return RedirectResponse(
+        url=(
+            "/projects?show_closed=1"
+            if closed == "0"
+            else "/projects"
+        ),
+        status_code=303,
     )
 
 
@@ -712,45 +769,6 @@ def new_project_form(request: Request):
         "project_form.html",
         {},
     )
-
-
-@app.post("/projects/new")
-def create_project(
-    request: Request,
-    project_id: str = Form(...),
-    name: str = Form(...),
-    customer: str = Form(""),
-    city: str = Form(""),
-    start_date: str = Form(...),
-    installation_count: int = Form(0),
-    csrf_token: str = Form(...),
-):
-    validate_csrf_token(
-        request,
-        csrf_token,
-    )
-    project = make_project(
-        project_id=project_id,
-        name=name,
-        customer=customer,
-        city=city,
-        start_date=start_date,
-        notes="Oprettet via web.",
-    )
-
-    if installation_count > 0:
-        project = add_installations(
-            project,
-            installation_count,
-        )
-
-    repo.save_project(project)
-
-    return RedirectResponse(
-        url=f"/projects/{project_id.strip()}",
-        status_code=303,
-    )
-
 
 @app.get("/planning")
 def planning_board_page(
@@ -1149,232 +1167,12 @@ def project_work_cards(request: Request, project_id: str):
     )
 
 
-def build_c5_import_report(preview_result):
-    """
-    Bygger en deterministisk kontrolrapport til Rørbot
-    ud fra importmotorens faktiske preview-resultat.
-
-    Funktionen foretager ingen selvstændig importkontrol
-    og ændrer ingen data.
-    """
-
-    conflicts = list(preview_result.conflicts)
-
-    blocking = [conflict for conflict in conflicts if conflict.blocks_import]
-
-    non_blocking = [conflict for conflict in conflicts if not conflict.blocks_import]
-
-    if blocking:
-        status = "blocked"
-
-        summary = (
-            f"Jeg har fundet {len(conflicts)} "
-            "konflikt(er), hvoraf "
-            f"{len(blocking)} blokerer importen. "
-            "Importen kan ikke godkendes, før "
-            "de blokerende konflikter er løst."
-        )
-
-    elif non_blocking:
-        status = "warning"
-
-        summary = (
-            f"Jeg har fundet {len(non_blocking)} "
-            "ikke-blokerende konflikt(er). "
-            "Importen kan gennemføres, men de "
-            "konfliktramte oplysninger håndteres "
-            "efter importmotorens sikkerhedsregler. "
-            "Se detaljerne nedenfor."
-        )
-
-    else:
-        status = "ok"
-
-        summary = (
-            "Jeg har kontrolleret forhåndsvisningen. "
-            "Alt er i orden – ingen konflikter fundet. "
-            "Importen er klar til godkendelse."
-        )
-
-    work_entries = [
-        action.key
-        for action in preview_result.actions
-        if (action.entity_type == "manhole_work" and action.action == "create")
-    ]
-
-    return {
-        "status": status,
-        "summary": summary,
-        "conflicts": conflicts,
-        "blocking_count": len(blocking),
-        "non_blocking_count": len(non_blocking),
-        "can_import": not blocking,
-        "created": preview_result.created,
-        "updated": preview_result.updated,
-        "unchanged": preview_result.unchanged,
-        "work_entries_created": (preview_result.work_entries_created),
-        "work_entries": work_entries,
-    }
 
 
-@app.get("/projects/{project_id}/c5-import")
-def c5_import_form(request: Request, project_id: str):
-    project = repo.load_project(project_id)
-
-    return templates.TemplateResponse(
-        request,
-        "c5_import.html",
-        {
-            "project": project,
-            "csv_text": "",
-            "updates": [],
-        },
-    )
 
 
-@app.post("/projects/{project_id}/c5-import/preview")
-async def c5_import_preview(
-    request: Request,
-    project_id: str,
-):
-    project = repo.load_project(project_id)
-    form = await request.form()
-
-    validate_csrf_token(
-        request,
-        str(form.get("csrf_token", "")),
-    )
-
-    csv_text = str(form.get("csv_text", ""))
-
-    selected_import_type = str(form.get("import_type", "")).strip()
-
-    if selected_import_type:
-        import_type = selected_import_type
-    else:
-        # Bagudkompatibilitet med den eksisterende formular,
-        # indtil den nye importside er på plads.
-        import_type = detect_c5_csv_type(csv_text)
-
-    try:
-        import_data = parse_c5_import(
-            csv_text=csv_text,
-            project_id=project_id,
-            expected_import_type=import_type,
-        )
-    except ValueError as exc:
-        return templates.TemplateResponse(
-            request,
-            "c5_import.html",
-            {
-                "project": project,
-                "csv_text": csv_text,
-                "import_type": import_type,
-                "updates": [],
-                "import_error": str(exc),
-            },
-            status_code=400,
-        )
-
-    if isinstance(
-        import_data,
-        DeviationImport,
-    ):
-        updates = []
-
-        preview_result = deviation_import_service.preview(import_data)
-
-    else:
-        if import_type == "project_overview":
-            # Den eksisterende detaljerede preview-visning
-            # gælder kun produktionsoversigten.
-            updates = parse_c5_csv(csv_text)
-
-            updates = [
-                update
-                for update in updates
-                if (update.get("project_id") == project_id.upper())
-            ]
-        else:
-            # Opmålings- og brøndoversigter bruger den
-            # fælles tekniske import-preview.
-            updates = []
-
-        preview_result = technical_asset_import_service.preview(import_data)
-
-    roerbot_import_report = build_c5_import_report(preview_result)
-
-    return templates.TemplateResponse(
-        request,
-        "c5_import.html",
-        {
-            "project": project,
-            "csv_text": csv_text,
-            "import_type": import_type,
-            "updates": updates,
-            "preview_result": preview_result,
-            "roerbot_import_report": roerbot_import_report,
-        },
-    )
 
 
-@app.post("/projects/{project_id}/c5-import/apply")
-async def c5_import_apply(
-    request: Request,
-    project_id: str,
-):
-    form = await request.form()
-
-    validate_csrf_token(
-        request,
-        str(form.get("csrf_token", "")),
-    )
-
-    csv_text = str(form.get("csv_text", ""))
-
-    selected_import_type = str(form.get("import_type", "")).strip()
-
-    if selected_import_type:
-        import_type = selected_import_type
-    else:
-        # Bagudkompatibilitet med den eksisterende formular,
-        # indtil den nye importside er på plads.
-        import_type = detect_c5_csv_type(csv_text)
-
-    try:
-        import_data = parse_c5_import(
-            csv_text=csv_text,
-            project_id=project_id,
-            expected_import_type=import_type,
-        )
-    except ValueError as exc:
-        project = repo.load_project(project_id)
-
-        return templates.TemplateResponse(
-            request,
-            "c5_import.html",
-            {
-                "project": project,
-                "csv_text": csv_text,
-                "import_type": import_type,
-                "updates": [],
-                "import_error": str(exc),
-            },
-            status_code=400,
-        )
-    if isinstance(
-        import_data,
-        DeviationImport,
-    ):
-        deviation_import_service.import_deviations(import_data)
-
-    else:
-        technical_asset_import_service.import_assets(import_data)
-
-    return RedirectResponse(
-        url=f"/projects/{project_id}",
-        status_code=303,
-    )
 
 
 def roerbot_user_key(request: Request) -> str:

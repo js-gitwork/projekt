@@ -1,0 +1,123 @@
+{% extends "base.html" %}
+
+{% block title %}Kontorportal – Rørbot{% endblock %}
+
+{% block content %}
+
+<h2>Kontorportal</h2>
+
+<p>
+    Velkommen, {{ current_user.display_name }}.
+    Vælg den funktion, du vil arbejde med.
+</p>
+
+<div class="portal-grid">
+
+    <a href="/projects" class="portal-card">
+        <h3>Projekter</h3>
+        <p>
+            Projektoversigt, opmålinger,
+            fremdrift og projektstyring.
+        </p>
+    </a>
+
+    <a href="/planning" class="portal-card">
+        <h3>Produktionsplan</h3>
+        <p>
+            Planlægning, hold og
+            eksisterende planlægningsfunktioner.
+        </p>
+    </a>
+
+    <a
+        href="https://vpmanhole.duckdns.org/?view=office"
+        class="portal-card"
+        rel="noreferrer"
+    >
+        <h3>Brøndbilleder</h3>
+        <p>
+            Se brøndregistreringer,
+            kontrollér billeder og hent dokumentation.
+        </p>
+    </a>
+
+    {% if current_user.role == "admin" %}
+    <a href="/admin" class="portal-card">
+        <h3>Administration</h3>
+        <p>
+            Brugere, adgang og systemindstillinger.
+        </p>
+    </a>
+    {% endif %}
+
+    <div class="portal-card portal-coming">
+        <h3>Rådighedstilladelser</h3>
+        <p>
+            Ansøgninger, frister og
+            kontrol af tilladelser.
+        </p>
+        <small>Under udvikling</small>
+    </div>
+
+    <div class="portal-card portal-coming">
+        <h3>Ledelsesrapporter</h3>
+        <p>
+            Fortrolige registreringer,
+            produktion og ledelsesoverblik.
+        </p>
+        <small>Under udvikling</small>
+    </div>
+
+</div>
+
+<style>
+    .portal-grid {
+        display: grid;
+        grid-template-columns: repeat(
+            auto-fit,
+            minmax(240px, 1fr)
+        );
+        gap: 20px;
+        margin-top: 24px;
+    }
+
+    .portal-card {
+        display: block;
+        padding: 24px;
+        background: #fff;
+        border: 1px solid #dce2e8;
+        border-radius: 10px;
+        color: #263238;
+        text-decoration: none;
+        box-shadow: 0 2px 6px rgba(0, 0, 0, 0.05);
+        transition: box-shadow 0.15s, transform 0.15s;
+    }
+
+    a.portal-card:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 5px 14px rgba(0, 0, 0, 0.10);
+    }
+
+    .portal-card h3 {
+        margin-top: 0;
+        margin-bottom: 12px;
+    }
+
+    .portal-card p {
+        margin: 0;
+        line-height: 1.5;
+    }
+
+    .portal-coming {
+        background: #f3f5f6;
+        opacity: 0.75;
+    }
+
+    .portal-coming small {
+        display: inline-block;
+        margin-top: 16px;
+        font-weight: bold;
+    }
+</style>
+
+{% endblock %}

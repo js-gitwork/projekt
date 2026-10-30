@@ -26,9 +26,6 @@
             Vis plan
         </a>
 
-        <a href="/projects/{{ project.id }}/c5-import" class="btn">
-            Importer C5-data
-        </a>
 
         {% if project.status == "survey" %}
         <form method="post" action="/projects/{{ project.id }}/complete-survey" class="installation-add-form">

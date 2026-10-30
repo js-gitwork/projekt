@@ -1,6 +1,6 @@
 from datetime import date, datetime, timezone
 
-from sqlalchemy import Date, DateTime, ForeignKey, Integer, String, Text
+from sqlalchemy import Boolean, Date, DateTime, ForeignKey, Integer, String, Text
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from projektstyring.backend.database.connection import Base
@@ -80,12 +80,19 @@ class Project(Base):
         index=True,
     )
 
+    is_closed: Mapped[bool] = mapped_column(
+        Boolean,
+        nullable=False,
+        default=False,
+        index=True,
+    )
+
     notes: Mapped[str] = mapped_column(
         Text,
         nullable=False,
         default="",
     )
-
+    
     archived_at: Mapped[datetime | None] = mapped_column(
         DateTime(timezone=True),
         nullable=True,

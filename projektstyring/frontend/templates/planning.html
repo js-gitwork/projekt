@@ -1,53 +1,284 @@
 
 {% extends "base.html" %}
 
-{% block title %}Planlægningscenter{% endblock %}
+{% block title %}Produktionsplan{% endblock %}
 
 {% block content %}
+
+<style>
+/* Produktionsplan – kun denne sides øverste betjeningslinje */
+
+.planning-page > .planning-toolbar {
+    display: grid;
+    grid-template-columns: minmax(180px, 0.7fr) minmax(270px, 1fr) auto;
+    align-items: center;
+    gap: 18px;
+    width: 100%;
+    margin-bottom: 12px;
+}
+
+.planning-toolbar .planning-heading {
+    min-width: 0;
+}
+
+.planning-toolbar .planning-heading h2 {
+    margin: 0 0 2px;
+}
+
+.planning-toolbar .planning-source {
+    margin: 0;
+}
+
+/* Zoom – midterste område */
+
+.planning-toolbar .planning-zoom-toolbar {
+    display: flex;
+    align-items: center;
+    justify-content: flex-start;
+    flex-wrap: nowrap;
+    gap: 7px;
+    margin: 0;
+    padding: 0;
+    min-width: 0;
+}
+
+.planning-toolbar .planning-zoom-label {
+    white-space: nowrap;
+    font-size: 0.9rem;
+    font-weight: 600;
+}
+
+.planning-toolbar .planning-zoom-toolbar input[type="range"] {
+    width: 110px;
+    min-width: 45px;
+    flex: 1 1 110px;
+}
+
+/* Ugevalg – højre område */
+
+.planning-toolbar .planning-period-form {
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    justify-content: flex-end;
+    flex-wrap: nowrap;
+    gap: 7px;
+    margin: 0;
+    min-width: 0;
+}
+
+.planning-toolbar .planning-period-form label {
+    display: block;
+    margin: 0;
+}
+
+.planning-toolbar .planning-period-form input[type="number"] {
+    box-sizing: border-box;
+    height: 36px;
+    width: 65px;
+    padding: 4px 5px;
+    border: 1px solid #aab8c5;
+    border-radius: 6px;
+    font-size: 0.9rem;
+}
+
+.planning-toolbar #planningYear {
+    width: 76px;
+}
+
+/* Ens højde og typografi på knapper */
+
+.planning-toolbar .planning-week-arrow,
+.planning-toolbar .planning-current-week,
+.planning-toolbar .planning-zoom-button,
+.planning-toolbar .planning-zoom-reset {
+    box-sizing: border-box;
+    height: 36px;
+    flex-shrink: 0;
+    margin: 0;
+    padding: 5px 9px;
+    border-radius: 6px;
+    font-size: 0.9rem;
+    line-height: 1.2;
+    white-space: nowrap;
+}
+
+.planning-toolbar .planning-zoom-reset {
+    min-width: 65px;
+}
+
+.planning-toolbar .planning-period-dates {
+    white-space: nowrap;
+    color: #526477;
+    font-size: 0.9rem;
+    margin-left: 3px;
+}
+
+/* Skjulte etiketter til skærmlæsere */
+
+.planning-visually-hidden {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+}
+
+/* Mindre skærme */
+
+@media (max-width: 1280px) {
+    .planning-page > .planning-toolbar {
+        grid-template-columns: 1fr 1fr;
+    }
+
+    .planning-toolbar .planning-period-form {
+        grid-column: 1 / -1;
+        justify-content: flex-start;
+        flex-wrap: wrap;
+    }
+}
+
+@media (max-width: 760px) {
+    .planning-page > .planning-toolbar {
+        grid-template-columns: minmax(0, 1fr);
+    }
+
+    .planning-toolbar .planning-period-form {
+        grid-column: auto;
+    }
+
+    .planning-toolbar .planning-zoom-toolbar {
+        flex-wrap: wrap;
+    }
+}
+</style>
+
 <div class="planning-page">
 
+    <!-- Øverste betjeningslinje -->
+
     <div class="planning-toolbar">
-        <div>
-            <h2>Planlægningscenter</h2>
+
+        <!-- Venstre: overskrift -->
+
+        <div class="planning-heading">
+            <h2>Produktionsplan</h2>
 
             <p class="planning-source">
                 {% if board.source.type == "scenario" %}
                     Scenarie:
                     {{ board.source.scenario_id }}
-                    · revision
-                    {{ board.source.revision_number }}
+                    · revision {{ board.source.revision_number }}
                 {% else %}
                     Gældende produktionsplan
                 {% endif %}
             </p>
         </div>
 
+        <!-- Midten: zoom -->
+
+        <div
+            class="planning-zoom-toolbar"
+            aria-label="Zoom i produktionsplan"
+        >
+            <span class="planning-zoom-label">Zoom</span>
+
+            <button
+                type="button"
+                id="planningZoomOut"
+                class="planning-zoom-button"
+                aria-label="Zoom ud"
+                title="Zoom ud"
+            >−</button>
+
+            <input
+                type="range"
+                id="planningZoomSlider"
+                min="25"
+                max="150"
+                step="5"
+                value="100"
+                aria-label="Zoomniveau"
+            >
+
+            <button
+                type="button"
+                id="planningZoomIn"
+                class="planning-zoom-button"
+                aria-label="Zoom ind"
+                title="Zoom ind"
+            >+</button>
+
+            <button
+                type="button"
+                id="planningZoomReset"
+                class="planning-zoom-reset"
+                title="Nulstil zoom til 100 %"
+            >100 %</button>
+        </div>
+
+        <!-- Højre: ugevælger -->
+
         <form
             method="get"
             action="/planning"
             class="planning-period-form"
+            id="planningPeriodForm"
         >
+            <button
+                type="button"
+                class="planning-week-arrow"
+                id="planningPreviousWeek"
+                title="Forrige uge"
+                aria-label="Forrige uge"
+            >&#10094;</button>
+
             <label>
-                År
+                <span class="planning-visually-hidden">Uge</span>
                 <input
                     type="number"
-                    name="year"
-                    value="{{ selected_year }}"
-                    min="2020"
-                    max="2100"
+                    name="week"
+                    id="planningWeek"
+                    value="{{ selected_week }}"
+                    min="1"
+                    max="53"
+                    required
+                    aria-label="Uge"
                 >
             </label>
 
             <label>
-                Uge
+                <span class="planning-visually-hidden">År</span>
                 <input
                     type="number"
-                    name="week"
-                    value="{{ selected_week }}"
-                    min="1"
-                    max="53"
+                    name="year"
+                    id="planningYear"
+                    value="{{ selected_year }}"
+                    min="2020"
+                    max="2100"
+                    required
+                    aria-label="År"
                 >
             </label>
+
+            <button
+                type="button"
+                class="planning-week-arrow"
+                id="planningNextWeek"
+                title="Næste uge"
+                aria-label="Næste uge"
+            >&#10095;</button>
+
+            <button
+                type="button"
+                class="planning-current-week"
+                id="planningCurrentWeek"
+            >Denne uge</button>
+
+            <span class="planning-period-dates">
+                {{ board.period.start_date[8:10] }}/{{ board.period.start_date[5:7] }}–{{ board.period.end_date[8:10] }}/{{ board.period.end_date[5:7] }}
+            </span>
 
             {% if scenario_id %}
                 <input
@@ -56,37 +287,15 @@
                     value="{{ scenario_id }}"
                 >
             {% endif %}
-
-            <button type="submit" class="btn">
-                Vis uge
-            </button>
         </form>
+
     </div>
 
-    <div class="planning-summary">
-        <span>
-            Uge {{ board.period.week }}
-        </span>
-
-        <span>
-            {{ board.period.start_date }}
-            –
-            {{ board.period.end_date }}
-        </span>
-
-        <span>
-            {{ board.activities | length }}
-            aktiviteter
-        </span>
-
-        <span>
-            {{ board.teams | length }}
-            hold
-        </span>
-    </div>
+    <!-- Eksisterende produktionsplan -->
 
     <div class="planning-board-scroll">
         <table class="planning-board">
+
             <thead>
                 <tr>
                     <th class="planning-day-column">
@@ -98,13 +307,8 @@
                             class="planning-team-header"
                             data-team-id="{{ team.id }}"
                         >
-                            <strong>
-                                {{ team.name }}
-                            </strong>
-
-                            <small>
-                                {{ team.id }}
-                            </small>
+                            <strong>{{ team.name }}</strong>
+                            <small>{{ team.id }}</small>
                         </th>
                     {% endfor %}
                 </tr>
@@ -112,13 +316,9 @@
 
             <tbody>
                 {% for day in board.days %}
+
                     <tr
-                        class="
-                            planning-day-row
-                            {% if day.is_weekend %}
-                                planning-weekend-row
-                            {% endif %}
-                        "
+                        class="planning-day-row {% if day.is_weekend %}planning-weekend-row{% endif %}"
                         data-date="{{ day.date }}"
                     >
                         <th class="planning-day-cell">
@@ -127,19 +327,21 @@
                         </th>
 
                         {% for team in board.teams %}
+
                             <td
                                 class="planning-cell"
                                 data-team-id="{{ team.id }}"
                                 data-date="{{ day.date }}"
                             >
+
                                 {% for activity in board.activities %}
+
                                     {% if
                                         activity.team_id == team.id
-                                        and
-                                        activity.start_date <= day.date
-                                        and
-                                        activity.end_date >= day.date
+                                        and activity.start_date <= day.date
+                                        and activity.end_date >= day.date
                                     %}
+
                                         <article
                                             class="
                                                 planning-activity
@@ -174,8 +376,7 @@
                                             {% endif %}
 
                                             <span>
-                                                Inst.
-                                                {{ activity.installation_id }}
+                                                Inst. {{ activity.installation_id }}
                                             </span>
 
                                             <span>
@@ -184,37 +385,44 @@
 
                                             {% if activity.locked %}
                                                 <small>
-                                                    Låst:
-                                                    {{ activity.lock_reason }}
+                                                    Låst: {{ activity.lock_reason }}
                                                 </small>
                                             {% endif %}
+
                                         </article>
+
                                     {% endif %}
+
                                 {% endfor %}
+
                             </td>
+
                         {% endfor %}
+
                     </tr>
+
                 {% endfor %}
             </tbody>
+
         </table>
     </div>
 
+    <!-- Eksisterende informationspaneler -->
+
     <div class="planning-lower-panels">
+
         <section class="planning-panel">
             <h3>Uplanlagt arbejde</h3>
 
             {% if board.unplanned_work %}
                 <ul>
                     {% for item in board.unplanned_work %}
-                        <li>
-                            {{ item }}
-                        </li>
+                        <li>{{ item }}</li>
                     {% endfor %}
                 </ul>
             {% else %}
                 <p>
-                    Der er ikke registreret uplanlagt arbejde
-                    i denne uge.
+                    Der er ikke registreret uplanlagt arbejde i denne uge.
                 </p>
             {% endif %}
         </section>
@@ -225,15 +433,11 @@
             {% if board.warnings %}
                 <ul>
                     {% for warning in board.warnings %}
-                        <li>
-                            {{ warning }}
-                        </li>
+                        <li>{{ warning }}</li>
                     {% endfor %}
                 </ul>
             {% else %}
-                <p>
-                    Der er ingen registrerede advarsler.
-                </p>
+                <p>Der er ingen registrerede advarsler.</p>
             {% endif %}
         </section>
 
@@ -243,18 +447,264 @@
             {% if board.conflicts %}
                 <ul>
                     {% for conflict in board.conflicts %}
-                        <li>
-                            {{ conflict }}
-                        </li>
+                        <li>{{ conflict }}</li>
                     {% endfor %}
                 </ul>
             {% else %}
-                <p>
-                    Der er ingen registrerede konflikter.
-                </p>
+                <p>Der er ingen registrerede konflikter.</p>
             {% endif %}
         </section>
+
     </div>
 
 </div>
+
+<!-- Ugenavigation -->
+
+<script>
+(() => {
+    const form = document.getElementById("planningPeriodForm");
+    const weekInput = document.getElementById("planningWeek");
+    const yearInput = document.getElementById("planningYear");
+
+    const previousButton = document.getElementById(
+        "planningPreviousWeek"
+    );
+    const nextButton = document.getElementById(
+        "planningNextWeek"
+    );
+    const currentButton = document.getElementById(
+        "planningCurrentWeek"
+    );
+
+    if (!form || !weekInput || !yearInput) {
+        return;
+    }
+
+    function getISOWeek(date) {
+        const workingDate = new Date(
+            Date.UTC(
+                date.getFullYear(),
+                date.getMonth(),
+                date.getDate()
+            )
+        );
+
+        const day = workingDate.getUTCDay() || 7;
+
+        workingDate.setUTCDate(
+            workingDate.getUTCDate() + 4 - day
+        );
+
+        const isoYear = workingDate.getUTCFullYear();
+        const yearStart = new Date(Date.UTC(isoYear, 0, 1));
+
+        const week = Math.ceil(
+            ((workingDate - yearStart) / 86400000 + 1) / 7
+        );
+
+        return {
+            year: isoYear,
+            week: week
+        };
+    }
+
+    function weeksInYear(year) {
+        const december28 = new Date(Date.UTC(year, 11, 28));
+        return getISOWeek(december28).week;
+    }
+
+    function submitPeriod() {
+        form.requestSubmit();
+    }
+
+    function changeWeek(direction) {
+        let year = Number(yearInput.value);
+        let week = Number(weekInput.value);
+
+        if (
+            !Number.isInteger(year) ||
+            !Number.isInteger(week)
+        ) {
+            return;
+        }
+
+        const maxWeeks = weeksInYear(year);
+
+        if (week < 1 || week > maxWeeks) {
+            weekInput.setCustomValidity(
+                "Den valgte uge findes ikke i dette år."
+            );
+            weekInput.reportValidity();
+            return;
+        }
+
+        week += direction;
+
+        if (week < 1) {
+            year -= 1;
+            week = weeksInYear(year);
+        } else if (week > maxWeeks) {
+            year += 1;
+            week = 1;
+        }
+
+        yearInput.value = year;
+        weekInput.value = week;
+
+        weekInput.setCustomValidity("");
+        submitPeriod();
+    }
+
+    previousButton.addEventListener("click", () => {
+        changeWeek(-1);
+    });
+
+    nextButton.addEventListener("click", () => {
+        changeWeek(1);
+    });
+
+    currentButton.addEventListener("click", () => {
+        const current = getISOWeek(new Date());
+
+        yearInput.value = current.year;
+        weekInput.value = current.week;
+
+        weekInput.setCustomValidity("");
+        submitPeriod();
+    });
+
+    form.addEventListener("submit", (event) => {
+        const year = Number(yearInput.value);
+        const week = Number(weekInput.value);
+
+        if (
+            !Number.isInteger(year) ||
+            !Number.isInteger(week) ||
+            year < 2020 ||
+            year > 2100 ||
+            week < 1 ||
+            week > weeksInYear(year)
+        ) {
+            event.preventDefault();
+
+            weekInput.setCustomValidity(
+                "Den valgte uge findes ikke i dette år."
+            );
+            weekInput.reportValidity();
+            return;
+        }
+
+        weekInput.setCustomValidity("");
+    });
+
+    weekInput.addEventListener("input", () => {
+        weekInput.setCustomValidity("");
+    });
+
+    yearInput.addEventListener("input", () => {
+        weekInput.setCustomValidity("");
+    });
+
+    [weekInput, yearInput].forEach((input) => {
+        input.addEventListener("keydown", (event) => {
+            if (event.key === "Enter") {
+                event.preventDefault();
+                submitPeriod();
+            }
+        });
+    });
+})();
+</script>
+
+<!-- Lokal zoom i produktionstabellen -->
+
+<script>
+(() => {
+    const board = document.querySelector(".planning-board");
+    const slider = document.getElementById("planningZoomSlider");
+    const zoomOut = document.getElementById("planningZoomOut");
+    const zoomIn = document.getElementById("planningZoomIn");
+    const zoomReset = document.getElementById("planningZoomReset");
+
+    if (
+        !board ||
+        !slider ||
+        !zoomOut ||
+        !zoomIn ||
+        !zoomReset
+    ) {
+        return;
+    }
+
+    const MIN_ZOOM = 25;
+    const MAX_ZOOM = 150;
+    const STEP = 5;
+    const STORAGE_KEY = "roerbot_planning_zoom";
+
+    function normalizeZoom(value) {
+        const number = Number(value);
+
+        if (!Number.isFinite(number)) {
+            return 100;
+        }
+
+        const rounded = Math.round(number / STEP) * STEP;
+
+        return Math.max(
+            MIN_ZOOM,
+            Math.min(MAX_ZOOM, rounded)
+        );
+    }
+
+    function setZoom(value) {
+        const zoom = normalizeZoom(value);
+
+        board.style.zoom = `${zoom}%`;
+        slider.value = String(zoom);
+        zoomReset.textContent = `${zoom} %`;
+
+        zoomOut.disabled = zoom <= MIN_ZOOM;
+        zoomIn.disabled = zoom >= MAX_ZOOM;
+
+        try {
+            localStorage.setItem(
+                STORAGE_KEY,
+                String(zoom)
+            );
+        } catch (error) {
+            // Zoom virker også uden lokal lagring.
+        }
+    }
+
+    let savedZoom = 100;
+
+    try {
+        savedZoom = normalizeZoom(
+            localStorage.getItem(STORAGE_KEY) ?? 100
+        );
+    } catch (error) {
+        savedZoom = 100;
+    }
+
+    slider.addEventListener("input", () => {
+        setZoom(slider.value);
+    });
+
+    zoomOut.addEventListener("click", () => {
+        setZoom(Number(slider.value) - STEP);
+    });
+
+    zoomIn.addEventListener("click", () => {
+        setZoom(Number(slider.value) + STEP);
+    });
+
+    zoomReset.addEventListener("click", () => {
+        setZoom(100);
+    });
+
+    setZoom(savedZoom);
+})();
+</script>
+
 {% endblock %}
