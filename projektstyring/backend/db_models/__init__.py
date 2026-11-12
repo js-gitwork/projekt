@@ -62,7 +62,16 @@ from projektstyring.backend.db_models.manhole_connection import (
     ManholeConnection,
 )
 
+from projektstyring.backend.db_models.knowledge import (
+    KnowledgeSource,
+    KnowledgeEntry,
+    KnowledgeEvidence,
+)
+
 __all__ = [
+    "KnowledgeSource",
+    "KnowledgeEntry",
+    "KnowledgeEvidence",
     "CalendarException",
     "ConversationState",
     "Decision",
