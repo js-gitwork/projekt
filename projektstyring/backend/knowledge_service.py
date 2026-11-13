@@ -349,6 +349,15 @@ class KnowledgeService:
         if unchanged:
             return entry
 
+        if entry.verification_status in {
+            "technically_verified",
+            "business_verified",
+        }:
+            raise ValueError(
+                "Verificeret viden må ikke ændres gennem "
+                "den almindelige læringsfunktion."
+            )
+
         previous = {
             "knowledge_type": entry.knowledge_type,
             "description": entry.description,
@@ -462,6 +471,15 @@ class KnowledgeService:
 
         if entry.verification_status == "deprecated":
             return entry
+
+        if entry.verification_status in {
+            "technically_verified",
+            "business_verified",
+        }:
+            raise ValueError(
+                "Verificeret viden må ikke forkastes gennem "
+                "den almindelige læringsfunktion."
+            )
 
         previous_status = entry.verification_status
         entry.verification_status = "deprecated"
