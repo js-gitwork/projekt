@@ -23,7 +23,10 @@ from __future__ import annotations
 from typing import Any
 
 from projektstyring.backend.database.connection import SessionLocal
-from projektstyring.backend.knowledge_service import KnowledgeService
+from projektstyring.backend.knowledge_service import (
+    KnowledgeService,
+    _is_documented_field_dictionary,
+)
 
 
 SOURCE_KEY = "c5"
@@ -303,6 +306,66 @@ def execute_knowledge_tool(
 
                 return result
 
+            def assess_knowledge(entry):
+                documented = _is_documented_field_dictionary(
+                    session, entry
+                )
+
+                if documented:
+                    definition = entry.definition
+                    return {
+                        "classification": "documented_field_metadata",
+                        "priority": 80,
+                        "documentation_source": definition.get(
+                            "documentation_source"
+                        ),
+                        "documentation_kind": "field_dictionary",
+                        "documentation_sha256": definition.get(
+                            "documentation_sha256"
+                        ),
+                        "documented_scope": [
+                            "field",
+                            "label",
+                            "data_type",
+                            "enum_text",
+                        ],
+                        "business_meaning_verified": (
+                            entry.verification_status
+                            == "business_verified"
+                        ),
+                        "note": (
+                            "Dokumenteret feltmetadata har forrang "
+                            "over AI-hypoteser om samme metadata. "
+                            "Dokumentationen beviser ikke yderligere "
+                            "forretningsregler."
+                        ),
+                    }
+
+                if entry.verification_status == "business_verified":
+                    return {
+                        "classification": "business_verified",
+                        "priority": 100,
+                    }
+
+                if entry.verification_status == "technically_verified":
+                    return {
+                        "classification": "technically_verified",
+                        "priority": 90,
+                        "note": (
+                            "Teknisk verificering dokumenterer ikke "
+                            "automatisk forretningsmæssig betydning."
+                        ),
+                    }
+
+                return {
+                    "classification": "unverified_hypothesis",
+                    "priority": 10,
+                    "note": (
+                        "Må ikke tilsidesætte dokumenterede oplysninger. "
+                        "Kræver selvstændig kontrol."
+                    ),
+                }
+
             entries = service.recall(
                 source_key=SOURCE_KEY,
                 knowledge_type=args.get("knowledge_type"),
@@ -320,6 +383,7 @@ def execute_knowledge_tool(
                         "description": entry.description,
                         "definition": entry.definition,
                         "verification_status": entry.verification_status,
+                        "source_assessment": assess_knowledge(entry),
                         "technical_evidence": technical_evidence(entry),
                         "claim_class": (
                             "unverified_field_interpretation"
@@ -337,9 +401,13 @@ def execute_knowledge_tool(
                 ],
                 "returned_count": len(entries),
                 "note": (
-                    "Discovered er en hypotese. "
-                    "Brug C5-læseværktøjer til at kontrollere "
-                    "viden, før du drager konklusioner."
+                    "Prioritér dokumenterede feltoplysninger over "
+                    "uoverensstemmende AI-hypoteser om samme metadata. "
+                    "Brug source_assessment til at vurdere kilden. "
+                    "Discovered er ikke i sig selv verificeret viden. "
+                    "Dokumenteret feltmetadata beviser ikke "
+                    "forretningsmæssige regler. "
+                    "Teknisk evidens skal vurderes efter sit omfang."
                 ),
             }
 
