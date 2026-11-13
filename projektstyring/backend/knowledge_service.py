@@ -58,10 +58,12 @@ from __future__ import annotations
 import json
 from typing import Any
 
+from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from projektstyring.backend.db_models.knowledge import (
     KnowledgeEntry,
+    KnowledgeEvidence,
     KnowledgeSource,
 )
 from projektstyring.backend.repositories.knowledge_repository import (
@@ -182,6 +184,53 @@ def _validate_definition(
         )
 
     return json.loads(serialized)
+
+
+TRUSTED_FIELD_DICTIONARY_ACTOR = "tom_field_dictionary_import"
+
+
+def _is_documented_field_dictionary(session, entry):
+    """Genkend aktuelt dokumenteret feltmetadata via revisionshistorik."""
+
+    if entry.knowledge_type != "field_meaning":
+        return False
+
+    definition = entry.definition
+    if not isinstance(definition, dict):
+        return False
+
+    if definition.get("documentation_kind") != "field_dictionary":
+        return False
+
+    fingerprint = definition.get("documentation_sha256")
+    if (
+        not isinstance(fingerprint, str)
+        or len(fingerprint) != 64
+        or any(c not in "0123456789abcdefABCDEF" for c in fingerprint)
+    ):
+        return False
+
+    if not isinstance(definition.get("documentation_source"), str):
+        return False
+
+    if not definition["documentation_source"].strip():
+        return False
+
+    latest_revision = session.scalar(
+        select(KnowledgeEvidence)
+        .where(
+            KnowledgeEvidence.entry_id == entry.id,
+            KnowledgeEvidence.verification_type == "knowledge_revision",
+        )
+        .order_by(KnowledgeEvidence.id.desc())
+        .limit(1)
+    )
+
+    return (
+        latest_revision is not None
+        and latest_revision.verified_by == TRUSTED_FIELD_DICTIONARY_ACTOR
+        and latest_revision.outcome in {"created", "revised"}
+    )
 
 
 class KnowledgeService:
@@ -358,6 +407,15 @@ class KnowledgeService:
                 "den almindelige læringsfunktion."
             )
 
+        if (
+            actor != TRUSTED_FIELD_DICTIONARY_ACTOR
+            and _is_documented_field_dictionary(self.session, entry)
+        ):
+            raise ValueError(
+                "Dokumenteret feltmetadata må ikke overskrives "
+                "af en almindelig læringsrevision."
+            )
+
         previous = {
             "knowledge_type": entry.knowledge_type,
             "description": entry.description,
@@ -479,6 +537,12 @@ class KnowledgeService:
             raise ValueError(
                 "Verificeret viden må ikke forkastes gennem "
                 "den almindelige læringsfunktion."
+            )
+
+        if _is_documented_field_dictionary(self.session, entry):
+            raise ValueError(
+                "Dokumenteret feltmetadata må ikke forkastes "
+                "gennem den almindelige læringsfunktion."
             )
 
         previous_status = entry.verification_status
