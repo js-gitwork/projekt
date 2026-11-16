@@ -1154,48 +1154,61 @@
       }
 
       async function refreshProjectStatuses() {
-        const buttons = Array.from(projectButtons);
+        // Projektstatus er allerede beregnet på serveren.
+        // Opdater kun projektet, medarbejderen har arbejdet på.
+        const projectId = selectedProjectId;
 
-        await Promise.all(
-          buttons.map(async (button) => {
-            const projectId = button.dataset.projectId;
+        if (!projectId) {
+          renderProjectVisibility();
+          return;
+        }
 
-            try {
-              const response = await fetch(
-                `/projects/${encodeURIComponent(projectId)}/installations`,
-                { cache: "no-store" },
-              );
-
-              if (!response.ok) {
-                throw new Error(`HTTP ${response.status}`);
-              }
-
-              const data = await response.json();
-              const installations = data.installations || [];
-
-              const total = installations.reduce(
-                (sum, installation) =>
-                  sum + (installation.photo_status?.total || 0),
-                0,
-              );
-
-              const missing = installations.reduce(
-                (sum, installation) =>
-                  sum + (installation.photo_status?.missing || 0),
-                0,
-              );
-
-              button.dataset.photoStatus =
-                total === 0
-                  ? "unknown"
-                  : missing === 0
-                    ? "complete"
-                    : "incomplete";
-            } catch (error) {
-              console.error(`Kunne ikke opdatere projekt ${projectId}:`, error);
-            }
-          }),
+        const button = Array.from(projectButtons).find(
+          (item) => item.dataset.projectId === projectId,
         );
+
+        if (!button) {
+          renderProjectVisibility();
+          return;
+        }
+
+        try {
+          const response = await fetch(
+            `/projects/${encodeURIComponent(projectId)}/installations`,
+            { cache: "no-store" },
+          );
+
+          if (!response.ok) {
+            throw new Error(`HTTP ${response.status}`);
+          }
+
+          const data = await response.json();
+          const installations = data.installations || [];
+
+          const total = installations.reduce(
+            (sum, installation) =>
+              sum + (installation.photo_status?.total || 0),
+            0,
+          );
+
+          const missing = installations.reduce(
+            (sum, installation) =>
+              sum + (installation.photo_status?.missing || 0),
+            0,
+          );
+
+          button.dataset.photoStatus =
+            total === 0
+              ? "unknown"
+              : missing === 0
+                ? "complete"
+                : "incomplete";
+        } catch (error) {
+          console.error(
+            `Kunne ikke opdatere projekt ${projectId}:`,
+            error,
+          );
+        }
 
         renderProjectVisibility();
       }
