@@ -29,7 +29,10 @@ def flag(value: object) -> bool:
 
 def installation_key(value: object) -> str:
     raw = str(value or "").strip().replace(",", ".")
-    if not raw:
+    if not raw or any(
+        ord(character) < 32 or ord(character) == 127
+        for character in raw
+    ):
         return ""
     try:
         number = Decimal(raw)
@@ -78,7 +81,16 @@ def collect_requirements(rows):
                 payload.get(f"BRXND{side}") or ""
             ).strip()
 
-            if not manhole_no:
+            if not manhole_no or any(
+                ord(character) < 32 or ord(character) == 127
+                for character in manhole_no
+            ):
+                continue
+
+            position = installation_key(
+                payload.get("POSITIONTXT")
+            )
+            if not position:
                 continue
 
             key = (project_id, manhole_no)
@@ -89,7 +101,9 @@ def collect_requirements(rows):
                     "manhole_no": manhole_no,
                     "total": False,
                     "ds437": False,
-                    "positions": set(),
+                    "top_positions": set(),
+                    "bottom_positions": set(),
+                    "marked_positions": set(),
                     "needs_photos": False,
                     "has_c5_completion": False,
                 },
@@ -97,16 +111,39 @@ def collect_requirements(rows):
 
             item["total"] |= total
             item["ds437"] |= ds437
+            item["marked_positions"].add(position)
 
-            position = installation_key(
-                payload.get("POSITIONTXT")
-            )
-
-            if position:
-                item["positions"].add(position)
+            if side == 2:
+                item["top_positions"].add(position)
+            else:
+                item["bottom_positions"].add(position)
 
             if completed_in_c5(payload, side):
                 item["has_c5_completion"] = True
+
+    # Find installationer fra alle C5-stræk, uanset
+    # om renovering er markeret på det enkelte stræk.
+    for project_id, payload in rows:
+        if not isinstance(payload, dict):
+            continue
+
+        position = installation_key(payload.get("POSITIONTXT"))
+        if not position:
+            continue
+
+        for side in (1, 2):
+            manhole_no = str(
+                payload.get(f"BRXND{side}") or ""
+            ).strip()
+
+            item = result.get((project_id, manhole_no))
+            if item is None:
+                continue
+
+            if side == 2:
+                item["top_positions"].add(position)
+            else:
+                item["bottom_positions"].add(position)
 
     for item in result.values():
         item["needs_photos"] = not item["has_c5_completion"]
@@ -159,24 +196,40 @@ def run(*, apply: bool, project_ids: list[str]) -> int:
 
             requirements = collect_requirements(rows)
 
-            installation_rows = session.scalars(
+            # Lokale installationsreferencer bruges af VPManholes
+            # billed-API og til navngivning af billedmapper.
+            # Tekniske installationsdata forbliver i C5.
+            installation_refs = defaultdict(dict)
+            next_sequences = defaultdict(int)
+
+            existing_installations = session.scalars(
                 select(Installation).where(
-                    Installation.project_id.in_(
-                        list(projects)
-                    )
+                    Installation.project_id.in_(list(projects))
                 )
             ).all()
 
-            installations = defaultdict(dict)
-
-            for installation in installation_rows:
-                key = installation_key(
+            for installation in existing_installations:
+                reference = installation_key(
                     installation.installation_no
                 )
-                if key:
-                    installations[
-                        installation.project_id
-                    ][key] = installation
+                if not reference:
+                    continue
+
+                project_refs = installation_refs[
+                    installation.project_id
+                ]
+
+                if reference in project_refs:
+                    raise RuntimeError(
+                        "Dubleret installationsreference: "
+                        f"{installation.project_id} / {reference}"
+                    )
+
+                project_refs[reference] = installation
+                next_sequences[installation.project_id] = max(
+                    next_sequences[installation.project_id],
+                    installation.sequence,
+                )
 
             manholes = {
                 (m.project_id, m.manhole_no): m
@@ -252,12 +305,51 @@ def run(*, apply: bool, project_ids: list[str]) -> int:
                     counts["historically_completed"] += 1
                     continue
 
-                available = installations.get(
-                    project_id, {}
-                )
-                matches = sorted(
-                    item["positions"] & set(available)
-                )
+                # Den markerede C5-installation har første prioritet.
+                marked = item["marked_positions"]
+
+                if len(marked) == 1:
+                    chosen = next(iter(marked))
+                else:
+                    # Flere markeringer: vælg en entydig
+                    # topbrøndsinstallation blandt de markerede.
+                    top_matches = marked & item["top_positions"]
+
+                    if len(top_matches) == 1:
+                        chosen = next(iter(top_matches))
+                    else:
+                        # Udelad kun den tvetydige brønd.
+                        continue
+
+                installation_no = chosen
+
+                # Opret kun en minimal lokal reference, når
+                # C5 har en gyldig, entydig renoveringsopgave.
+                project_refs = installation_refs[project_id]
+
+                if installation_no not in project_refs:
+                    next_sequences[project_id] += 1
+
+                    actions.append(
+                        "OPRET INSTALLATIONSREFERENCE: "
+                        f"{project_id} / {installation_no}"
+                    )
+
+                    if apply:
+                        reference = Installation(
+                            project_id=project_id,
+                            installation_no=installation_no,
+                            sequence=next_sequences[project_id],
+                            active=True,
+                        )
+                        session.add(reference)
+                        session.flush()
+                        project_refs[installation_no] = reference
+                        counts["new_installation_refs"] += 1
+                    else:
+                        # Markér som behandlet uden DB-skrivning.
+                        project_refs[installation_no] = None
+                        counts["planned_installation_refs"] += 1
 
                 previous_metadata = (
                     previous.metadata_data or {}
@@ -266,30 +358,6 @@ def run(*, apply: bool, project_ids: list[str]) -> int:
                 )
                 previous_position = installation_key(
                     previous_metadata.get("installation_no")
-                )
-
-                # Bevar den hidtidige installationskobling,
-                # hvis den stadig findes i C5.
-                if previous_position in matches:
-                    chosen = previous_position
-                elif len(matches) == 1:
-                    chosen = matches[0]
-                elif len(matches) > 1:
-                    problems.append(
-                        f"{project_id} / {manhole_no}: "
-                        f"flere installationer {matches}"
-                    )
-                    continue
-                else:
-                    problems.append(
-                        f"{project_id} / {manhole_no}: "
-                        "ingen matchende installation "
-                        f"for {sorted(item['positions'])}"
-                    )
-                    continue
-
-                installation_no = (
-                    available[chosen].installation_no
                 )
 
                 # VPManholes eksisterende service forventer
